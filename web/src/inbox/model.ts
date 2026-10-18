@@ -16,6 +16,7 @@ export type InboxSearch = {
   verdict?: VerdictOutcome;
   status?: TriageStatus;
   agent?: string;
+  spec?: string;
   amount?: "over-1000";
   assignee?: "me";
   jev?: "unknown";
@@ -49,6 +50,7 @@ export type InboxQuery = {
   verdict?: VerdictOutcome;
   status?: TriageStatus;
   agent?: string;
+  spec?: string;
   amount?: "over-1000";
   assignee?: "me";
   jev?: "unknown";
@@ -118,6 +120,7 @@ export function parseInboxSearch(search: Record<string, unknown>): InboxSearch {
         : undefined,
     status: isTriageStatus(search.status) ? search.status : undefined,
     agent: textParam(search.agent),
+    spec: textParam(search.spec),
     amount: search.amount === "over-1000" ? "over-1000" : undefined,
     assignee: search.assignee === "me" ? "me" : undefined,
     jev: search.jev === "unknown" ? "unknown" : undefined,
@@ -157,6 +160,7 @@ export function queryFromSearch(search: InboxSearch): InboxQuery {
     verdict: search.verdict,
     status: search.status,
     agent: search.agent,
+    spec: search.spec,
     amount: search.amount,
     assignee: search.assignee,
     jev: search.jev,
@@ -172,6 +176,7 @@ export function hasInboxFilters(search: InboxSearch): boolean {
     search.verdict ||
       search.status ||
       search.agent ||
+      search.spec ||
       search.amount ||
       search.assignee ||
       search.jev ||
@@ -213,6 +218,7 @@ export function matchesQuery(item: InboxItem, query: InboxQuery): boolean {
   if (query.verdict && item.verdict.outcome !== query.verdict) return false;
   if (query.status && item.status !== query.status) return false;
   if (query.agent && item.agent !== query.agent) return false;
+  if (query.spec && item.verdict.specId !== query.spec) return false;
   if (query.amount === "over-1000") {
     const cents = item.verdict.amountCents;
     if (cents == null || cents < OVER_1000_CENTS) return false;
@@ -442,6 +448,13 @@ export function filterChips(search: InboxSearch): FilterChip[] {
       id: "agent",
       label: `Agent · ${search.agent}`,
       clear: { agent: undefined, saved: undefined },
+    });
+  }
+  if (search.spec) {
+    chips.push({
+      id: "spec",
+      label: `Spec · ${search.spec}`,
+      clear: { spec: undefined, saved: undefined },
     });
   }
   if (search.amount === "over-1000") {

@@ -83,7 +83,7 @@ ORDER BY bucket, source, kind;
   - Spec patterns: precedence, response, absence-after, scoped per bill
   - Verdicts: `Satisfy`, `Violate`, `Inconclusive`
 - **Semantic judgments** (`ledger-jev`, `ledger-spec`)
-  - Jev (TypeSafe System One): vendor and bill identity, memo predicates, spec-versus-sentence checks, monitor retirement
+  - Jev (TypeSafe System One): vendor and bill identity, memo predicates, spec-versus-sentence checks, monitor retirement, and Quick actions that route a phrase onto Inbox filters, a screen, a verdict already on the stream, or a fault confirmation
   - Gemini: drafts specs from plain-English policies
 - **Storage** (`ledger-store`)
   - TimescaleDB (Postgres 16): events hypertable, `time_bucket` queries
@@ -91,6 +91,7 @@ ORDER BY bucket, source, kind;
 - **API** (`ledger-api`)
   - HTTP and Server-Sent Events at `GET /v1/verdicts/stream`
   - Live traces at `GET /api/traces` and `GET /api/traces/stream`
+  - Quick actions at `POST /api/quick-actions`
 - **Web UI** (`web/`)
   - React, Vite, TypeScript, bun
   - TanStack Router, Query and Table

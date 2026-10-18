@@ -1,4 +1,5 @@
-//! Jev (TypeSafe System One) client: binding judgments and the memo predicate.
+//! Jev (TypeSafe System One) client: binding judgments, the memo predicate,
+//! and Quick actions routing.
 //!
 //! Deterministic guards on amount, bill id, vendor id, and currency run first
 //! and skip Jev when they decide. Otherwise the model returns a typed Choice.
@@ -17,6 +18,7 @@ mod guard;
 mod matchers;
 mod memo;
 mod obligation;
+mod quick;
 mod request;
 mod resolve;
 
@@ -29,6 +31,10 @@ pub use memo::{
     INSTRUCTION_MEMO, MEMO_INSTRUCTS_QUESTION,
 };
 pub use obligation::ObligationRef;
+pub use quick::{
+    map_quick_exchange, quick_examples, quick_request, route_phrase, Candidates, QuickAction,
+    QuickError, QuickExample, QuickReply, QuickStatus,
+};
 pub use request::binding_request;
 pub use resolve::{resolve, BindingEffect, CallFault, Resolution};
 
