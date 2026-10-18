@@ -1,0 +1,159 @@
+crates/ledger-api/src/http.rs
+  s_71df5dfa9701ea::t_2597eccecbd02d 14
+  s_71df5dfa9701ea::t_cfa2ae89c99dc8 22
+  s_71df5dfa9701ea::t_39981ab190394d 67
+  s_71df5dfa9701ea::t_a25d15678a9735 3,15,64,72-76,91-93,160-165,168-171,176-180
+web/src/stream/types.ts
+  s_71df5dfa9701ea::t_7fb740437c699d 86,88,91
+  s_0c8515992f8884::t_5085cdbbefda47 59-71,92
+crates/ledger-api/src/engine.rs
+  s_71df5dfa9701ea::t_565b465cdb7f30 100,103,106-108
+  s_71df5dfa9701ea::t_cff532a4292289 361-365
+  s_71df5dfa9701ea::t_5fcb81306a19b8 535
+  s_71df5dfa9701ea::t_c86a9945a7d7cf 743
+  s_71df5dfa9701ea::t_0b6414cc0f6e36 772
+  s_71df5dfa9701ea::t_da67543c73fc9d 192,194-195
+  s_71df5dfa9701ea::t_58dcc0492163a3 480-481
+  s_71df5dfa9701ea::t_eefe8496257905 597
+  s_71df5dfa9701ea::t_3143ce2fb6d4f2 585
+  s_71df5dfa9701ea::t_83b4215baee203 13
+  s_71df5dfa9701ea::t_d59b7865f24237 53-71,179,203,218-245,380,388-403,407,426,447,476,528
+crates/ledger-core/src/live.rs
+  s_71df5dfa9701ea::t_bdd74157675da0 365
+  s_71df5dfa9701ea::t_81f7c9ad76b095 16,18-19,63,159,168,336-364,366-387,395,402,488,597-611
+crates/ledger-jev/src/memo.rs
+  s_71df5dfa9701ea::t_14e0ca1d0a85d2 152-161
+  s_14c6ef7bf2e2fe::t_ef076924689b5a 23-32,79,81-82,144-151
+web/src/verdicts/model.ts
+  s_71df5dfa9701ea::t_39722f630addfc 38,43
+  s_71df5dfa9701ea::t_f3afd760acee06 53
+crates/ledger-api/src/rank.rs
+  s_71df5dfa9701ea::t_da50b1c2fe5484 198-199
+  s_0c8515992f8884::t_809d4239da45ec 1-197,200-220
+web/src/verdicts/verdicts.tsx
+  s_71df5dfa9701ea::t_ba61c3f52e7b14 284-285
+  s_71df5dfa9701ea::t_b7da4889eed2fb 366
+  s_71df5dfa9701ea::t_72bdd3b27e1ee2 25
+  s_71df5dfa9701ea::t_54f022e57d3745 27
+  s_71df5dfa9701ea::t_be41d88de01015 10,232-239,456-476
+web/src/stream/reduce.ts
+  s_71df5dfa9701ea::t_27a4af91663907 11
+  s_0c8515992f8884::t_33d5a92915e3ad 100,104-131
+web/src/verdicts/model.test.ts
+  s_71df5dfa9701ea::t_abba6832744689 96
+  s_71df5dfa9701ea::t_65d401d9eee19d 129
+  s_71df5dfa9701ea::t_e4671019f33275 140-141
+  s_71df5dfa9701ea::t_e9bfe36e6fffd5 4
+crates/ledger-agents/src/desk.rs
+  s_71df5dfa9701ea::t_4ff50967ce5adc 15-18,65-67,170-171,218-250,610-613,628-629,632-637,873-962,971-994,1252-1253,1256-1262
+crates/ledger-agents/src/predicate.rs
+  s_71df5dfa9701ea::t_8087e92a750b6e 7,9,14-22,36
+crates/ledger-agents/src/tools.rs
+  s_71df5dfa9701ea::t_a824dd9c9aa14c 15,142-145
+crates/ledger-api/src/decode.rs
+  s_71df5dfa9701ea::t_0d585560dc5dc9 51-53,126-145
+crates/ledger-api/src/lib.rs
+  s_0c8515992f8884::t_66ca59967660ab 34,40
+crates/ledger-api/src/main.rs
+  s_0c8515992f8884::t_545f7ffc3f46a1 5-8,31-35,43-58
+crates/ledger-core/src/adapt.rs
+  s_71df5dfa9701ea::t_a9d5a3deeefc1d 248-253
+crates/ledger-core/src/event.rs
+  s_71df5dfa9701ea::t_da3da3a174facb 3-4,120-123,155,157-158,174-175,191,208-209,224-225,239-240,260-261,284-285,409,413-435
+crates/ledger-core/src/lib.rs
+  s_71df5dfa9701ea::t_894d103618dfcd 30-32,34
+crates/ledger-core/src/source.rs
+  s_71df5dfa9701ea::t_7ae52eb6abb9b7 37-53
+crates/ledger-core/src/specs.rs
+  s_71df5dfa9701ea::t_058d28db7bff05 1,28,37-38,149-214
+crates/ledger-ingest/src/normalize.rs
+  s_71df5dfa9701ea::t_f94429343cd68a 235-236
+crates/ledger-jev/src/client.rs
+  s_71df5dfa9701ea::t_c097e08b0a5fb5 12
+crates/ledger-jev/src/lib.rs
+  s_71df5dfa9701ea::t_d37f5d1dd27565 1-3,27-28,47-56
+crates/ledger-jev/src/panel.rs
+  s_71df5dfa9701ea::t_689d3576324d03 1-625
+crates/ledger-jev/src/rank.rs
+  s_71df5dfa9701ea::t_48f6849a32dd24 1-728
+crates/ledger-spec/src/draft.rs
+  s_71df5dfa9701ea::t_0cfd8035126136 122-123
+crates/ledger-store/migrations/0004_verdict_rank.sql
+  s_71df5dfa9701ea::t_52fb54ab6a838d 1-16
+crates/ledger-store/src/lib.rs
+  s_71df5dfa9701ea::t_6587533fd402fb 759-805,914-926,1368-1415
+fixtures/jev/panel-benign-request.json
+  s_71df5dfa9701ea::t_5d2ceac11e64db 1
+fixtures/jev/panel-benign.json
+  s_71df5dfa9701ea::t_c4be1f42b6aad6 1
+fixtures/jev/panel-instructs-request.json
+  s_71df5dfa9701ea::t_92efdf27f01572 1
+fixtures/jev/panel-instructs.json
+  s_71df5dfa9701ea::t_ba36eaddcf3121 1
+fixtures/jev/panel-rationale-request.json
+  s_71df5dfa9701ea::t_d645053d70eb3e 1
+fixtures/jev/panel-rationale.json
+  s_71df5dfa9701ea::t_413c965b0a5e95 1
+fixtures/jev/rank-mapped.json
+  s_71df5dfa9701ea::t_00e9d4e3cbe5bb 1
+fixtures/jev/rank-request.json
+  s_71df5dfa9701ea::t_cdf143ce695663 1
+fixtures/jev/rank-response.json
+  s_71df5dfa9701ea::t_440f8247fe8152 1
+web/src/inbox/inbox.tsx
+  s_71df5dfa9701ea::t_b76ec04d591ac3 30-33,38,78-80,82-83,95,140,142-143,147-156,309-311,317-318,454-456,462-463,469-471,477-478,517,520-539,905,921-986
+web/src/inbox/model.test.ts
+  s_71df5dfa9701ea::t_f16c53bacb0d7a 161-206
+web/src/inbox/model.ts
+  s_71df5dfa9701ea::t_137124e6aa35d1 2,10-43,115-185,335-340,342-343,367-389,451,456
+web/src/router.tsx
+  s_71df5dfa9701ea::t_8f58904553df72 8,51-56,81-88
+web/src/shell/icons.tsx
+  s_71df5dfa9701ea::t_b71e1281aff7c9 147-155
+web/src/shell/palette.tsx
+  s_71df5dfa9701ea::t_780583aa69f469 11,21
+web/src/shell/shell.tsx
+  s_71df5dfa9701ea::t_17d121a797484b 131-138
+web/src/shell/sidebar.tsx
+  s_71df5dfa9701ea::t_86a793a0c0872a 15,25
+web/src/stream/reduce.test.ts
+  s_71df5dfa9701ea::t_9c4338a61e6687 235-260
+web/src/styles.css
+  s_71df5dfa9701ea::t_1763265c1c0c33 1395-1433
+web/src/taint/recorded.ts
+  s_71df5dfa9701ea::t_9b82ace9fe0d9e 1-88
+web/src/taint/taint.tsx
+  s_71df5dfa9701ea::t_e832fa4bd6f846 1-127
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f1bb0768a8d04da36aace5d3ac630452830b0fbe",
+  "prompts": {},
+  "sessions": {
+    "s_0c8515992f8884": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "7f9840bb-b9f3-4689-ba9e-0e24b965d704",
+        "model": "grok-4.7-high-fast"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    },
+    "s_14c6ef7bf2e2fe": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "d7e3203c-9046-4522-aaff-1133d50f36c9",
+        "model": "grok-4.7-high-fast"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    },
+    "s_71df5dfa9701ea": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "307f46c4-986c-451e-a408-7939fafb2fc1",
+        "model": "grok-4.7-high-fast"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    }
+  }
+}
