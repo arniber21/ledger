@@ -206,7 +206,7 @@ function VerdictDetail({
           <span className={`dot dot-${verdict.outcome}`} />
         </span>
         <p className="mono trace-full-id">{verdict.id}</p>
-        <h2>{verdictTitle(verdict)}</h2>
+        <h2 className="title-case">{verdictTitle(verdict)}</h2>
         <p className="trace-description">{verdict.evidence || "No evidence on this verdict."}</p>
         <dl className="props">
           <Prop label="Verdict">
