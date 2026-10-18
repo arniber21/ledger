@@ -83,7 +83,3 @@ Other tasks: `just check`, `just test`, `just lint`, `just fmt`. Run `just` to l
 ## Data
 
 `just data` downloads the dataset from [HuggingFace](https://huggingface.co/datasets/CL251215/QuickBooks-Hackathon-2026) and extracts company-001 into `data/`, which is gitignored. The simulation's ground-truth files are never read.
-
-## Status
-
-Under active development for LA Hacks 2026. Work is tracked in the repository's issues. The one-command `just demo` is the last piece to land; until then run the pieces individually (`just api`, `just agents`, `just ui`).
