@@ -110,6 +110,7 @@ dependencies = [
  "ledger-core",
  "serde",
  "serde_json",
+ "thiserror",
 ]
 
 [[package]]
