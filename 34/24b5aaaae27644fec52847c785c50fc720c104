@@ -1,0 +1,210 @@
+SPEC.md
+  s_c80623018954a3::t_a527b6c93441e6 11
+README.md
+  s_c80623018954a3::t_40139b0c3ea5f1 59
+CLAUDE.md
+  s_c80623018954a3::t_16b1cbbc79456b 7
+Cargo.toml
+  s_c80623018954a3::t_72a4d6b8cb261e 23-26
+  s_c80623018954a3::t_d43cc22d3b6f22 13-15
+vendor/sentinel/compile/Cargo.toml
+  s_c80623018954a3::t_fbaaaa33395ec8 1-15
+vendor/sentinel/compile/src/catalogue/exercise.rs
+  s_c80623018954a3::t_a1d3fd6140c6af 1-456
+vendor/sentinel/compile/src/catalogue/instance.rs
+  s_c80623018954a3::t_8bbdf3ea0546f1 1-1412
+vendor/sentinel/compile/src/catalogue/mod.rs
+  s_c80623018954a3::t_5ea196bf9ffe7b 1-1341
+vendor/sentinel/compile/src/filter.rs
+  s_c80623018954a3::t_77c3fcc0cbb7b0 1-1056
+vendor/sentinel/compile/src/ir.rs
+  s_c80623018954a3::t_026f9a381e3c6e 1-1097
+vendor/sentinel/compile/src/lib.rs
+  s_c80623018954a3::t_42c0eaee1d33e0 1-36
+vendor/sentinel/compile/src/subsumption.rs
+  s_c80623018954a3::t_201ca73e34abea 1-1154
+vendor/sentinel/compile/src/width.rs
+  s_c80623018954a3::t_bd432c6efbe73c 1-170
+vendor/sentinel/compile/tests/catalogue_invariants.rs
+  s_c80623018954a3::t_27a5abf3ed7c59 1-416
+vendor/sentinel/compile/tests/catalogue_snapshot.rs
+  s_c80623018954a3::t_b49720e2e38e7d 1-244
+vendor/sentinel/compile/tests/golden/catalogue.txt
+  s_c80623018954a3::t_529874dcc572d5 1-270
+vendor/sentinel/compile/tests/instantiation.rs
+  s_c80623018954a3::t_153aa295dd4b38 1-2152
+vendor/sentinel/compile/tests/subsumption.rs
+  s_c80623018954a3::t_448bc78016b224 1-1102
+vendor/sentinel/compile/tests/support/mod.rs
+  s_c80623018954a3::t_dc824f708180eb 1-352
+vendor/sentinel/core/Cargo.toml
+  s_c80623018954a3::t_a4632a6c5af58c 1-43
+vendor/sentinel/core/src/absence.rs
+  s_c80623018954a3::t_c2f433a40df5cf 1-772
+vendor/sentinel/core/src/aggregate.rs
+  s_c80623018954a3::t_e11c9f44ef2fe2 1-888
+vendor/sentinel/core/src/cost.rs
+  s_c80623018954a3::t_c9747136de55e1 1-123
+vendor/sentinel/core/src/decision.rs
+  s_c80623018954a3::t_0a92ede1f8062d 1-770
+vendor/sentinel/core/src/evaluator.rs
+  s_c80623018954a3::t_2b5c1f9a8d1dae 1-1705
+vendor/sentinel/core/src/evidence.rs
+  s_c80623018954a3::t_5dd7dac6a21df1 1-813
+vendor/sentinel/core/src/existence.rs
+  s_c80623018954a3::t_f059859b95cd4b 1-822
+vendor/sentinel/core/src/facts.rs
+  s_c80623018954a3::t_ad45361e69d972 1-902
+vendor/sentinel/core/src/frontier.rs
+  s_c80623018954a3::t_afa45dae6a01bd 1-688
+vendor/sentinel/core/src/lib.rs
+  s_c80623018954a3::t_61b99e6a5d5a28 1-530
+vendor/sentinel/core/src/precedence.rs
+  s_c80623018954a3::t_a91711259eda09 1-724
+vendor/sentinel/core/src/settlement.rs
+  s_c80623018954a3::t_183da83f7e53b7 1-1536
+vendor/sentinel/core/src/slice.rs
+  s_c80623018954a3::t_f35ec67caad1ef 1-948
+vendor/sentinel/core/src/specification.rs
+  s_c80623018954a3::t_34fe769967fc93 1-704
+vendor/sentinel/core/src/taint.rs
+  s_c80623018954a3::t_48fda15e6afa7d 1-861
+vendor/sentinel/core/src/verdict.rs
+  s_c80623018954a3::t_e02c5a06bceb4a 1-2514
+vendor/sentinel/core/tests/absence_decision_table.rs
+  s_c80623018954a3::t_de7ead04b9d0e7 1-730
+vendor/sentinel/core/tests/absence_evaluator.rs
+  s_c80623018954a3::t_266798faca4824 1-555
+vendor/sentinel/core/tests/activation_barrier.rs
+  s_c80623018954a3::t_57160767a23679 1-759
+vendor/sentinel/core/tests/aggregate_decision_table.rs
+  s_c80623018954a3::t_b3b2ecc6b2ba35 1-463
+vendor/sentinel/core/tests/aggregate_evaluator.rs
+  s_c80623018954a3::t_27d21938012c2d 1-735
+vendor/sentinel/core/tests/catalogue_grounding.rs
+  s_c80623018954a3::t_a219186bc2db25 1-1024
+vendor/sentinel/core/tests/cold_settlement_watermark.rs
+  s_c80623018954a3::t_f05ff5b0568518 1-587
+vendor/sentinel/core/tests/corpus_regen.rs
+  s_c80623018954a3::t_e2ccaf6b088886 1-48
+vendor/sentinel/core/tests/corpus_semantic_gate.rs
+  s_c80623018954a3::t_250b773b80470b 1-681
+vendor/sentinel/core/tests/corpus_support/mod.rs
+  s_c80623018954a3::t_a9ccd225d844d4 1-309
+vendor/sentinel/core/tests/decision.rs
+  s_c80623018954a3::t_92ea1f69655784 1-1728
+vendor/sentinel/core/tests/demo_evidence_lifecycle.rs
+  s_c80623018954a3::t_03880e16bad4d2 1-718
+vendor/sentinel/core/tests/demo_specs.rs
+  s_c80623018954a3::t_6fa0a8270cf065 1-287
+vendor/sentinel/core/tests/e2e_oracle.rs
+  s_c80623018954a3::t_09edb24cd28e12 1-837
+vendor/sentinel/core/tests/evidence_coverage_conjunction.rs
+  s_c80623018954a3::t_88dc1114ed2b87 1-396
+vendor/sentinel/core/tests/existence_decision_table.rs
+  s_c80623018954a3::t_8361decd001413 1-107
+vendor/sentinel/core/tests/existence_evaluator.rs
+  s_c80623018954a3::t_c91340b94a2e5d 1-612
+vendor/sentinel/core/tests/family_verdict_golden.rs
+  s_c80623018954a3::t_d3ebe6be2071f4 1-2741
+vendor/sentinel/core/tests/filter_compile.rs
+  s_c80623018954a3::t_0fb8722acf905a 1-188
+vendor/sentinel/core/tests/golden/family_verdicts.txt
+  s_c80623018954a3::t_75bf1d1a2ae0c3 1-2123
+vendor/sentinel/core/tests/raw_event_retention.rs
+  s_c80623018954a3::t_ad6676a9fe6e8b 1-46
+vendor/sentinel/core/tests/refused_guard.rs
+  s_c80623018954a3::t_e54dab2fccb0c8 1-159
+vendor/sentinel/core/tests/resumable.rs
+  s_c80623018954a3::t_b1dde87b4bdb79 1-1290
+vendor/sentinel/core/tests/retirement.rs
+  s_c80623018954a3::t_5301bc476b5ba1 1-1162
+vendor/sentinel/core/tests/subsumption_cross_check.rs
+  s_c80623018954a3::t_51028d7a7089bc 1-1369
+vendor/sentinel/core/tests/support/mod.rs
+  s_c80623018954a3::t_b6a75d9f7efae8 1-2127
+vendor/sentinel/core/tests/support/taint.rs
+  s_c80623018954a3::t_56c1678319c1fa 1-320
+vendor/sentinel/core/tests/taint_decision_table.rs
+  s_c80623018954a3::t_c4ec4fab12d107 1-881
+vendor/sentinel/core/tests/taint_evaluator.rs
+  s_c80623018954a3::t_c97b44d4f9b56d 1-340
+vendor/sentinel/core/tests/tracer_bullet.rs
+  s_c80623018954a3::t_7fa1226fa1e8aa 1-714
+vendor/sentinel/gen/rust/sentinel.model.v1.rs
+  s_c80623018954a3::t_82355b13c2945f 1-1140
+vendor/sentinel/gen/rust/sentinel.probe.v1.rs
+  s_c80623018954a3::t_7777c2504152d3 1-114
+vendor/sentinel/ingest/Cargo.toml
+  s_c80623018954a3::t_5970341c8517c9 1-19
+vendor/sentinel/ingest/src/capture.rs
+  s_c80623018954a3::t_e999908b3aa1d9 1-674
+vendor/sentinel/ingest/src/corpus.rs
+  s_c80623018954a3::t_1b3d930dc71c45 1-1239
+vendor/sentinel/ingest/src/corpus_adapter.rs
+  s_c80623018954a3::t_b855bc14feb593 1-796
+vendor/sentinel/ingest/src/evidence.rs
+  s_c80623018954a3::t_89674d388adb8f 1-88
+vendor/sentinel/ingest/src/lib.rs
+  s_c80623018954a3::t_20b32ee5302531 1-27
+vendor/sentinel/ingest/src/sagashop.rs
+  s_c80623018954a3::t_b0c729aecf4768 1-610
+vendor/sentinel/ingest/tests/corpus_adapter.rs
+  s_c80623018954a3::t_cb7d6a3ee2562e 1-459
+vendor/sentinel/ingest/tests/sagashop_adapter.rs
+  s_c80623018954a3::t_07703dc81f1421 1-562
+vendor/sentinel/model/Cargo.toml
+  s_c80623018954a3::t_69c9e5654d198c 1-15
+vendor/sentinel/model/src/completeness.rs
+  s_c80623018954a3::t_367d184d26e787 1-749
+vendor/sentinel/model/src/decision.rs
+  s_c80623018954a3::t_1906d8676a1874 1-734
+vendor/sentinel/model/src/event.rs
+  s_c80623018954a3::t_337b627e2ebc0d 1-1251
+vendor/sentinel/model/src/evidence.rs
+  s_c80623018954a3::t_bfcede3895484c 1-125
+vendor/sentinel/model/src/filter.rs
+  s_c80623018954a3::t_115ce8eb287e2f 1-795
+vendor/sentinel/model/src/identifiers.rs
+  s_c80623018954a3::t_5620828d364aa9 1-320
+vendor/sentinel/model/src/lib.rs
+  s_c80623018954a3::t_eca9cd6b22c8dc 1-53
+vendor/sentinel/model/src/rollout.rs
+  s_c80623018954a3::t_bea10fb9543183 1-1655
+vendor/sentinel/model/src/verdict.rs
+  s_c80623018954a3::t_0f3965e5a7ee8c 1-4855
+vendor/sentinel/model/src/wire.rs
+  s_c80623018954a3::t_aaa373c1c90be7 1-36
+vendor/sentinel/model/src/wire_helpers.rs
+  s_c80623018954a3::t_aa7e9017b595fd 1-824
+vendor/sentinel/model/tests/adversarial_fixtures.rs
+  s_c80623018954a3::t_89e2b1ba096e1a 1-1209
+vendor/sentinel/model/tests/domain_regressions.rs
+  s_c80623018954a3::t_3df1ef6ada2a8a 1-794
+vendor/sentinel/Cargo.toml
+  s_61e0b0c14d18f7::t_69b9ddcd1983ec 1-27
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3424b5aaaae27644fec52847c785c50fc720c104",
+  "prompts": {},
+  "sessions": {
+    "s_61e0b0c14d18f7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c168cc53-67a2-4357-967a-c871924e2eec",
+        "model": "unknown"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    },
+    "s_c80623018954a3": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "57b823af-a4ea-48e9-bc54-52b3097425a9",
+        "model": "grok-4.7-high-fast"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    }
+  }
+}
