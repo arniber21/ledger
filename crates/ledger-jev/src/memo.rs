@@ -124,10 +124,10 @@ pub fn map_memo_exchange(exchange: Result<&str, JevCallFailure>) -> PredicateVer
     }
 }
 
-fn map_memo_value(value: &Value) -> PredicateVerdict {
+pub(crate) fn map_noul_question(value: &Value, question_id: &str) -> PredicateVerdict {
     let Some(answer) = value
         .get("answers")
-        .and_then(|answers| answers.get(MEMO_INSTRUCTS_QUESTION))
+        .and_then(|answers| answers.get(question_id))
     else {
         return PredicateVerdict::Unknown;
     };
@@ -143,6 +143,10 @@ fn map_memo_value(value: &Value) -> PredicateVerdict {
         }
     }
     decide_noul(p_yes)
+}
+
+fn map_memo_value(value: &Value) -> PredicateVerdict {
+    map_noul_question(value, MEMO_INSTRUCTS_QUESTION)
 }
 
 fn probabilities_agree(probabilities: &Value, p_yes: f64) -> bool {
