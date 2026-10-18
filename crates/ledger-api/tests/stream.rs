@@ -245,3 +245,211 @@ async fn read_until(addr: std::net::SocketAddr, needle: &str) -> String {
         }
     }
 }
+
+fn at(base: DateTime<Utc>, ms: i64) -> DateTime<Utc> {
+    base + chrono::Duration::milliseconds(ms)
+}
+
+/// Spans shaped like the live desk's: the approval is exported in an earlier
+/// batch than the payment, and its `approval.id` is a business id.
+async fn persist_live_approval(store: &Store, bill: &str, approval: &str, now: DateTime<Utc>) {
+    persist(
+        store,
+        &[span(
+            "agent.approve",
+            1,
+            now,
+            &[
+                ("agent.id", "approver"),
+                ("bill.id", bill),
+                ("approval.id", approval),
+            ],
+        )],
+    )
+    .await
+    .expect("persist approval");
+}
+
+async fn poll_for(
+    engine: &mut Engine,
+    wanted: &[(&str, &str)],
+    bill: &str,
+) -> Vec<ledger_api::StreamVerdict> {
+    let mut seen: Vec<ledger_api::StreamVerdict> = Vec::new();
+    for _ in 0..30 {
+        seen.extend(
+            engine
+                .poll_once()
+                .await
+                .expect("poll")
+                .into_iter()
+                .filter(|frame| frame.binding == bill),
+        );
+        if wanted.iter().all(|(spec, outcome)| {
+            seen.iter()
+                .any(|frame| frame.spec_id == *spec && frame.outcome == *outcome)
+        }) {
+            return seen;
+        }
+    }
+    let summary: Vec<String> = seen
+        .iter()
+        .map(|frame| {
+            format!(
+                "{} {} {:?}",
+                frame.spec_id, frame.outcome, frame.reason_code
+            )
+        })
+        .collect();
+    panic!("wanted {wanted:?} for {bill}, saw {summary:?}");
+}
+
+#[tokio::test]
+async fn live_payment_with_settlement_and_credit_satisfies_absence_and_precedence() {
+    let (store, scratch) = test_store().await;
+    let bill = format!("company-001/bill-{}", Uuid::new_v4());
+    let approval = format!("approval-{bill}");
+    let (pay, settled, credit) = (
+        Uuid::new_v4().to_string(),
+        Uuid::new_v4().to_string(),
+        Uuid::new_v4().to_string(),
+    );
+    let now = Utc::now() - chrono::Duration::seconds(30);
+    persist_live_approval(&store, &bill, &approval, now).await;
+    persist(
+        &store,
+        &[
+            span(
+                "agent.pay_bill",
+                2,
+                at(now, 5_000),
+                &[
+                    ("event.id", pay.as_str()),
+                    ("agent.id", "payer"),
+                    ("bill.id", bill.as_str()),
+                    ("amount", "500.00"),
+                    ("link.approval_id", approval.as_str()),
+                ],
+            ),
+            span(
+                "ledger.exchange.settled",
+                3,
+                at(now, 5_001),
+                &[
+                    ("event.id", settled.as_str()),
+                    ("agent.id", "payer"),
+                    ("bill.id", bill.as_str()),
+                    ("link.pay_id", pay.as_str()),
+                ],
+            ),
+            span(
+                "ledger.exchange.credit",
+                4,
+                at(now, 5_002),
+                &[
+                    ("event.id", credit.as_str()),
+                    ("agent.id", "payer"),
+                    ("bill.id", bill.as_str()),
+                    ("link.settled_id", settled.as_str()),
+                ],
+            ),
+        ],
+    )
+    .await
+    .expect("persist payment");
+
+    let (tx, _rx) = broadcast::channel(16);
+    let mut engine = Engine::new(store.clone(), tx).expect("engine");
+    poll_for(
+        &mut engine,
+        &[
+            ("ledger.bill.no-second-payment", "Satisfy"),
+            ("ledger.bill.approval-before-payment", "Satisfy"),
+        ],
+        &bill,
+    )
+    .await;
+    cleanup(store, scratch).await;
+}
+
+#[tokio::test]
+async fn live_double_pay_is_a_violate_with_a_counterexample_timeline() {
+    let (store, scratch) = test_store().await;
+    let bill = format!("company-001/bill-{}", Uuid::new_v4());
+    let approval = format!("approval-{bill}");
+    let (pay, settled, again) = (
+        Uuid::new_v4().to_string(),
+        Uuid::new_v4().to_string(),
+        Uuid::new_v4().to_string(),
+    );
+    let now = Utc::now() - chrono::Duration::seconds(30);
+    persist_live_approval(&store, &bill, &approval, now).await;
+    persist(
+        &store,
+        &[
+            span(
+                "agent.pay_bill",
+                2,
+                at(now, 5_000),
+                &[
+                    ("event.id", pay.as_str()),
+                    ("agent.id", "payer"),
+                    ("bill.id", bill.as_str()),
+                    ("amount", "500.00"),
+                    ("history.source", "books"),
+                    ("link.approval_id", approval.as_str()),
+                ],
+            ),
+            span(
+                "ledger.exchange.settled",
+                3,
+                at(now, 5_001),
+                &[
+                    ("event.id", settled.as_str()),
+                    ("agent.id", "payer"),
+                    ("bill.id", bill.as_str()),
+                    ("link.pay_id", pay.as_str()),
+                    ("history.source", "books"),
+                ],
+            ),
+            span(
+                "agent.pay_bill",
+                4,
+                at(now, 5_002),
+                &[
+                    ("event.id", again.as_str()),
+                    ("agent.id", "payer"),
+                    ("bill.id", bill.as_str()),
+                    ("amount", "500.00"),
+                    ("fault.name", "double-pay"),
+                    ("link.approval_id", approval.as_str()),
+                    ("link.settled_id", settled.as_str()),
+                ],
+            ),
+        ],
+    )
+    .await
+    .expect("persist double pay");
+
+    let (tx, _rx) = broadcast::channel(16);
+    let mut engine = Engine::new(store.clone(), tx).expect("engine");
+    let frames = poll_for(
+        &mut engine,
+        &[("ledger.bill.no-second-payment", "Violate")],
+        &bill,
+    )
+    .await;
+    let frame = frames
+        .iter()
+        .find(|frame| frame.outcome == "Violate")
+        .expect("violate");
+    assert_eq!(frame.reason_code.as_deref(), Some("second-payment"));
+    let roles: Vec<&str> = frame
+        .timeline
+        .iter()
+        .map(|entry| entry.role.as_str())
+        .collect();
+    assert!(roles.contains(&"second-payment"), "{roles:?}");
+    assert!(roles.contains(&"settlement"), "{roles:?}");
+    cleanup(store, scratch).await;
+}
