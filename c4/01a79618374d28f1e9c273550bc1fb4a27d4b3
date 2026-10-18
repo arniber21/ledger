@@ -1,0 +1,28 @@
+Justfile
+  s_61e0b0c14d18f7::t_5169d896701e14 16,20-23,88,116,120
+scripts/reset.sh
+  s_61e0b0c14d18f7::t_5169d896701e14 46-64,66
+crates/ledger-agents/src/control.rs
+  s_61e0b0c14d18f7::t_06e28cba9014a4 62
+  s_61e0b0c14d18f7::t_59e3744fba0ca3 71-76
+crates/ledger-agents/src/error.rs
+  s_61e0b0c14d18f7::t_06e28cba9014a4 49,52-55,65
+scripts/demo.sh
+  s_61e0b0c14d18f7::t_5169d896701e14 65-78,190,209,212
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c401a79618374d28f1e9c273550bc1fb4a27d4b3",
+  "prompts": {},
+  "sessions": {
+    "s_61e0b0c14d18f7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c168cc53-67a2-4357-967a-c871924e2eec",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    }
+  }
+}
