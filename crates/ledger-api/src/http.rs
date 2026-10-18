@@ -12,8 +12,7 @@ use axum::routing::get;
 use axum::Router;
 use futures::stream::{self, Stream};
 use ledger_jev::{ForcedOutcome, SystemOne};
-use ledger_store::{Event as StoredEvent, Store, Uuid, VerdictRank};
-use serde_json::json;
+use ledger_store::{Store, Uuid, VerdictRank};
 use tokio::net::TcpListener;
 use tokio::sync::{broadcast, watch};
 use tokio::task::JoinHandle;
@@ -198,11 +197,14 @@ async fn stream(
             initial.push(frame);
         }
     }
-    let mut replayed = initial
+    let replayed = initial
         .into_iter()
         .map(|frame| sse_event(&frame))
         .collect::<Vec<_>>();
-    replayed.extend(scene_events(&app.store).await);
+    // Scene script rows stay in the hypertable. They are not replayed here:
+    // a `scene.counters` line sets `sceneMetrics` in the UI and then
+    // `GET /api/metrics` is ignored, so Solana signatures and Jev comparisons
+    // stay at 0 after `spec-live` writes `eventsIngested: 1`.
     let live =
         BroadcastStream::new(rx).filter_map(|item| item.ok().map(|frame| Ok(sse_event(&frame))));
     // A leading comment flushes the response headers and first bytes at once,
@@ -211,92 +213,6 @@ async fn stream(
     let replay = stream::iter(replayed.into_iter().map(Ok));
     Ok(Sse::new(hello.chain(replay).chain(live))
         .keep_alive(KeepAlive::new().interval(Duration::from_secs(10))))
-}
-
-async fn scene_events(store: &Store) -> Vec<Event> {
-    let mut events = Vec::new();
-    let start = chrono::DateTime::from_timestamp(1_578_322_800, 0).expect("scene epoch");
-    let end = start + chrono::Duration::days(40);
-    if let Ok(rows) = store
-        .events_by_kind_between("scene.counters", start, end, 50)
-        .await
-    {
-        for row in rows {
-            if let Some(event) = counters_event(&row) {
-                events.push(event);
-            }
-        }
-    }
-    if let Ok(rows) = store
-        .events_by_kind_between("scene.rates", start, end, 200)
-        .await
-    {
-        for row in rows {
-            if let Some(event) = rates_event(&row) {
-                events.push(event);
-            }
-        }
-    }
-    if let Ok(rows) = store
-        .events_by_kind_between("scene.monitors", start, end, 400)
-        .await
-    {
-        for row in rows {
-            if let Some(event) = monitors_event(&row) {
-                events.push(event);
-            }
-        }
-    }
-    events
-}
-
-fn counters_event(row: &StoredEvent) -> Option<Event> {
-    let ingested = attr_u64(row, "eventsIngested")?;
-    let sources = attr_u64(row, "sourceCount").unwrap_or(0);
-    let live = attr_u64(row, "liveMonitors").unwrap_or(0);
-    json_event(&json!({
-        "kind": "counters",
-        "counters": {
-            "eventsIngested": ingested,
-            "sourceCount": sources,
-            "liveMonitors": live
-        }
-    }))
-}
-
-fn rates_event(row: &StoredEvent) -> Option<Event> {
-    json_event(&json!({
-        "kind": "rates",
-        "point": {
-            "t": row.observed_at.timestamp_millis(),
-            "agentLog": attr_u64(row, "agentLog").unwrap_or(0),
-            "exchange": attr_u64(row, "exchange").unwrap_or(0),
-            "solana": attr_u64(row, "solana").unwrap_or(0)
-        }
-    }))
-}
-
-fn monitors_event(row: &StoredEvent) -> Option<Event> {
-    json_event(&json!({
-        "kind": "monitors",
-        "point": {
-            "t": row.observed_at.timestamp_millis(),
-            "withGc": attr_u64(row, "withGc")?,
-            "withoutGc": attr_u64(row, "withoutGc")?
-        }
-    }))
-}
-
-fn attr_u64(row: &StoredEvent, key: &str) -> Option<u64> {
-    row.payload
-        .pointer("/attributes")
-        .and_then(|value| value.get(key))
-        .and_then(|value| value.as_str())
-        .and_then(|text| text.parse().ok())
-}
-
-fn json_event(value: &serde_json::Value) -> Option<Event> {
-    Event::default().json_data(value).ok()
 }
 
 fn sse_event(verdict: &StreamVerdict) -> Event {

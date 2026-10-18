@@ -164,6 +164,7 @@ pub async fn run_scene(store: &Store, name: &str) -> Result<SceneReport, SceneEr
     match name {
         "clean" => clean(store).await,
         "double-pay" => double_pay(store, &mode).await,
+        "no-approval" => no_approval(store).await,
         "hidden-memo" => hidden_memo(store, &mode).await,
         "vendor-alias" => vendor_alias(store, &mode).await,
         "recurring" => recurring(store).await,
@@ -180,6 +181,7 @@ fn bindings(name: &str) -> Vec<String> {
             .chain(std::iter::once("order-clean-1".to_owned()))
             .collect(),
         "double-pay" => vec!["BILL-4417".to_owned()],
+        "no-approval" => vec!["BILL-2204".to_owned()],
         "hidden-memo" => vec!["BILL-7701".to_owned()],
         "vendor-alias" => vec!["Landlord LLC|Landlord L.L.C.".to_owned()],
         "recurring" => (1..=52)
@@ -525,6 +527,57 @@ async fn forced_double_pay(
             reason: "binding-comparison".to_owned(),
             roles: vec!["comparison".to_owned()],
         }],
+        Vec::new(),
+        Vec::new(),
+    )
+}
+
+async fn no_approval(store: &Store) -> Result<SceneReport, SceneError> {
+    let mut script = Script::new("no-approval");
+    let bill = "BILL-2204";
+    let start = day(6, 0);
+    let pay = script.id("pay");
+    let settled = script.id("settled");
+    script.add(
+        "agent.pay_bill",
+        pay,
+        start,
+        &[
+            ("agent.id", "payer"),
+            ("bill.id", bill),
+            ("amount", "40.00"),
+        ],
+    );
+    script.add(
+        "ledger.exchange.settled",
+        settled,
+        start + chrono::Duration::seconds(1),
+        &[
+            ("agent.id", "payer"),
+            ("bill.id", bill),
+            ("amount", "40.00"),
+            ("link.pay_id", &pay.to_string()),
+        ],
+    );
+    script.persist(store).await?;
+    let verdicts = seal(store, start, start + chrono::Duration::seconds(30)).await?;
+    let precedence = verdicts
+        .iter()
+        .find(|item| item.spec_id == "ledger.bill.approval-before-payment" && item.binding == bill);
+    let Some(precedence) = precedence else {
+        return Err(SceneError::Check(format!(
+            "no-approval has no precedence verdict in {verdicts:?}"
+        )));
+    };
+    if precedence.outcome != "Violate" || precedence.reason != "payment-without-approval" {
+        return Err(SceneError::Check(format!(
+            "no-approval verdict {precedence:?}"
+        )));
+    }
+    report(
+        "no-approval",
+        "scene no-approval: expect Violate payment-without-approval; needs review".to_owned(),
+        verdicts,
         Vec::new(),
         Vec::new(),
     )
