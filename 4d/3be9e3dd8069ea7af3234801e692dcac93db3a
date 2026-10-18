@@ -1,0 +1,40 @@
+crates/ledger-exchange/src/lib.rs
+  s_29358b46b9ea04::t_085e4b72bca144 11
+crates/ledger-api/tests/traces_feed.rs
+  s_29358b46b9ea04::t_b9596861b0d24f 152-154
+  s_29358b46b9ea04::t_de7b73ba4888cd 1-151,155-196
+crates/ledger-api/src/traces.rs
+  s_29358b46b9ea04::t_689352d6f0a30c 15
+  s_29358b46b9ea04::t_0909e184ba4fd1 37,39-42
+  s_29358b46b9ea04::t_b67de261ee787b 9-13
+  s_29358b46b9ea04::t_438992fefd6948 208,211
+  s_29358b46b9ea04::t_dd114501cf8b4e 25
+  s_29358b46b9ea04::t_e273b60454b711 38
+  s_29358b46b9ea04::t_f421889dfef1de 142,145,150-199,201-207,209-210,212-221
+  s_29358b46b9ea04::t_1a380d846c7353 63
+  s_29358b46b9ea04::t_5671af82369981 200
+  s_29358b46b9ea04::t_bfdc59d98dd321 316-410
+  s_29358b46b9ea04::t_7e049911855e32 222
+crates/ledger-exchange/src/telemetry.rs
+  s_29358b46b9ea04::t_e9d3a3e35c8d71 55,57-62,66-70,72-102,105-116,130
+  s_29358b46b9ea04::t_484eee71044c32 7-9
+  s_29358b46b9ea04::t_ebf38920a1091d 28
+crates/ledger-store/src/lib.rs
+  s_29358b46b9ea04::t_9f999ed8688325 797-886
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4d3be9e3dd8069ea7af3234801e692dcac93db3a",
+  "prompts": {},
+  "sessions": {
+    "s_29358b46b9ea04": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "c5a4523a-9817-4ea6-98fa-1efd27519a84",
+        "model": "grok-4.7-high-fast"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    }
+  }
+}
