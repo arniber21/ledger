@@ -1,0 +1,126 @@
+crates/ledger-api/src/http.rs
+  s_14c6ef7bf2e2fe::t_cd69ca6ba0d862 185-189,192,196-269
+  s_14c6ef7bf2e2fe::t_8ab7f426dfc606 15-16
+  s_14c6ef7bf2e2fe::t_71495024c25963 270
+crates/ledger-jev/Cargo.toml
+  s_14c6ef7bf2e2fe::t_75a7101aa64048 13
+crates/ledger-api/src/engine.rs
+  s_14c6ef7bf2e2fe::t_cdefa4f21bdf31 373-375
+  s_14c6ef7bf2e2fe::t_0ce36b0f1af43b 93-98,104-125
+  s_14c6ef7bf2e2fe::t_7a049b928fcd7c 475-476
+  s_14c6ef7bf2e2fe::t_91747fcf7ef231 441-443
+  s_14c6ef7bf2e2fe::t_e8b90f56faed6f 245-261
+  s_14c6ef7bf2e2fe::t_045051a82dc277 424-425
+  s_14c6ef7bf2e2fe::t_976e5cc0d2ac06 152-157
+  s_14c6ef7bf2e2fe::t_14be3decb2eb79 520-521
+  s_14c6ef7bf2e2fe::t_ab3e9bafbc630b 126
+crates/ledger-scene/tests/scenes.rs
+  s_14c6ef7bf2e2fe::t_530c613f3a10ed 1-63,65-113
+  s_14c6ef7bf2e2fe::t_75f6daed2cf82e 64
+  s_14c6ef7bf2e2fe::t_4ac99a3b372392 114-116
+README.md
+  s_14c6ef7bf2e2fe::t_876314ee52451b 52
+  s_14c6ef7bf2e2fe::t_37cc224739cdb3 133
+  s_14c6ef7bf2e2fe::t_9d8e6a5a35592c 29-32,35-37
+crates/ledger-jev/src/lib.rs
+  s_14c6ef7bf2e2fe::t_9c6faed8fe62b9 29
+  s_14c6ef7bf2e2fe::t_fc3cb75efc796b 57
+crates/ledger-scene/src/clock.rs
+  s_14c6ef7bf2e2fe::t_e60b69519b33cc 1-26
+crates/ledger-api/src/lib.rs
+  s_14c6ef7bf2e2fe::t_7f381a588846e5 38-41
+Justfile
+  s_14c6ef7bf2e2fe::t_3e52e533d75315 93-105,108
+crates/ledger-scene/src/play.rs
+  s_14c6ef7bf2e2fe::t_fdb4fbf0070833 8
+  s_14c6ef7bf2e2fe::t_f82c57029248aa 374
+  s_14c6ef7bf2e2fe::t_c468f243735547 420
+  s_14c6ef7bf2e2fe::t_480f9d376bedff 683
+  s_14c6ef7bf2e2fe::t_05e021f8e4c888 365
+  s_14c6ef7bf2e2fe::t_671db97feb19b7 482
+  s_14c6ef7bf2e2fe::t_28d2327ad06906 292,402,493,564,691,783,850
+  s_14c6ef7bf2e2fe::t_029ac43ad7c439 453-473
+  s_14c6ef7bf2e2fe::t_96212757294c29 238
+  s_14c6ef7bf2e2fe::t_14ed0a60ac1591 670
+  s_14c6ef7bf2e2fe::t_b282a963e8a435 284
+  s_14c6ef7bf2e2fe::t_419e30a9d47fa2 717
+  s_14c6ef7bf2e2fe::t_57ec3f57e146ee 735
+  s_14c6ef7bf2e2fe::t_58a506ac330ab5 429-432,434
+  s_14c6ef7bf2e2fe::t_c2c8c5611efc82 393
+  s_14c6ef7bf2e2fe::t_5c5d4e7901530f 400
+  s_14c6ef7bf2e2fe::t_2da269deb334f9 610
+  s_14c6ef7bf2e2fe::t_fc7f4b97b4c1e6 386
+  s_14c6ef7bf2e2fe::t_f5f8741ef3dc91 515
+  s_14c6ef7bf2e2fe::t_26c00c18b6fddc 689
+  s_14c6ef7bf2e2fe::t_93e1200df2a0d1 725
+  s_14c6ef7bf2e2fe::t_3ee1c402141b10 290
+  s_14c6ef7bf2e2fe::t_96a751b2babd5d 301,410,500,576,698,789,861
+  s_14c6ef7bf2e2fe::t_f72e047989abec 631
+  s_14c6ef7bf2e2fe::t_c2c06e1bef1e0e 672
+  s_14c6ef7bf2e2fe::t_92a85ee5d0002a 380
+  s_14c6ef7bf2e2fe::t_882929cad78656 277-279
+  s_14c6ef7bf2e2fe::t_759f299ad72533 746
+  s_14c6ef7bf2e2fe::t_53aaa8f2d73cdb 664
+  s_14c6ef7bf2e2fe::t_71c6c4ecbd5760 491
+  s_14c6ef7bf2e2fe::t_679ffd90e18b78 1-7,9-237,239-261,263-276,280-283,285-289,291,293-300,302-364,366-373,375-379,381-385,387-392,394-399,401,403-409,411-419,421-426,433,435-452,474-481,483-490,492,494-499,501-514,516-561,563,565-575,577-609,611-630,632-663,665-669,671,673-682,684-688,690,692-697,699-716,718-724,726-734,736-745,747-756,758-762,764-767,769-782,784-788,790-799,801-834,836-849,851-860,862-873,875-1020
+  s_14c6ef7bf2e2fe::t_97c3c2072882b0 427-428
+  s_14c6ef7bf2e2fe::t_dc0a53a8b2caac 763
+  s_14c6ef7bf2e2fe::t_7949cf7d62d3ba 757
+  s_14c6ef7bf2e2fe::t_b6d3bf9502f532 262,562,768,800,835,874
+crates/ledger-scene/Cargo.toml
+  s_14c6ef7bf2e2fe::t_995c10e4354b24 23-25
+  s_14c6ef7bf2e2fe::t_a5ab61dc455d90 1-22,26-28
+scripts/reset.sh
+  s_14c6ef7bf2e2fe::t_0e6c37920fe98d 1-69
+docs/demo.md
+  s_14c6ef7bf2e2fe::t_c9067ec35b2f0e 19
+  s_14c6ef7bf2e2fe::t_28597c1d8bb6ac 3-7
+crates/ledger-scene/src/bin/ledger-scene.rs
+  s_14c6ef7bf2e2fe::t_c5faddd125443f 1-47
+crates/ledger-jev/src/replay.rs
+  s_14c6ef7bf2e2fe::t_bd37fcea41e767 1-212,217-244
+  s_14c6ef7bf2e2fe::t_f05c84a2fa41d5 245-292
+  s_14c6ef7bf2e2fe::t_fd1853349e43fa 213-216
+crates/ledger-scene/src/span.rs
+  s_14c6ef7bf2e2fe::t_82b4abed37b937 1-90
+Cargo.toml
+  s_14c6ef7bf2e2fe::t_5dc65d255f2a50 12
+  s_14c6ef7bf2e2fe::t_002fd30b9a5272 32
+crates/ledger-store/src/lib.rs
+  s_14c6ef7bf2e2fe::t_50f08fb6c362e6 350-430,453-469
+  s_14c6ef7bf2e2fe::t_fbfb14ae6896c5 431-452
+crates/ledger-api/src/rank.rs
+  s_14c6ef7bf2e2fe::t_aab0dcc01447d1 198-199
+crates/ledger-scene/src/lib.rs
+  s_14c6ef7bf2e2fe::t_a2d9565f125890 1-58
+web/src/inbox/inbox.tsx
+  s_14c6ef7bf2e2fe::t_6bdaa2fcfea6db 912-914
+  s_14c6ef7bf2e2fe::t_17189457d77065 12
+  s_14c6ef7bf2e2fe::t_4022535e20d187 997-1000
+crates/ledger-core/src/live.rs
+  s_14c6ef7bf2e2fe::t_5d692db471c245 665-713
+  s_14c6ef7bf2e2fe::t_38c708878e19f4 525-535
+  s_14c6ef7bf2e2fe::t_e0cca450964d3f 664
+Cargo.lock
+  s_14c6ef7bf2e2fe::t_3752a30662cec4 2497,2501-2521
+fixtures/jev/bindings/landlord-alias-request.json
+  s_14c6ef7bf2e2fe::t_43d7f6b0c96473 1
+fixtures/jev/bindings/landlord-alias-response.json
+  s_14c6ef7bf2e2fe::t_7fb51097a33b68 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c149a5b55e6146db0dd8cce8b098c8b33c8c619f",
+  "prompts": {},
+  "sessions": {
+    "s_14c6ef7bf2e2fe": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "d7e3203c-9046-4522-aaff-1133d50f36c9",
+        "model": "grok-4.7-high-fast"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    }
+  }
+}
