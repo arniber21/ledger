@@ -5,7 +5,7 @@ use std::time::Duration;
 use chrono::{DateTime, Utc};
 use ledger_api::{serve, Engine, StreamMessage};
 use ledger_ingest::{persist, CapturedSpan};
-use ledger_store::{database_url, Store, Uuid};
+use ledger_store::{Store, Uuid};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::sync::broadcast;
@@ -15,10 +15,9 @@ use tokio::sync::broadcast;
 static ENGINE: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
 async fn test_store() -> Store {
-    let store = Store::connect(&database_url())
+    let store = Store::connect_test()
         .await
-        .expect("connect to local timescale (just db-up)");
-    store.migrate().await.expect("apply migrations");
+        .expect("connect to ledger_test (just db-up)");
     store
 }
 
