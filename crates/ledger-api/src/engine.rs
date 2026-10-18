@@ -201,12 +201,19 @@ struct StoredBody {
     rerank: Option<RerankRecord>,
 }
 
+/// Polls a row may wait for a predecessor that has not been stored yet.
+const HOLD_POLLS: u32 = 3;
+
 /// Reads events and publishes verdicts.
 pub struct Engine {
     store: Store,
     session: Session,
     tx: broadcast::Sender<StreamVerdict>,
     seen: HashSet<Uuid>,
+    /// Event ids already handed to the session (or skipped), by string id.
+    stepped: HashSet<String>,
+    /// Rows whose predecessors have not been stepped yet, with polls waited.
+    held: Vec<(StoredEvent, u32)>,
     dirty: bool,
     approvals: HashMap<String, String>,
     amounts: HashMap<String, i64>,
@@ -243,6 +250,8 @@ impl Engine {
             session: Session::new()?,
             tx,
             seen: HashSet::new(),
+            stepped: HashSet::new(),
+            held: Vec::new(),
             dirty: false,
             approvals: HashMap::new(),
             amounts: HashMap::new(),
@@ -297,7 +306,7 @@ impl Engine {
     pub async fn poll_once(&mut self) -> Result<Vec<StreamVerdict>, ApiError> {
         let now = Utc::now();
         let published = self
-            .poll_window(now - Duration::hours(6), now + Duration::minutes(1))
+            .poll_span(now - Duration::hours(6), now + Duration::minutes(1), false)
             .await;
         if let Some(stats) = &self.monitors {
             stats.record(
@@ -322,6 +331,17 @@ impl Engine {
         start: DateTime<Utc>,
         end: DateTime<Utc>,
     ) -> Result<Vec<StreamVerdict>, ApiError> {
+        self.poll_span(start, end, true).await
+    }
+
+    /// `force` steps rows still waiting on a predecessor instead of holding
+    /// them for a later poll.
+    async fn poll_span(
+        &mut self,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+        force: bool,
+    ) -> Result<Vec<StreamVerdict>, ApiError> {
         let mut published = Vec::new();
         let mut after = None;
         for _ in 0..50 {
@@ -337,48 +357,88 @@ impl Engine {
             if let Some(last) = page.last() {
                 after = Some((last.observed_at, last.id));
             }
-            published.extend(self.consume(page).await?);
+            published.extend(self.consume(page, false).await?);
             if count < usize::try_from(PAGE).unwrap_or(200) {
                 break;
             }
         }
+        published.extend(self.consume(Vec::new(), force).await?);
         Ok(published)
     }
 
-    async fn consume(&mut self, rows: Vec<StoredEvent>) -> Result<Vec<StreamVerdict>, ApiError> {
-        let mut published = Vec::new();
+    /// Steps `rows` plus rows held from earlier polls, predecessors first.
+    ///
+    /// A span closes after its children, so a payment's `observed_at` can be
+    /// later than the settlement and credit that link back to it. Stepping by
+    /// `observed_at` alone would reject the children for an unknown
+    /// predecessor. A row whose predecessor has not been stepped waits (in this
+    /// batch, then up to `HOLD_POLLS` polls) and is stepped once the predecessor
+    /// is. After that, or when `force` is set, it is stepped anyway, and a
+    /// predecessor that never arrived is `evidence-failed` (Inconclusive).
+    async fn consume(
+        &mut self,
+        rows: Vec<StoredEvent>,
+        force: bool,
+    ) -> Result<Vec<StreamVerdict>, ApiError> {
+        let mut pending: Vec<(StoredEvent, u32)> = std::mem::take(&mut self.held);
         for row in rows {
-            if !self.seen.insert(row.id) {
-                continue;
-            }
-            match read_event(&row) {
-                Ok(None) => {}
-                Ok(Some(mut event)) => {
-                    self.remember(&row, &event);
-                    self.attach_approval(&row, &mut event);
-                    if let Some(cents) = amount_cents(&row) {
-                        if let Some(bill) = event.bill_id() {
-                            self.amounts.insert(bill.as_str().to_owned(), cents);
-                        }
-                    }
-                    if let Err(error) = self.session.push(event) {
-                        tracing::warn!(event_id = %row.id, error = %error, "event evidence failed");
-                        published.push(self.failed(&row, "evidence-failed").await?);
-                    } else {
-                        self.dirty = true;
-                    }
-                }
-                Err(reason) => {
-                    tracing::warn!(event_id = %row.id, reason = %reason, "event evidence failed");
-                    published.push(self.failed(&row, "evidence-failed").await?);
-                }
+            if self.seen.insert(row.id) {
+                pending.push((row, 0));
             }
         }
+        let mut published = Vec::new();
+        loop {
+            let ready = pending.iter().position(|(row, waited)| {
+                force
+                    || *waited >= HOLD_POLLS
+                    || decode::predecessors(row)
+                        .iter()
+                        .all(|id| self.stepped.contains(id))
+            });
+            let Some(index) = ready else { break };
+            let (row, _) = pending.remove(index);
+            self.step_row(&row, &mut published).await?;
+        }
+        self.held = pending
+            .into_iter()
+            .map(|(row, waited)| (row, waited.saturating_add(1)))
+            .collect();
         if self.dirty {
             published.extend(self.publish_session().await?);
             self.dirty = false;
         }
         Ok(published)
+    }
+
+    async fn step_row(
+        &mut self,
+        row: &StoredEvent,
+        published: &mut Vec<StreamVerdict>,
+    ) -> Result<(), ApiError> {
+        self.stepped.insert(row.id.to_string());
+        match read_event(row) {
+            Ok(None) => {}
+            Ok(Some(mut event)) => {
+                self.remember(row, &event);
+                self.attach_approval(row, &mut event);
+                if let Some(cents) = amount_cents(row) {
+                    if let Some(bill) = event.bill_id() {
+                        self.amounts.insert(bill.as_str().to_owned(), cents);
+                    }
+                }
+                if let Err(error) = self.session.push(event) {
+                    tracing::warn!(event_id = %row.id, error = %error, "event evidence failed");
+                    published.push(self.failed(row, "evidence-failed").await?);
+                } else {
+                    self.dirty = true;
+                }
+            }
+            Err(reason) => {
+                tracing::warn!(event_id = %row.id, reason = %reason, "event evidence failed");
+                published.push(self.failed(row, "evidence-failed").await?);
+            }
+        }
+        Ok(())
     }
 
     fn remember(&mut self, row: &StoredEvent, event: &LedgerEvent) {

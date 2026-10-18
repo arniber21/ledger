@@ -107,6 +107,31 @@ fn a_normal_payment_is_followed_by_settlement_and_credit() {
     assert_eq!(field(credit, "link.settled_id"), field(settled, "event.id"));
 }
 
+/// A span's observed time is when it closes. A settlement must close after the
+/// payment it names and a credit after its settlement, or the engine would see
+/// the child before its predecessor and report evidence-failed.
+#[test]
+fn spans_close_in_causal_order_for_live_and_books_payments() {
+    let mut desk = fixture_desk(FaultConfig::new());
+    assert!(desk.toggle_fault(Fault::DoublePay));
+    let (_, state) = run_cycle(&mut desk);
+    let closed = |span: &CapturedSpan| {
+        state
+            .closed
+            .iter()
+            .position(|id| *id == span.id)
+            .expect("span closed")
+    };
+    let pay = pay_span(&state, "bill-open");
+    let settled = pay_span_named(&state, "ledger.exchange.settled", "bill-open");
+    let credit = pay_span_named(&state, "ledger.exchange.credit", "bill-open");
+    assert!(closed(pay) < closed(settled), "settled closed before pay");
+    assert!(closed(settled) < closed(credit), "credit closed before settled");
+    let books_pay = pay_span_named(&state, "agent.pay_bill", "bill-settled");
+    let books_settled = pay_span_named(&state, "ledger.exchange.settled", "bill-settled");
+    assert!(closed(books_pay) < closed(books_settled));
+}
+
 #[test]
 fn toggling_no_approval_pays_without_an_approval_link() {
     let mut desk = fixture_desk(FaultConfig::new());
