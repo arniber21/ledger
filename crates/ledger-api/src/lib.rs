@@ -1,0 +1,29 @@
+//! HTTP/SSE API. Verdicts are `Satisfy`, `Violate`, or `Inconclusive`.
+//!
+//! `GET /v1/verdicts/stream` sends one JSON object per SSE `data` line:
+//!
+//! ```json
+//! {
+//!   "kind": "verdict",
+//!   "verdict": {
+//!     "id": "...",
+//!     "outcome": "Violate",
+//!     "title": "needs review",
+//!     "specId": "ledger.bill.no-second-payment",
+//!     "reasonCode": "second-payment",
+//!     "evidence": "payment ... → second-payment ...",
+//!     "timeline": [{ "eventId": "...", "role": "second-payment", "kind": "ledger.exchange.payment" }]
+//!   }
+//! }
+//! ```
+//!
+//! The timeline is matched evidence in observation order. A `Violate` title is
+//! `needs review`.
+
+mod decode;
+mod engine;
+mod http;
+
+pub use engine::{ApiError, Engine, StreamEntry, StreamMessage, StreamVerdict};
+pub use http::serve;
+pub use http::Server;

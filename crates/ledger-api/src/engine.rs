@@ -1,0 +1,428 @@
+//! Poll the events hypertable and seal verdicts.
+//!
+//! Counts stay on [`ledger_store::Store::window_counts`]. This loop reads the
+//! same `observed_at` column, one row at a time, and steps Sentinel.
+
+use std::collections::{HashMap, HashSet};
+
+use chrono::{DateTime, Duration, Utc};
+use ledger_core::{Judged, LedgerEvent, LedgerKind, Session, VerdictOutcome};
+use ledger_store::{Event as StoredEvent, Store, Uuid, Verdict, VerdictOutcome as StoredOutcome};
+use rust_decimal::Decimal;
+use serde::{Deserialize, Serialize};
+use std::str::FromStr;
+use thiserror::Error;
+use tokio::sync::broadcast;
+
+use crate::decode::{self, read_event};
+
+const PAGE: i64 = 200;
+const VERDICT_NAMESPACE: Uuid = Uuid::from_u128(0x6c65_6467_6572_5f76_6572_6469_6374_0001);
+
+/// Why a poll or a stream could not finish.
+#[derive(Debug, Error)]
+pub enum ApiError {
+    /// Timescale rejected a query.
+    #[error(transparent)]
+    Store(#[from] ledger_store::StoreError),
+    /// A ledger event could not be adapted.
+    #[error(transparent)]
+    Adapt(#[from] ledger_core::AdapterError),
+    /// The HTTP listener could not bind.
+    #[error("failed to bind the verdict API: {0}")]
+    Bind(#[from] std::io::Error),
+}
+
+/// One SSE `data` object. `kind` is `verdict`. The verdict fields match the UI.
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StreamMessage {
+    /// Always `verdict`.
+    pub kind: &'static str,
+    /// The verdict the UI applies.
+    pub verdict: StreamVerdict,
+}
+
+/// Verdict payload. `timeline` is the counterexample, built from evidence only.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct StreamVerdict {
+    /// Stable id for this spec, binding, and outcome.
+    pub id: Uuid,
+    /// `Satisfy`, `Violate`, or `Inconclusive`.
+    pub outcome: String,
+    /// `needs review` when the outcome is `Violate`.
+    pub title: String,
+    /// Timeline rendered as evidence ids and roles. No model prose.
+    pub evidence: String,
+    /// Specification id.
+    #[serde(rename = "specId")]
+    pub spec_id: String,
+    /// Bill id or order id.
+    pub binding: String,
+    /// Stable reason code.
+    #[serde(rename = "reasonCode")]
+    pub reason_code: Option<String>,
+    /// Payment amount in cents, when the evidence carried one.
+    #[serde(rename = "amountCents", skip_serializing_if = "Option::is_none")]
+    pub amount_cents: Option<i64>,
+    /// When the verdict was recorded.
+    pub recorded_at: DateTime<Utc>,
+    /// Evidence events in observation order.
+    pub timeline: Vec<StreamEntry>,
+}
+
+/// One step on the counterexample timeline.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct StreamEntry {
+    /// Stored event id, or a deadline id derived from tick evidence.
+    pub event_id: String,
+    /// Observation time.
+    pub observed_at: String,
+    /// `exchange` or `agent.{id}`.
+    pub source: String,
+    /// Event kind.
+    pub kind: String,
+    /// Role such as `payment` or `second-payment`.
+    pub role: String,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct StoredBody {
+    binding: String,
+    title: String,
+    evidence: String,
+    timeline: Vec<StreamEntry>,
+    #[serde(default)]
+    amount_cents: Option<i64>,
+}
+
+/// Reads events and publishes verdicts.
+pub struct Engine {
+    store: Store,
+    session: Session,
+    tx: broadcast::Sender<StreamVerdict>,
+    seen: HashSet<Uuid>,
+    dirty: bool,
+    approvals: HashMap<String, String>,
+    amounts: HashMap<String, i64>,
+    emitted: HashSet<Uuid>,
+}
+
+impl Engine {
+    /// Opens a session on `store` and publishes to `tx`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the response monitor cannot be instantiated.
+    pub fn new(store: Store, tx: broadcast::Sender<StreamVerdict>) -> Result<Self, ApiError> {
+        Ok(Self {
+            store,
+            session: Session::new()?,
+            tx,
+            seen: HashSet::new(),
+            dirty: false,
+            approvals: HashMap::new(),
+            amounts: HashMap::new(),
+            emitted: HashSet::new(),
+        })
+    }
+
+    /// Steps events observed in the last six hours, in `observed_at` order.
+    ///
+    /// The window is the same `observed_at` filter as [`Store::window_counts`].
+    /// Events already stepped are left in the open monitors.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when a query fails or a seal fails for a reason other
+    /// than missing evidence.
+    pub async fn poll_once(&mut self) -> Result<Vec<StreamVerdict>, ApiError> {
+        let now = Utc::now();
+        let start = now - Duration::hours(6);
+        let end = now + Duration::minutes(1);
+        let mut published = Vec::new();
+        let mut after = None;
+        for _ in 0..50 {
+            let page = match after {
+                None => self.store.events_in_span(start, end, PAGE).await?,
+                Some(cursor) => {
+                    self.store
+                        .events_in_span_after(start, end, cursor, PAGE)
+                        .await?
+                }
+            };
+            let count = page.len();
+            if let Some(last) = page.last() {
+                after = Some((last.observed_at, last.id));
+            }
+            published.extend(self.consume(page).await?);
+            if count < usize::try_from(PAGE).unwrap_or(200) {
+                break;
+            }
+        }
+        Ok(published)
+    }
+
+    async fn consume(&mut self, rows: Vec<StoredEvent>) -> Result<Vec<StreamVerdict>, ApiError> {
+        let mut published = Vec::new();
+        for row in rows {
+            if !self.seen.insert(row.id) {
+                continue;
+            }
+            match read_event(&row) {
+                Ok(None) => {}
+                Ok(Some(mut event)) => {
+                    self.remember(&row, &event);
+                    self.attach_approval(&row, &mut event);
+                    if let Some(cents) = amount_cents(&row) {
+                        if let Some(bill) = event.bill_id() {
+                            self.amounts.insert(bill.as_str().to_owned(), cents);
+                        }
+                    }
+                    if let Err(error) = self.session.push(event) {
+                        tracing::warn!(event_id = %row.id, error = %error, "event evidence failed");
+                        published.push(self.failed(&row, "evidence-failed").await?);
+                    } else {
+                        self.dirty = true;
+                    }
+                }
+                Err(reason) => {
+                    tracing::warn!(event_id = %row.id, reason = %reason, "event evidence failed");
+                    published.push(self.failed(&row, "evidence-failed").await?);
+                }
+            }
+        }
+        if self.dirty {
+            published.extend(self.publish_session().await?);
+            self.dirty = false;
+        }
+        Ok(published)
+    }
+
+    fn remember(&mut self, row: &StoredEvent, event: &LedgerEvent) {
+        if event.kind() == LedgerKind::Approval {
+            if let Some(approval) = decode::attribute(row, "approval.id") {
+                self.approvals
+                    .insert(approval.to_owned(), event.id().to_owned());
+            }
+        }
+    }
+
+    fn attach_approval(&self, row: &StoredEvent, event: &mut LedgerEvent) {
+        if event.kind() != LedgerKind::AgentPayBill || !event.predecessors().is_empty() {
+            return;
+        }
+        let Some(approval) = decode::attribute(row, "link.approval_id") else {
+            return;
+        };
+        if let Some(id) = self.approvals.get(approval) {
+            let _ = event.precede_by(id);
+        }
+    }
+
+    async fn publish_session(&mut self) -> Result<Vec<StreamVerdict>, ApiError> {
+        let judged = self.session.verdicts()?;
+        let mut published = Vec::new();
+        for item in judged {
+            if let Some(frame) = self.store_judged(&item).await? {
+                published.push(frame);
+            }
+        }
+        Ok(published)
+    }
+
+    async fn store_judged(&mut self, item: &Judged) -> Result<Option<StreamVerdict>, ApiError> {
+        let outcome = outcome_name(item.outcome);
+        let reason = item.reason_code.clone();
+        let id = verdict_id(&item.spec_id, &item.binding, outcome, reason.as_deref());
+        if !self.emitted.insert(id) {
+            return Ok(None);
+        }
+        let frame = stream_verdict(id, outcome, item, self.amounts.get(&item.binding).copied());
+        let stored = Verdict {
+            id,
+            recorded_at: frame.recorded_at,
+            outcome: stored_outcome(outcome),
+            spec_id: item.spec_id.clone(),
+            reason_code: reason,
+            evidence: serde_json::to_value(StoredBody {
+                binding: item.binding.clone(),
+                title: frame.title.clone(),
+                evidence: frame.evidence.clone(),
+                timeline: frame.timeline.clone(),
+                amount_cents: frame.amount_cents,
+            })
+            .unwrap_or_else(|_| serde_json::json!({})),
+        };
+        if self.store.insert_verdict_if_absent(&stored).await? {
+            let _ = self.tx.send(frame.clone());
+            Ok(Some(frame))
+        } else {
+            Ok(None)
+        }
+    }
+
+    async fn failed(&mut self, row: &StoredEvent, reason: &str) -> Result<StreamVerdict, ApiError> {
+        let binding = row.id.to_string();
+        let id = verdict_id("ledger.evidence", &binding, "Inconclusive", Some(reason));
+        let frame = StreamVerdict {
+            id,
+            outcome: "Inconclusive".to_owned(),
+            title: "inconclusive".to_owned(),
+            evidence: reason.to_owned(),
+            spec_id: "ledger.evidence".to_owned(),
+            binding: binding.clone(),
+            reason_code: Some(reason.to_owned()),
+            amount_cents: amount_cents(row),
+            recorded_at: Utc::now(),
+            timeline: vec![StreamEntry {
+                event_id: binding,
+                observed_at: row.observed_at.to_rfc3339(),
+                source: row.source.clone(),
+                kind: row.kind.clone(),
+                role: "evidence".to_owned(),
+            }],
+        };
+        if self.emitted.insert(id) {
+            let stored = Verdict {
+                id,
+                recorded_at: frame.recorded_at,
+                outcome: StoredOutcome::Inconclusive,
+                spec_id: frame.spec_id.clone(),
+                reason_code: frame.reason_code.clone(),
+                evidence: serde_json::to_value(StoredBody {
+                    binding: frame.binding.clone(),
+                    title: frame.title.clone(),
+                    evidence: frame.evidence.clone(),
+                    timeline: frame.timeline.clone(),
+                    amount_cents: frame.amount_cents,
+                })
+                .unwrap_or_else(|_| serde_json::json!({})),
+            };
+            if self.store.insert_verdict_if_absent(&stored).await? {
+                let _ = self.tx.send(frame.clone());
+            }
+        }
+        Ok(frame)
+    }
+}
+
+/// Rebuilds a stream verdict from a stored row. `None` when the evidence
+/// document is not this engine's timeline.
+#[must_use]
+pub fn verdict_from_stored(verdict: &Verdict) -> Option<StreamVerdict> {
+    let body: StoredBody = serde_json::from_value(verdict.evidence.clone()).ok()?;
+    if body.timeline.is_empty() && body.evidence.is_empty() {
+        return None;
+    }
+    Some(StreamVerdict {
+        id: verdict.id,
+        outcome: verdict.outcome.as_str().to_owned(),
+        title: body.title,
+        evidence: body.evidence,
+        spec_id: verdict.spec_id.clone(),
+        binding: body.binding,
+        reason_code: verdict.reason_code.clone(),
+        amount_cents: body.amount_cents,
+        recorded_at: verdict.recorded_at,
+        timeline: body.timeline,
+    })
+}
+
+fn stream_verdict(
+    id: Uuid,
+    outcome: &str,
+    item: &Judged,
+    amount_cents: Option<i64>,
+) -> StreamVerdict {
+    let timeline = item
+        .timeline
+        .iter()
+        .map(|entry| StreamEntry {
+            event_id: entry.event_id.clone(),
+            observed_at: ns_to_rfc3339(entry.observed_at_ns),
+            source: entry.source.clone(),
+            kind: entry.kind.clone(),
+            role: entry.role.clone(),
+        })
+        .collect::<Vec<_>>();
+    let evidence = if timeline.is_empty() {
+        item.reason_code
+            .clone()
+            .unwrap_or_else(|| "evidence".to_owned())
+    } else {
+        timeline
+            .iter()
+            .map(|entry| format!("{} {}", entry.role, entry.event_id))
+            .collect::<Vec<_>>()
+            .join(" → ")
+    };
+    StreamVerdict {
+        id,
+        outcome: outcome.to_owned(),
+        title: title_for(outcome).to_owned(),
+        evidence,
+        spec_id: item.spec_id.clone(),
+        binding: item.binding.clone(),
+        reason_code: item.reason_code.clone(),
+        amount_cents,
+        recorded_at: Utc::now(),
+        timeline,
+    }
+}
+
+fn title_for(outcome: &str) -> &'static str {
+    match outcome {
+        "Violate" => "needs review",
+        "Satisfy" => "satisfied",
+        _ => "inconclusive",
+    }
+}
+
+fn outcome_name(outcome: VerdictOutcome) -> &'static str {
+    match outcome {
+        VerdictOutcome::Satisfy => "Satisfy",
+        VerdictOutcome::Violate => "Violate",
+        VerdictOutcome::Inconclusive | _ => "Inconclusive",
+    }
+}
+
+fn stored_outcome(outcome: &str) -> StoredOutcome {
+    match outcome {
+        "Satisfy" => StoredOutcome::Satisfy,
+        "Violate" => StoredOutcome::Violate,
+        _ => StoredOutcome::Inconclusive,
+    }
+}
+
+fn verdict_id(spec: &str, binding: &str, outcome: &str, reason: Option<&str>) -> Uuid {
+    let key = format!("{spec}|{binding}|{outcome}|{}", reason.unwrap_or(""));
+    Uuid::new_v5(&VERDICT_NAMESPACE, key.as_bytes())
+}
+
+fn ns_to_rfc3339(ns: i128) -> String {
+    let seconds = i64::try_from(ns.div_euclid(1_000_000_000)).unwrap_or(0);
+    let nanos = u32::try_from(ns.rem_euclid(1_000_000_000)).unwrap_or(0);
+    DateTime::from_timestamp(seconds, nanos)
+        .map(|time| time.to_rfc3339())
+        .unwrap_or_else(|| ns.to_string())
+}
+
+fn amount_cents(row: &StoredEvent) -> Option<i64> {
+    let text = decode::attribute(row, "amount")?;
+    let decimal = Decimal::from_str(text).ok()?;
+    let cents = decimal * Decimal::from(100);
+    i64::try_from(cents).ok()
+}
+
+/// JSON object written on the SSE stream.
+#[must_use]
+pub fn message(verdict: &StreamVerdict) -> StreamMessage {
+    StreamMessage {
+        kind: "verdict",
+        verdict: verdict.clone(),
+    }
+}

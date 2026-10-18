@@ -30,6 +30,8 @@ pub(crate) const SENTINEL_CLOCK: &str = "ledger.sentinel";
 pub(crate) const EXCHANGE_CLOCK: &str = "ledger.exchange";
 /// Attribute whose value is the bill id. One Binding per bill.
 pub const BILL_ATTRIBUTE: &str = "ledger.bill.id";
+/// Attribute whose value is the order id. One Binding per order.
+pub const ORDER_ATTRIBUTE: &str = "ledger.order.id";
 /// Attribute whose value is the acting agent.
 pub const AGENT_ATTRIBUTE: &str = "ledger.agent.id";
 /// Sequence epoch for a trace that does not restart numbering.

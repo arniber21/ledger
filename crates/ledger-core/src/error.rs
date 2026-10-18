@@ -36,6 +36,20 @@ pub enum AdapterError {
     /// Catalogue instantiation did not lower to the absence monitor.
     #[error("catalogue instantiation did not lower to an absence monitor")]
     NotAbsence,
+    /// Catalogue instantiation did not lower to the precedence monitor.
+    #[error("catalogue instantiation did not lower to a precedence monitor")]
+    NotPrecedence,
+    /// Catalogue instantiation did not lower to the existence monitor.
+    #[error("catalogue instantiation did not lower to an existence monitor")]
+    NotExistence,
+    /// A constructor was given a kind that does not carry that subject.
+    #[error("ledger kind {kind} does not carry a {subject}")]
+    KindMismatch {
+        /// Sentinel event kind.
+        kind: &'static str,
+        /// `bill`, `order`, or `tick`.
+        subject: &'static str,
+    },
     /// A Sentinel event failed validation.
     #[error(transparent)]
     Event(#[from] EventError),

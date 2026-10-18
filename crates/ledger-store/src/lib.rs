@@ -345,6 +345,158 @@ impl Store {
         };
         Ok(counts)
     }
+
+    /// Reads events in `[start, end)`, ordered by `observed_at`.
+    ///
+    /// This is the row read next to [`Self::window_counts`]. Both filter the
+    /// hypertable on `observed_at`. `window_counts` aggregates; this returns
+    /// the events a verdict monitor steps.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError::Database`] when the query fails.
+    pub async fn events_in_span(
+        &self,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+        limit: i64,
+    ) -> Result<Vec<Event>, StoreError> {
+        let limit = limit.clamp(1, 1_000);
+        let events = sqlx::query_as::<_, Event>(
+            "SELECT id, observed_at, source, kind, data_class, payload
+             FROM events
+             WHERE observed_at >= $1
+               AND observed_at < $2
+             ORDER BY observed_at ASC, id ASC
+             LIMIT $3",
+        )
+        .bind(start)
+        .bind(end)
+        .bind(limit)
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(events)
+    }
+
+    /// Next page of [`Self::events_in_span`] after `(observed_at, id)`.
+    ///
+    /// `after` must fall inside `[start, end)`. Rows stay ordered by
+    /// `observed_at`, then `id`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError::Database`] when the query fails.
+    pub async fn events_in_span_after(
+        &self,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+        after: (DateTime<Utc>, Uuid),
+        limit: i64,
+    ) -> Result<Vec<Event>, StoreError> {
+        let limit = limit.clamp(1, 1_000);
+        let events = sqlx::query_as::<_, Event>(
+            "SELECT id, observed_at, source, kind, data_class, payload
+             FROM events
+             WHERE observed_at >= $1
+               AND observed_at < $2
+               AND (observed_at, id) > ($3, $4)
+             ORDER BY observed_at ASC, id ASC
+             LIMIT $5",
+        )
+        .bind(start)
+        .bind(end)
+        .bind(after.0)
+        .bind(after.1)
+        .bind(limit)
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(events)
+    }
+
+    /// Reads the next page of events after `(observed_at, id)`.
+    ///
+    /// `None` starts at the oldest row. Ordering matches [`Self::events_in_span`].
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError::Database`] when the query fails.
+    pub async fn events_after(
+        &self,
+        after: Option<(DateTime<Utc>, Uuid)>,
+        limit: i64,
+    ) -> Result<Vec<Event>, StoreError> {
+        let limit = limit.clamp(1, 1_000);
+        let events = if let Some((observed_at, id)) = after {
+            sqlx::query_as::<_, Event>(
+                "SELECT id, observed_at, source, kind, data_class, payload
+                 FROM events
+                 WHERE (observed_at, id) > ($1, $2)
+                 ORDER BY observed_at ASC, id ASC
+                 LIMIT $3",
+            )
+            .bind(observed_at)
+            .bind(id)
+            .bind(limit)
+            .fetch_all(&self.pool)
+            .await?
+        } else {
+            sqlx::query_as::<_, Event>(
+                "SELECT id, observed_at, source, kind, data_class, payload
+                 FROM events
+                 ORDER BY observed_at ASC, id ASC
+                 LIMIT $1",
+            )
+            .bind(limit)
+            .fetch_all(&self.pool)
+            .await?
+        };
+        Ok(events)
+    }
+
+    /// Inserts a verdict when its id is new.
+    ///
+    /// Returns `true` when the row was inserted. A repeat id is left as stored.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError::Database`] when the insert fails.
+    pub async fn insert_verdict_if_absent(&self, verdict: &Verdict) -> Result<bool, StoreError> {
+        let inserted = sqlx::query(
+            "INSERT INTO verdicts
+                (id, recorded_at, outcome, spec_id, reason_code, evidence)
+             VALUES ($1, $2, $3, $4, $5, $6)
+             ON CONFLICT (id) DO NOTHING",
+        )
+        .bind(verdict.id)
+        .bind(verdict.recorded_at)
+        .bind(verdict.outcome.as_str())
+        .bind(verdict.spec_id.as_str())
+        .bind(verdict.reason_code.as_deref())
+        .bind(&verdict.evidence)
+        .execute(&self.pool)
+        .await?;
+        Ok(inserted.rows_affected() == 1)
+    }
+
+    /// Reads the newest verdicts, newest first.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError::Database`] when the query fails, or
+    /// [`StoreError::InvalidOutcome`] when a stored label is not a known outcome.
+    pub async fn list_verdicts(&self, limit: i64) -> Result<Vec<Verdict>, StoreError> {
+        let limit = limit.clamp(1, 1_000);
+        let rows = sqlx::query_as::<_, VerdictRow>(
+            "SELECT id, recorded_at, outcome, spec_id, reason_code, evidence
+             FROM verdicts
+             ORDER BY recorded_at DESC, id DESC
+             LIMIT $1",
+        )
+        .bind(limit)
+        .fetch_all(&self.pool)
+        .await?;
+        rows.into_iter().map(Verdict::try_from).collect()
+    }
 }
 
 fn sql_all(width: BucketWidth) -> &'static str {
@@ -588,5 +740,52 @@ mod tests {
         assert_eq!(counts[1].kind, "exchange.submit_order");
         assert_eq!(counts[1].events, 1);
         assert!(counts.iter().all(|count| count.source == source));
+    }
+
+    #[tokio::test]
+    async fn events_after_reads_the_same_observed_at_order() {
+        let store = test_store().await;
+        let source = format!("cursor-{}", Uuid::new_v4());
+        let first_at = DateTime::from_timestamp(1_800_000_000, 0).expect("time");
+        let mut ids = Vec::new();
+        for offset in 0..3 {
+            let id = Uuid::new_v4();
+            ids.push(id);
+            store
+                .insert_event(&Event {
+                    id,
+                    observed_at: first_at + chrono::Duration::seconds(offset),
+                    source: source.clone(),
+                    kind: "ledger.agent.pay_bill".to_owned(),
+                    data_class: "tenant".to_owned(),
+                    payload: serde_json::json!({"n": offset}),
+                })
+                .await
+                .expect("insert");
+        }
+
+        let page = store
+            .events_in_span(first_at, first_at + chrono::Duration::seconds(3), 10)
+            .await
+            .expect("span");
+        let ours: Vec<_> = page
+            .into_iter()
+            .filter(|event| event.source == source)
+            .collect();
+        assert_eq!(ours.len(), 3);
+        assert_eq!(ours[0].id, ids[0]);
+        assert_eq!(ours[2].id, ids[2]);
+
+        let after = store
+            .events_after(Some((ours[0].observed_at, ours[0].id)), 10)
+            .await
+            .expect("after");
+        let rest: Vec<_> = after
+            .into_iter()
+            .filter(|event| event.source == source)
+            .collect();
+        assert_eq!(rest.len(), 2);
+        assert_eq!(rest[0].id, ids[1]);
+        assert_eq!(rest[1].id, ids[2]);
     }
 }

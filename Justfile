@@ -66,7 +66,7 @@ validator:
 
 # --- run ---
 
-# HTTP/SSE API serving verdicts to the UI (pending #9).
+# HTTP/SSE API. Verdicts stream at GET /v1/verdicts/stream.
 api:
     cargo run -p ledger-api
 
