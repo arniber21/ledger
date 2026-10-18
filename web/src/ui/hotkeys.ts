@@ -112,6 +112,7 @@ export function useHotkeys(map: HotkeyMap, options: HotkeyOptions = {}): void {
     let timer = 0;
     const onKey = (event: KeyboardEvent) => {
       if (event.defaultPrevented || event.isComposing) return;
+      if (document.querySelector("[role=alertdialog]")) return;
       if (["Shift", "Meta", "Control", "Alt"].includes(event.key)) return;
       const typing = isTypingTarget(event.target);
       const compiled = build();
@@ -155,9 +156,11 @@ export function useHotkeys(map: HotkeyMap, options: HotkeyOptions = {}): void {
         }, sequenceMs);
       }
     };
-    window.addEventListener("keydown", onKey);
+    // Capture phase: hotkeys run before the shell's bubble-phase listener, whatever the
+    // re-subscription order is.
+    window.addEventListener("keydown", onKey, true);
     return () => {
-      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("keydown", onKey, true);
       window.clearTimeout(timer);
       registry.delete(id);
       publish();

@@ -16,7 +16,7 @@ function pretty(keys: string): string {
 export function ShortcutsHelp() {
   const [open, setOpen] = useState(false);
   const shortcuts = useSyncExternalStore(subscribeShortcuts, getShortcuts, getShortcuts);
-  useHotkeys({ "?": { handler: () => setOpen((v) => !v), hidden: true }, "!escape": { handler: () => setOpen(false), hidden: true } }, { scope: "help", enabled: true });
+  useHotkeys({ "?": { handler: () => setOpen((v) => !v), hidden: true }, ...(open ? { "!escape": { handler: () => setOpen(false), hidden: true } } : {}) }, { scope: "help", enabled: true });
   useEffect(() => {
     const onOpen = () => setOpen(true);
     window.addEventListener("ledger:shortcuts", onOpen);
