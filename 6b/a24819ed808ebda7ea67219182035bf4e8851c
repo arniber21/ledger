@@ -1,0 +1,69 @@
+Justfile
+  s_35c3e21270243a::t_bd3dc6df04c0e9 69-71
+crates/ledger-api/Cargo.toml
+  s_35c3e21270243a::t_d15cf120c830fc 29
+  s_35c3e21270243a::t_bd35872bbd1722 8
+crates/ledger-api/src/http.rs
+  s_35c3e21270243a::t_fcf21dc146f074 92,95-101
+crates/ledger-api/src/lib.rs
+  s_35c3e21270243a::t_ea3b66f8d6daa2 22-24,28,30-31
+README.md
+  s_35c3e21270243a::t_51e6abb3391d6c 93
+crates/ledger-api/tests/stream.rs
+  s_35c3e21270243a::t_3e68fb507583ab 13-16
+  s_35c3e21270243a::t_5eb053cfd164e7 162
+  s_35c3e21270243a::t_d120353aee84ed 40
+  s_35c3e21270243a::t_1ba7fbe076b557 203-217
+  s_35c3e21270243a::t_e2e14ed9856425 140-148
+crates/ledger-store/src/lib.rs
+  s_35c3e21270243a::t_872d8e19bb7f8d 821
+  s_35c3e21270243a::t_ab6671fa87ade3 416-441
+  s_35c3e21270243a::t_ae68852d9d8ffc 832-880
+  s_35c3e21270243a::t_51b6d5e8defe53 528-538
+  s_35c3e21270243a::t_3e7416207ba47a 786-787,789-790
+  s_35c3e21270243a::t_17eb60b9f57ee9 788
+  s_35c3e21270243a::t_4deea462b8b262 809
+crates/ledger-api/src/main.rs
+  s_35c3e21270243a::t_8fe9a7d89a1bd9 25-27,30
+  s_35c3e21270243a::t_b2b14dbfcba8f1 1
+crates/ledger-api/src/traces.rs
+  s_35c3e21270243a::t_26c0e575545e65 1-232
+Cargo.lock
+  s_35c3e21270243a::t_91d0eebc15955e 2414,2424
+crates/ledger-api/src/fault.rs
+  s_35c3e21270243a::t_fc3a7b93eb7443 1-47
+crates/ledger-api/src/stream.rs
+  s_35c3e21270243a::t_8e9e1d43a5dd24 1-16
+web/src/router.tsx
+  s_35c3e21270243a::t_525fbcd651488d 4,6
+web/src/shell/shell.tsx
+  s_35c3e21270243a::t_a3e531101f514e 146-150
+web/src/styles.css
+  s_35c3e21270243a::t_d3fd7f5ea5fc60 1032,1034-1308
+web/src/traces/model.test.ts
+  s_35c3e21270243a::t_339e24043f72f9 1-162
+web/src/traces/model.ts
+  s_35c3e21270243a::t_39ade324e8b3fe 1-480
+web/src/traces/traces.tsx
+  s_35c3e21270243a::t_9768d6c65e4cec 1-359
+web/src/traces/use-traces.ts
+  s_35c3e21270243a::t_12b0b7d9ceb6d7 1-64
+web/vite.config.ts
+  s_35c3e21270243a::t_abe8e3be10bb13 8-10
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6ba24819ed808ebda7ea67219182035bf4e8851c",
+  "prompts": {},
+  "sessions": {
+    "s_35c3e21270243a": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "e034f732-e944-4774-a9c0-d77099ae5eb0",
+        "model": "grok-4.7-high-fast"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    }
+  }
+}
