@@ -4,7 +4,7 @@ Ledger Sentinel: live runtime verification of simulated financial agents. Read `
 
 ## Rules
 - Rust workspace under `crates/`; web UI under `web/` (Vite + React + TanStack Router/Query/Table, bun). Use `just` for tasks (`just check`, `just test`, `just lint`).
-- Sentinel (`/Users/arnabghosh/Desktop/emet/sentinel`) is pre-existing, proprietary, consumed by path. Never copy it into this repo; never edit it. Use the incremental `Evaluator::step` + `seal` path.
+- Sentinel is vendored at `vendor/sentinel`. Do not depend on a Sentinel checkout outside this repo. Do not edit vendored Sentinel logic. Use the incremental `Evaluator::step` + `seal` path, never batch `evaluate()`.
 - Secrets live in gitignored `.env` (`GEMINI_API_KEY`, `TYPESAFE_API_KEY` = Jev, `SENTRY_DSN`). Never print, log or commit values.
 - Never read the dataset's `hidden/` directory.
 - Everything is simulated. Say "needs review", never "fraud".

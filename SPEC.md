@@ -8,7 +8,7 @@ Supersedes the earlier ChatGPT brief. Event: LA Hacks, Oct 17-18 2026, deadline 
 
 - **Language:** Rust (rich types; Sentinel's core is Rust). No Python.
 - **Not agent-powered at its core.** The platform is deterministic live monitoring. The triage agent is a read-heavy layer on top, added after the platform works.
-- **Reuse Sentinel by path dependency, not translation.** `sentinel-model`, `sentinel-compile` and `sentinel-core` (~30k lines) build standalone on host cargo (checked, 3.4s, `cargo check -p sentinel-core`). Source: `~/Desktop/emet/sentinel`. Core is a pure evaluator (ADR-0012); use the incremental `Evaluator::step` + `seal` path, not batch `evaluate()`.
+- **Reuse Sentinel by path dependency, not translation.** `sentinel-model`, `sentinel-compile` and `sentinel-core` (~30k lines) build standalone on host cargo (checked, 3.4s, `cargo check -p sentinel-core`). Source: `vendor/sentinel`. Core is a pure evaluator (ADR-0012); use the incremental `Evaluator::step` + `seal` path, not batch `evaluate()`.
 - **Disclosure:** Sentinel is pre-existing code. State it in the README and video; keep all new work in this repo with a dated commit history.
 - **Solana is last.** Local `solana-test-validator` as a settlement sink (SPL transfer per fill). Install not yet verified. If it slows us, ship a signed-ledger stub and add Solana later.
 - **Everything is simulated.** No real money, no real exchange, no unauthorized financial action.

@@ -1,0 +1,27 @@
+[workspace]
+resolver = "2"
+# Workspace-wiring only: this tree is the transitive path closure ledger
+# builds (model, compile, core, and core's dev-dependency ingest). Other
+# Sentinel members are not in this copy, so they are not listed here.
+members = [
+    "model",
+    "compile",
+    "core",
+    "ingest",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.96"
+license = "Proprietary"
+authors = ["Emet Labs"]
+publish = false
+
+[workspace.lints.rust]
+unsafe_code = "deny"
+missing_docs = "warn"
+
+[workspace.lints.clippy]
+all = "warn"
+pedantic = "warn"
