@@ -1,7 +1,8 @@
 import { createRootRoute, createRoute, createRouter, RouterProvider } from "@tanstack/react-router";
 import { isSavedView } from "./stream/reduce";
 import { Dashboard, parseOutcomeSearch } from "./dashboard/dashboard";
-import { InboxPage, SpecsPage, VerdictsPage } from "./pages/places";
+import { InboxPage, VerdictsPage } from "./pages/places";
+import { SpecsPage } from "./specs/specs";
 import { TracesPage } from "./traces/traces";
 import { Shell } from "./shell/shell";
 
@@ -43,7 +44,13 @@ const tracesRoute = createRoute({
 const specsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/specs",
-  component: SpecsPage,
+  validateSearch: (search: Record<string, unknown>) => ({
+    spec: typeof search.spec === "string" ? search.spec : undefined,
+  }),
+  component: function SpecsRoute() {
+    const search = specsRoute.useSearch();
+    return <SpecsPage spec={search.spec} />;
+  },
 });
 
 const verdictsRoute = createRoute({

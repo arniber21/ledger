@@ -10,7 +10,6 @@ import {
   FilterIcon,
   InboxIcon,
   ListIcon,
-  SpecsIcon,
   SplitIcon,
   VerdictsIcon,
 } from "../shell/icons";
@@ -152,17 +151,6 @@ function SplitDetail({ items, selectedId }: { items: VerdictItem[]; selectedId: 
       <p className={`outcome outcome-${item.outcome}`}>{outcomeLabel(item.outcome)}</p>
       <p>{item.evidence || "No evidence on this verdict."}</p>
     </article>
-  );
-}
-
-export function SpecsPage() {
-  return (
-    <>
-      <Header icon={<SpecsIcon />} title="Specs" />
-      <div className="content content-fill">
-        <Empty title="No specs yet" body="Policies show up here once they are armed on the stream." />
-      </div>
-    </>
   );
 }
 
