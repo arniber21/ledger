@@ -1,0 +1,56 @@
+crates/ledger-jev/tests/schedule.rs
+  s_71763096c1f041::t_9daf9e4c15d770 8
+  s_71763096c1f041::t_2d5f01adb54481 75
+  s_71763096c1f041::t_56d9f68c58bc31 1-7,9-57,60-74,76-144
+  s_71763096c1f041::t_bff989730556b2 58-59
+README.md
+  s_71763096c1f041::t_3c31b14e9d06c2 46
+crates/ledger-jev/Cargo.toml
+  s_71763096c1f041::t_b82be8ec0186a3 9
+crates/ledger-jev/src/lib.rs
+  s_71763096c1f041::t_3bfb0e00367df0 1-2,7-13
+  s_71763096c1f041::t_d9fe78b9118ac0 26
+  s_71763096c1f041::t_b596c4c84c83d4 39-43
+crates/ledger-jev/src/schedule.rs
+  s_71763096c1f041::t_bfbaccb7ae2ce8 18
+  s_71763096c1f041::t_da4b382595ddb2 393
+  s_71763096c1f041::t_79faf3023a6834 1099
+  s_71763096c1f041::t_63592bf777987c 1-17,19-23,25-338,340-345,348-350,352,354-356,358-392,394-844,847-886,888-960,962-978,980-984,986-990,992-1007,1009-1013,1015-1027,1029-1033,1035-1062,1064-1075,1077-1098,1100-1155
+  s_71763096c1f041::t_c70f447e5fdd8e 845-846
+  s_71763096c1f041::t_002794111157d4 24
+  s_47f6889e064299::t_4e09b1f3f2f22d 339,346-347,351,353,357,887,961,979,985,991,1008,1014,1028,1034,1063,1076
+Cargo.lock
+  s_71763096c1f041::t_7cdeda4341cffb 2491
+fixtures/jev/schedule/duplicate-period-request.json
+  s_71763096c1f041::t_eac13ed8263520 1
+fixtures/jev/schedule/duplicate-period-response.json
+  s_71763096c1f041::t_ad8edc66b7d4f2 1
+fixtures/jev/schedule/recurring-schedule-request.json
+  s_71763096c1f041::t_ade78b8d6bf782 1
+fixtures/jev/schedule/recurring-schedule-response.json
+  s_71763096c1f041::t_45918be8faa5ff 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6c0e6cc74a013961f46536c49057097faa911683",
+  "prompts": {},
+  "sessions": {
+    "s_47f6889e064299": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "b7e95757-4a60-407f-8060-da3e6f776c6f",
+        "model": "grok-4.7-high-fast"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    },
+    "s_71763096c1f041": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "ffdf6d87-d4d7-4fcc-9da0-8652f6c70032",
+        "model": "grok-4.7-high-fast"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    }
+  }
+}
