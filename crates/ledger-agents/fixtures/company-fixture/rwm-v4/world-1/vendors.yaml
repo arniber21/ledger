@@ -1,0 +1,43 @@
+# Synthetic books for agent tests. Not the QuickBooks dataset.
+- id: vend-mill
+  display_name: Mill Flour Company
+  company_name: Mill Flour Company
+  contact_given_name: Mina
+  contact_family_name: Cole
+  email: mina.cole@millflour.example
+  phone: 555-0100
+  address:
+    line1: 1 Mill Road
+    line2: null
+    city: Mobile
+    state: AL
+    postal_code: '36680'
+    country: United States
+  payment_terms: Due on receipt
+  payment_terms_days: 0
+  supply_role: product
+  joined_sim_day: 0
+  joined_date: '2025-09-01'
+  sim_actor_id: mill
+  sim_event_ids: []
+- id: vend-alias
+  display_name: Mill Flour Company LLC
+  company_name: Mill Flour Company LLC
+  contact_given_name: Alec
+  contact_family_name: Cole
+  email: alec.cole@millflourllc.example
+  phone: 555-0101
+  address:
+    line1: 2 Mill Road
+    line2: null
+    city: Mobile
+    state: AL
+    postal_code: '36680'
+    country: United States
+  payment_terms: Due on receipt
+  payment_terms_days: 0
+  supply_role: operating
+  joined_sim_day: 0
+  joined_date: '2025-09-01'
+  sim_actor_id: alias
+  sim_event_ids: []

@@ -37,7 +37,7 @@ Other tasks: `just check`, `just test`, `just lint`, `just fmt`. Run `just` to l
 
 ## How it works
 
-1. **Agents act.** Scripted buying agents for one company pay its bills and place orders on the exchange. Faults can be injected live: a double payment, a payment with no approval, a budget breach, a swapped vendor name, or an instruction hidden in a bill memo.
+1. **Agents act.** Rig buying agents, with Gemini as the model, pay one company's bills and place orders on the exchange. Faults can be injected live: a double payment, a payment with no approval, a budget breach, a swapped vendor name, or an instruction hidden in a bill memo.
 2. **Everything emits a span.** Agents and the exchange are instrumented with OpenTelemetry. The same spans go to Sentry and to our ingest, which normalizes them into events with source and causal links, and stores them in TimescaleDB.
 3. **Specs run continuously.** Policies such as "a bill's approval comes before its payment" run as monitors, one per open bill, evaluated incrementally as events arrive. Each ends as `Satisfy`, `Violate` or `Inconclusive`. Missing evidence is never counted as a pass.
 4. **Jev handles the ambiguous parts.** When code cannot decide, such as whether two vendor names refer to the same payee or whether a memo is instructing a payment, Jev returns a typed judgment that feeds the monitor. Deterministic checks run first, and an uncertain answer yields `Inconclusive`.
@@ -65,7 +65,7 @@ ORDER BY bucket, source, kind;
   - Rust, Tokio
   - `rust_decimal` for money, `serde` and `serde_yaml` for data
 - **Agents** (`ledger-agents`)
-  - Scripted buying agents for company-001
+  - Rig agents (`rig-core`) for company-001, Gemini `gemini-3.8-flash`
   - Live fault injection: double payment, missing approval, budget breach, swapped vendor, hidden memo instruction
 - **Exchange** (`ledger-exchange`)
   - Rust limit-order book for a flour/USD pair

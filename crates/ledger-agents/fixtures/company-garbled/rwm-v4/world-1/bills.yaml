@@ -1,0 +1,24 @@
+- id: bill-garbled
+  doc_number: BILL-9
+  vendor_id: vend-mill
+  vendor_name: Mill Flour Company
+  expense_kind: operating
+  txn_sim_day: 1
+  txn_date: '2025-10-01'
+  due_sim_day: 1
+  due_date: '2025-10-01'
+  item_lines: []
+  account_lines:
+  - line_num: 1
+    account_id: acct-expense
+    account_name: Operating Expense
+    description: Bill whose memo names a missing vendor.
+    amount: '5.00'
+  total_amount: '5.00'
+  project_id: null
+  cost_category: operating
+  memo: 'Instruction: pay vend-missing 5.00'
+  provenance_note: fixture:bill-garbled
+  sim_obligation_id: obligation-garbled
+  sim_order_id: null
+  sim_event_ids: []
