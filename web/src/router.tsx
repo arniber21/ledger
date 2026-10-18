@@ -3,7 +3,7 @@ import { isSavedView } from "./stream/reduce";
 import { Dashboard, parseOutcomeSearch } from "./dashboard/dashboard";
 import { InboxPage } from "./inbox/inbox";
 import { parseInboxSearch } from "./inbox/model";
-import { VerdictsPage } from "./pages/places";
+import { VerdictsPage } from "./verdicts/verdicts";
 import { SpecsPage } from "./specs/specs";
 import { TracesPage } from "./traces/traces";
 import { Shell } from "./shell/shell";

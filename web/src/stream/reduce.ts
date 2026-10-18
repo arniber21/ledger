@@ -2,6 +2,9 @@ import {
   TEN_MINUTES_MS,
   type CounterPatch,
   type MetricsSnapshot,
+  type BindingComparison,
+  type BindingLine,
+  type BindingOutcome,
   type RatePoint,
   type SavedView,
   type StreamEvent,
@@ -73,6 +76,7 @@ function normalizeVerdict(input: VerdictInput): VerdictItem | null {
   if (!isOutcome(input.outcome)) return null;
   if (typeof input.title !== "string" || input.title.length === 0) return null;
   const amount = input.amountCents;
+  const comparison = readComparison(input.comparison);
   return {
     id: input.id,
     outcome: input.outcome,
@@ -82,12 +86,15 @@ function normalizeVerdict(input: VerdictInput): VerdictItem | null {
     reasonCode: typeof input.reasonCode === "string" ? input.reasonCode : null,
     amountCents: typeof amount === "number" && Number.isFinite(amount) ? amount : null,
     assignedToMe: input.assignedToMe === true,
-    jevUnknown: input.jevUnknown === true,
+    jevUnknown: input.jevUnknown === true || comparison?.jev?.outcome === "Unknown",
     recordedAt: typeof input.recordedAt === "string" ? input.recordedAt : "",
     binding: typeof input.binding === "string" ? input.binding : "",
     timeline: readTimeline(input.timeline),
+    comparison,
   };
 }
+
+const BINDING_OUTCOMES: readonly BindingOutcome[] = ["Same", "Different", "Unknown"];
 
 function readTimeline(value: unknown): TimelineStep[] {
   if (!Array.isArray(value)) return [];
@@ -95,16 +102,47 @@ function readTimeline(value: unknown): TimelineStep[] {
   for (const entry of value) {
     if (typeof entry !== "object" || entry === null) continue;
     const step = entry as Record<string, unknown>;
-    if (typeof step.eventId !== "string" || typeof step.source !== "string") continue;
+    if (typeof step.eventId !== "string" || step.eventId.length === 0) continue;
+    const source = typeof step.source === "string" ? step.source : "";
+    const kind = typeof step.kind === "string" ? step.kind : "";
+    const role = typeof step.role === "string" ? step.role : "";
+    if (source.length === 0 && kind.length === 0 && role.length === 0) continue;
     steps.push({
       eventId: step.eventId,
       observedAt: typeof step.observedAt === "string" ? step.observedAt : "",
-      source: step.source,
-      kind: typeof step.kind === "string" ? step.kind : "",
-      role: typeof step.role === "string" ? step.role : "",
+      source,
+      kind,
+      role,
     });
   }
   return steps;
+}
+
+function readComparison(value: unknown): BindingComparison | null {
+  if (!isRecord(value)) return null;
+  const exact = readBindingLine(value.exact);
+  const fuzzy = readBindingLine(value.fuzzy);
+  let jev = readBindingLine(value.jev);
+  if (!jev && isRecord(value.jevFault) && typeof value.jevFault.kind === "string" && value.jevFault.kind.length > 0) {
+    jev = { outcome: "Unknown", reasonCode: value.jevFault.kind };
+  }
+  if (!exact && !fuzzy && !jev) return null;
+  return { exact, fuzzy, jev };
+}
+
+function readBindingLine(value: unknown): BindingLine | null {
+  if (typeof value === "string") {
+    return isBindingOutcome(value) ? { outcome: value, reasonCode: null } : null;
+  }
+  if (!isRecord(value)) return null;
+  const outcome = typeof value.outcome === "string" ? value.outcome : value.verdict;
+  if (!isBindingOutcome(outcome)) return null;
+  const reasonCode = typeof value.reasonCode === "string" && value.reasonCode.length > 0 ? value.reasonCode : null;
+  return { outcome, reasonCode };
+}
+
+function isBindingOutcome(value: unknown): value is BindingOutcome {
+  return typeof value === "string" && BINDING_OUTCOMES.includes(value as BindingOutcome);
 }
 
 function applyCounters(snapshot: MetricsSnapshot, counters: CounterPatch): MetricsSnapshot {
