@@ -1,0 +1,61 @@
+crates/ledger-core/src/lib.rs
+  s_c6dbd849b6eae0::t_1c0ef4f5f78b66 13-14
+.gitignore
+  s_c6dbd849b6eae0::t_751db02952720c 8-9
+CLAUDE.md
+  s_c6dbd849b6eae0::t_82fa024c0ae0ba 6
+Cargo.lock
+  s_c6dbd849b6eae0::t_38c63e0e5e39f4 5-19,27-28,30,33-34,36-39,42-43,45,48-49,51,54-55,57,60-61,63,65,69-70,72,74,78-81,83-85,89-92,94-98,102-105,108-111,114-117,120-123,125-126,130-133,136-137,139,142-143,145,147-151,155-156,158,161-162,164-170,176-177,179-182,185-186,188,191-192,194,196,200-201,203,206-207,209,211-212,216-217,219,221-223,227-228,230,232-235,239-240,242,245-246,250-251,253-259,261,265-266,268,271-274,276-277,281-284,286-288,292-295,297-298,302-303,305,308-309,311,313-315,319-320,322,325-326,328,330,334-335,337,339-340,344-345,347,350-351,353,355-357,361-362,364,366-368,372-373,375-1663,1668-1874,1876-1882,1884-1886,1890-1891,1893-1911,1913,1917-1918,1920-1926,1928-1933,1937-1938,1940-1950,1952,1956,1960-1961,1963,1965,1969-1970,1972,1974,1978-1979,1981,1983,1987-1988,1990-1994,1997-1998,2000-2029,2037-2072,2082-2326
+Cargo.toml
+  s_c6dbd849b6eae0::t_184610cad1bf7b 34-35,38
+Justfile
+  s_c6dbd849b6eae0::t_d31ba84c7f178d 48,55-57
+README.md
+  s_c6dbd849b6eae0::t_e0135ac1bfb4a1 49-50,55-56,62-67
+crates/ledger-core/Cargo.toml
+  s_c6dbd849b6eae0::t_513dc752d077f0 11-12,14
+crates/ledger-core/src/dataset/ids.rs
+  s_c6dbd849b6eae0::t_478df3fda682ad 1-185
+crates/ledger-core/src/dataset/mod.rs
+  s_c6dbd849b6eae0::t_b815b3761935e0 1-738
+crates/ledger-core/src/dataset/model.rs
+  s_c6dbd849b6eae0::t_9ff4195c6abfb6 1-166
+crates/ledger-core/src/dataset/money.rs
+  s_c6dbd849b6eae0::t_f7e908440e9669 1-110
+crates/ledger-core/src/dataset/raw.rs
+  s_c6dbd849b6eae0::t_e7be1d5ea49f3a 1-105
+crates/ledger-jev/Cargo.toml
+  s_c6dbd849b6eae0::t_db1d62090c99a7 11
+crates/ledger-jev/smoke_request.json
+  s_c6dbd849b6eae0::t_2af25e0fa29eef 1-37
+crates/ledger-jev/src/lib.rs
+  s_c6dbd849b6eae0::t_3345e519977270 1-297
+crates/ledger-store/Cargo.toml
+  s_c6dbd849b6eae0::t_d6acc3f8bdd1f0 9-21
+crates/ledger-store/migrations/0001_events_and_verdicts.sql
+  s_c6dbd849b6eae0::t_ce9ede8f696bf1 1-47
+crates/ledger-store/src/bin/ledger-migrate.rs
+  s_c6dbd849b6eae0::t_f93d100e03ce51 1-23
+crates/ledger-store/src/lib.rs
+  s_c6dbd849b6eae0::t_806fd929e9207e 1-413
+docker-compose.yml
+  s_c6dbd849b6eae0::t_b197588978cbeb 1-29
+fixtures/jev/same-obligation.json
+  s_c6dbd849b6eae0::t_7e7d2584a1699f 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9921a43715f479e5334ecbbfb5969eff08246532",
+  "prompts": {},
+  "sessions": {
+    "s_c6dbd849b6eae0": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "37d764a9-e5e8-4062-93e3-3d6918be3d51",
+        "model": "grok-4.7-high-fast"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    }
+  }
+}
