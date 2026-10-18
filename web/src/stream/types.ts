@@ -23,6 +23,23 @@ export type TimelineStep = {
   role: string;
 };
 
+/** Mapped relevance of one trace event. Unknown is not a pass. */
+export type RerankOutcome = "Relevant" | "NotRelevant" | "Unknown";
+
+/** One stored Jev score. No explanation text. */
+export type RerankScore = {
+  eventId: string;
+  outcome: RerankOutcome;
+};
+
+/** Stored rerank input and mapped scores. */
+export type RerankRecord = {
+  request: string;
+  response: string;
+  failure: string | null;
+  scores: RerankScore[];
+};
+
 /** Same, Different, or Unknown. Unknown is not a pass. */
 export type BindingOutcome = "Same" | "Different" | "Unknown";
 
@@ -53,6 +70,11 @@ export type VerdictItem = {
   recordedAt: string;
   binding?: string;
   timeline?: TimelineStep[];
+  /** Events behind expand. Empty when the ranking is unknown. */
+  rest?: TimelineStep[];
+  /** `ranked` selects a minimal set. `unknown` shows the full trace. */
+  rank?: "ranked" | "unknown" | null;
+  rerank?: RerankRecord | null;
   comparison?: BindingComparison | null;
 };
 
@@ -138,6 +160,9 @@ export type VerdictInput = {
   recordedAt?: string;
   binding?: string;
   timeline?: TimelineStep[];
+  rest?: TimelineStep[];
+  rank?: unknown;
+  rerank?: unknown;
   comparison?: unknown;
 };
 

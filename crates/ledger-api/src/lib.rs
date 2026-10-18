@@ -36,4 +36,5 @@ mod traces;
 
 pub use engine::{ApiError, Engine, StreamEntry, StreamMessage, StreamVerdict};
 pub use http::serve;
+pub use http::serve_ranking;
 pub use http::Server;

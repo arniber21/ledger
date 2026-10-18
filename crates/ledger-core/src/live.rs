@@ -34,6 +34,11 @@ pub struct Judged {
     pub reason_code: Option<String>,
     /// Evidence events in observation order.
     pub timeline: Vec<TimelineEntry>,
+    /// Event ids the sealed Sentinel verdict names as its decisive witness.
+    ///
+    /// Empty when the outcome is not a decisive violation. Two or three ids is
+    /// the matched evidence a counterexample must keep.
+    pub matched: Vec<String>,
 }
 
 /// One evidence event on a counterexample timeline.
@@ -158,6 +163,32 @@ impl Session {
         )?);
         judged.extend(self.gaps(&judged));
         Ok(strongest(judged))
+    }
+
+    /// Candidate events for one binding, in observation order.
+    ///
+    /// The binding's own timeline is included. So are other events observed
+    /// between its first and last event, except events on a different bill or
+    /// a different order. Derived events are included only when `matched`
+    /// names them: those are the witness closes Sentinel already marked.
+    #[must_use]
+    pub fn trace(&self, spec_id: &str, binding: &str, matched: &[String]) -> Vec<TimelineEntry> {
+        let window = trace_window(spec_id, binding, &self.history);
+        let mut rows: Vec<&LedgerEvent> = self
+            .history
+            .iter()
+            .filter(|event| in_trace(spec_id, binding, event, matched, window))
+            .collect();
+        rows.sort_by_key(|event| (event.times().observed_at_ns, event.id().to_owned()));
+        rows.into_iter()
+            .map(|event| TimelineEntry {
+                event_id: event.id().to_owned(),
+                observed_at_ns: event.times().observed_at_ns,
+                source: event.source_name(),
+                kind: event.kind().event_kind().to_owned(),
+                role: event.role().to_owned(),
+            })
+            .collect()
     }
 
     fn classify(&self, event: LedgerEvent) -> Result<LedgerEvent, AdapterError> {
@@ -362,13 +393,26 @@ fn judged_from(spec_id: &str, verdict: BindingVerdict, history: &[LedgerEvent]) 
     let outcome = verdict.verdict().outcome();
     let reason_code = reason_code(spec_id, outcome, verdict.verdict().inconclusive_reason());
     let binding = verdict.binding().to_owned();
+    let matched = matched_ids(&verdict);
     Judged {
         spec_id: spec_id.to_owned(),
         binding: binding.clone(),
         outcome,
         reason_code,
         timeline: timeline(spec_id, &binding, history),
+        matched,
     }
+}
+
+fn matched_ids(verdict: &BindingVerdict) -> Vec<String> {
+    let mut ids: Vec<String> = verdict
+        .verdict()
+        .decisive_witness_event_ids()
+        .iter()
+        .map(|id| id.as_str().to_owned())
+        .collect();
+    ids.sort();
+    ids
 }
 
 fn reason_code(
@@ -420,7 +464,48 @@ fn push_gap(
         outcome: VerdictOutcome::Inconclusive,
         reason_code: Some("missing-evidence".to_owned()),
         timeline: timeline(spec_id, binding, history),
+        matched: Vec::new(),
     });
+}
+
+fn trace_window(spec_id: &str, binding: &str, history: &[LedgerEvent]) -> Option<(i128, i128)> {
+    let mut times = history
+        .iter()
+        .filter(|event| on_timeline(spec_id, binding, event, history))
+        .map(|event| event.times().observed_at_ns);
+    let first = times.next()?;
+    Some(times.fold((first, first), |(lo, hi), at| (lo.min(at), hi.max(at))))
+}
+
+fn in_trace(
+    spec_id: &str,
+    binding: &str,
+    event: &LedgerEvent,
+    matched: &[String],
+    window: Option<(i128, i128)>,
+) -> bool {
+    if matched.iter().any(|id| id == event.id()) {
+        return true;
+    }
+    if event.is_derived() {
+        return false;
+    }
+    if on_timeline(spec_id, binding, event, &[]) {
+        return true;
+    }
+    let Some((start, end)) = window else {
+        return false;
+    };
+    let at = event.times().observed_at_ns;
+    if at < start || at > end {
+        return false;
+    }
+    if spec_id == SPEC_RESPONSE {
+        return event
+            .order_id()
+            .is_none_or(|order| order.as_str() == binding);
+    }
+    event.bill_id().is_none_or(|bill| bill.as_str() == binding)
 }
 
 fn timeline(spec_id: &str, binding: &str, history: &[LedgerEvent]) -> Vec<TimelineEntry> {
@@ -575,7 +660,100 @@ mod tests {
             .timeline
             .iter()
             .any(|entry| entry.role == "second-payment"));
+        assert!(
+            !verdict.matched.is_empty(),
+            "matched evidence {:?}",
+            verdict.matched
+        );
+        let trace = session.trace(SPEC_ABSENCE, "bill-1", &verdict.matched);
+        assert!(trace.len() >= verdict.matched.len(), "{trace:?}");
+        for id in &verdict.matched {
+            assert!(
+                trace.iter().any(|entry| entry.event_id == *id),
+                "witness {id} missing from {trace:?}"
+            );
+        }
         assert!(!format!("{verdict:?}").to_lowercase().contains("fraud"));
+    }
+
+    #[test]
+    fn minimal_double_pay_marks_two_or_three_witnesses() {
+        let mut session = Session::new().expect("session");
+        push_all(
+            &mut session,
+            &[
+                pay("pay", 10, &[]),
+                exchange("settled", LedgerKind::ObligationSettled, 20, &["pay"]),
+                pay("again", 30, &["settled"]),
+            ],
+        );
+        let verdicts = session.verdicts().expect("verdicts");
+        let verdict = one(&verdicts, SPEC_ABSENCE);
+        let trace = session.trace(SPEC_ABSENCE, "bill-1", &verdict.matched);
+        let described: Vec<String> = trace
+            .iter()
+            .map(|entry| {
+                format!(
+                    "{} {} matched={}",
+                    entry.event_id,
+                    entry.role,
+                    verdict.matched.iter().any(|id| id == &entry.event_id)
+                )
+            })
+            .collect();
+        assert_eq!(
+            verdict.matched,
+            vec!["again".to_owned(), "again:close".to_owned()]
+        );
+        assert_eq!(
+            trace
+                .iter()
+                .map(|entry| entry.event_id.as_str())
+                .collect::<Vec<_>>(),
+            vec!["pay", "settled", "again", "again:close"]
+        );
+        assert_eq!(described.len(), 4);
+    }
+
+    #[test]
+    fn trace_keeps_context_inside_the_bill_window() {
+        let mut session = Session::new().expect("session");
+        let tick = LedgerEvent::tick("tick-1", agent(), Times::at(15), None::<&str>).expect("tick");
+        let submitted = LedgerEvent::order(
+            "order-9",
+            LedgerKind::OrderSubmit,
+            order("ord-9"),
+            None,
+            agent(),
+            Times::at(25),
+            None::<&str>,
+        )
+        .expect("order");
+        push_all(
+            &mut session,
+            &[
+                pay("pay", 10, &[]),
+                tick,
+                exchange("settled", LedgerKind::ObligationSettled, 20, &["pay"]),
+                submitted,
+                pay("again", 30, &["settled"]),
+            ],
+        );
+        let verdicts = session.verdicts().expect("verdicts");
+        let verdict = one(&verdicts, SPEC_ABSENCE);
+        let trace = session.trace(SPEC_ABSENCE, "bill-1", &verdict.matched);
+        let ids: Vec<&str> = trace.iter().map(|entry| entry.event_id.as_str()).collect();
+        assert_eq!(
+            ids,
+            vec![
+                "pay",
+                "tick-1",
+                "settled",
+                "order-9",
+                "again",
+                "again:close"
+            ]
+        );
     }
 
     #[test]

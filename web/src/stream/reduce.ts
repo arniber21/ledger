@@ -8,6 +8,9 @@ import {
   type RatePoint,
   type SavedView,
   type StreamEvent,
+  type RerankOutcome,
+  type RerankRecord,
+  type RerankScore,
   type TimelineStep,
   type VerdictInput,
   type VerdictItem,
@@ -90,11 +93,43 @@ function normalizeVerdict(input: VerdictInput): VerdictItem | null {
     recordedAt: typeof input.recordedAt === "string" ? input.recordedAt : "",
     binding: typeof input.binding === "string" ? input.binding : "",
     timeline: readTimeline(input.timeline),
+    rest: readTimeline(input.rest),
+    rank: input.rank === "ranked" || input.rank === "unknown" ? input.rank : null,
+    rerank: readRerank(input.rerank),
     comparison,
   };
 }
 
 const BINDING_OUTCOMES: readonly BindingOutcome[] = ["Same", "Different", "Unknown"];
+
+const RERANK_OUTCOMES: readonly RerankOutcome[] = ["Relevant", "NotRelevant", "Unknown"];
+
+function readRerank(value: unknown): RerankRecord | null {
+  if (!isRecord(value)) return null;
+  const scores = readScores(value.scores);
+  const request = typeof value.request === "string" ? value.request : "";
+  const response = typeof value.response === "string" ? value.response : "";
+  const failure = typeof value.failure === "string" && value.failure.length > 0 ? value.failure : null;
+  if (scores.length === 0 && request.length === 0 && response.length === 0 && !failure) return null;
+  return { request, response, failure, scores };
+}
+
+function readScores(value: unknown): RerankScore[] {
+  if (!Array.isArray(value)) return [];
+  const scores: RerankScore[] = [];
+  for (const entry of value) {
+    if (!isRecord(entry)) continue;
+    const eventId = typeof entry.eventId === "string" ? entry.eventId : "";
+    const outcome = entry.outcome;
+    if (eventId.length === 0 || !isRerankOutcome(outcome)) continue;
+    scores.push({ eventId, outcome });
+  }
+  return scores;
+}
+
+function isRerankOutcome(value: unknown): value is RerankOutcome {
+  return typeof value === "string" && RERANK_OUTCOMES.includes(value as RerankOutcome);
+}
 
 function readTimeline(value: unknown): TimelineStep[] {
   if (!Array.isArray(value)) return [];

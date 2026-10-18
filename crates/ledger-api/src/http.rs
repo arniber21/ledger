@@ -2,6 +2,7 @@
 
 use std::convert::Infallible;
 use std::net::SocketAddr;
+use std::sync::Arc;
 use std::time::Duration;
 
 use axum::extract::State;
@@ -16,7 +17,9 @@ use tokio::task::JoinHandle;
 use tokio_stream::wrappers::BroadcastStream;
 use tokio_stream::StreamExt;
 
-use crate::engine::{message, verdict_from_stored, ApiError, Engine, StreamVerdict};
+use ledger_jev::{SystemOne, SystemOneClient};
+
+use crate::engine::{message, verdict_from_stored, ApiError, Engine, Ranker, StreamVerdict};
 
 #[derive(Clone)]
 struct App {
@@ -58,6 +61,39 @@ impl Drop for Server {
 ///
 /// Returns an error when the address cannot be bound or the session cannot start.
 pub async fn serve(store: Store, addr: &str) -> Result<Server, ApiError> {
+    start(store, addr, None).await
+}
+
+/// Binds `addr` and reranks violating traces when `TYPESAFE_API_KEY` is set.
+///
+/// The key is not logged. A missing key leaves the evidence timeline as the
+/// monitor recorded it.
+///
+/// # Errors
+///
+/// Returns an error when the address cannot be bound or the session cannot start.
+pub async fn serve_ranking(store: Store, addr: &str) -> Result<Server, ApiError> {
+    start(store, addr, env_ranker()).await
+}
+
+fn env_ranker() -> Option<Ranker> {
+    let Ok(key) = std::env::var("TYPESAFE_API_KEY") else {
+        return None;
+    };
+    if key.trim().is_empty() {
+        return None;
+    }
+    let client = match SystemOneClient::new(key) {
+        Ok(client) => client,
+        Err(error) => {
+            tracing::warn!(error = %error, "jev rerank client was not built");
+            return None;
+        }
+    };
+    Some(Arc::new(move |request: &str| client.evaluate(request)))
+}
+
+async fn start(store: Store, addr: &str, ranker: Option<Ranker>) -> Result<Server, ApiError> {
     let listener = TcpListener::bind(addr).await?;
     let bound = listener.local_addr()?;
     let (tx, _) = broadcast::channel(1024);
@@ -65,7 +101,7 @@ pub async fn serve(store: Store, addr: &str) -> Result<Server, ApiError> {
     let engine_store = store.clone();
     let engine_tx = tx.clone();
     let engine = tokio::spawn(async move {
-        let mut engine = match Engine::new(engine_store, engine_tx) {
+        let mut engine = match Engine::with_ranker(engine_store, engine_tx, ranker) {
             Ok(engine) => engine,
             Err(error) => {
                 tracing::error!(error = %error, "verdict engine failed to start");
