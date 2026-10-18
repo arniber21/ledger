@@ -1,0 +1,24 @@
+crates/ledger-api/src/http.rs
+  s_61e0b0c14d18f7::t_166849850e3b47 196-198,200-201
+crates/ledger-api/tests/stream.rs
+  s_61e0b0c14d18f7::t_117a0104eb7645 13-17,19-22,24-26,44,142,162-163,168,206
+crates/ledger-store/src/lib.rs
+  s_61e0b0c14d18f7::t_117a0104eb7645 376-378
+  s_61e0b0c14d18f7::t_7ad9095f7e3fa9 337-375,379-389
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2ab8d47e5c04113d3f323c7eb47e9b9339aa622a",
+  "prompts": {},
+  "sessions": {
+    "s_61e0b0c14d18f7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c168cc53-67a2-4357-967a-c871924e2eec",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    }
+  }
+}
