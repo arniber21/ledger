@@ -64,10 +64,24 @@ fn toggling_double_pay_emits_one_second_payment_then_stops() {
     assert_eq!(extra.faults, vec![Fault::DoublePay]);
     assert!(extra.needs_review);
     assert!(extra.approval_id.is_some());
-    assert_eq!(
-        span_field(&state, "agent.pay_bill", "bill-settled", "fault.name"),
-        "double-pay"
-    );
+    let second = state
+        .spans
+        .iter()
+        .find(|span| {
+            span.name == "agent.pay_bill"
+                && field(span, "bill.id").ends_with("bill-settled")
+                && span.fields.contains_key("fault.name")
+        })
+        .expect("second payment span");
+    assert_eq!(field(second, "fault.name"), "double-pay");
+    // The second payment sits on a trace that holds the books payment and its
+    // settlement, so the absence monitor can judge it.
+    let settled = pay_span_named(&state, "ledger.exchange.settled", "bill-settled");
+    assert_eq!(field(settled, "history.source"), "books");
+    assert_eq!(field(second, "link.settled_id"), field(settled, "event.id"));
+    let first = pay_span_named(&state, "agent.pay_bill", "bill-settled");
+    assert_eq!(field(first, "history.source"), "books");
+    assert_eq!(field(settled, "link.pay_id"), field(first, "event.id"));
     assert!(state.events.iter().any(|event| {
         event_text(event) == "needs review"
             && event_field(event, "reason").contains("second payment on a settled obligation")
@@ -80,6 +94,17 @@ fn toggling_double_pay_emits_one_second_payment_then_stops() {
         .payments
         .iter()
         .all(|item| !item.faults.contains(&Fault::DoublePay)));
+}
+
+#[test]
+fn a_normal_payment_is_followed_by_settlement_and_credit() {
+    let mut desk = fixture_desk(FaultConfig::new());
+    let (_, state) = run_cycle(&mut desk);
+    let pay = pay_span(&state, "bill-open");
+    let settled = pay_span_named(&state, "ledger.exchange.settled", "bill-open");
+    let credit = pay_span_named(&state, "ledger.exchange.credit", "bill-open");
+    assert_eq!(field(settled, "link.pay_id"), field(pay, "event.id"));
+    assert_eq!(field(credit, "link.settled_id"), field(settled, "event.id"));
 }
 
 #[test]

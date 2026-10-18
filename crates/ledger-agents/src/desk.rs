@@ -450,7 +450,13 @@ impl Desk {
             quote.faults.push(Fault::ExceedBudget);
         }
         let local = bill.local.clone();
-        let payment = desk.finish_payment(&bill, quote, format!("pay-{local}"), approval_id);
+        let payment = desk.finish_payment(
+            &bill,
+            quote,
+            format!("pay-{local}"),
+            approval_id,
+            Settlement::New,
+        );
         desk.paid.insert(local);
         PayOutcome::Paid(payment)
     }
@@ -548,6 +554,14 @@ enum MemoFor {
     Unknown(&'static str),
 }
 
+/// How a payment relates to exchange settlement.
+enum Settlement {
+    /// A first payment: the desk emits its settlement and credit.
+    New,
+    /// A second payment of an obligation already settled by `settled_id`.
+    Again { settled_id: String },
+}
+
 enum Gate {
     Proceed(Option<String>),
     Stop(Inconclusive),
@@ -582,7 +596,14 @@ impl DeskInner {
             );
         };
         self.spent = next;
-        let payment = self.finish_payment(&bill, quote, format!("pay-{local}-again"), approval_id);
+        let settled_id = self.emit_books_settlement(&bill, quote.amount, approval_id.as_deref());
+        let payment = self.finish_payment(
+            &bill,
+            quote,
+            format!("pay-{local}-again"),
+            approval_id,
+            Settlement::Again { settled_id },
+        );
         self.double_paid.insert(local.to_owned());
         PayOutcome::Paid(payment)
     }
@@ -593,7 +614,10 @@ impl DeskInner {
         quote: ReadyQuote,
         payment_id: String,
         approval_id: Option<String>,
+        settlement: Settlement,
     ) -> Payment {
+        let pay_event_id = self.alloc_event_id();
+        let quote_amount = quote.amount;
         let review = !quote.faults.is_empty();
         let label = fault_label(&quote.faults);
         let reason = review_reasons(&quote.faults);
@@ -618,6 +642,8 @@ impl DeskInner {
             agent.id = PAYER,
             bill.id = %bill.scoped,
             payment.id = %payment_id,
+            "event.id" = %pay_event_id,
+            "link.settled_id" = tracing::field::Empty,
             vendor.id = %quote.payee.scoped,
             bill.vendor_id = %bill.vendor_scoped,
             vendor.name = %quote.payee.name,
@@ -641,6 +667,9 @@ impl DeskInner {
         if let Some(approval) = approval_id.as_deref() {
             span.record("link.approval_id", approval);
         }
+        if let Settlement::Again { settled_id } = &settlement {
+            span.record("link.settled_id", settled_id.as_str());
+        }
         if let Some(instruction) = quote.memo_instruction.as_deref() {
             span.record("memo.instruction", instruction);
         }
@@ -663,8 +692,87 @@ impl DeskInner {
             needs_review: review,
             memo_instruction: quote.memo_instruction,
         };
+        drop(_entered);
+        if matches!(settlement, Settlement::New) {
+            self.emit_settlement(bill, quote_amount, &pay_event_id);
+        }
         self.payments.push(payment.clone());
         payment
+    }
+
+    /// Emits the exchange's `ledger.exchange.settled` then `ledger.exchange.credit`
+    /// for a payment this desk just made. The absence monitor needs both to
+    /// close a bill as paid once; without them a live payment stays
+    /// `Inconclusive`.
+    fn emit_settlement(&mut self, bill: &BillView, amount: Money, pay_event_id: &str) {
+        let settled_id = self.alloc_event_id();
+        let credit_id = self.alloc_event_id();
+        let settled = tracing::info_span!(
+            "ledger.exchange.settled",
+            sentry.name = "ledger.exchange.settled",
+            sentry.op = "ledger.exchange.settled",
+            agent.id = PAYER,
+            bill.id = %bill.scoped,
+            amount = %amount,
+            "event.id" = %settled_id,
+            "link.pay_id" = %pay_event_id,
+            settlement.kind = "simulated",
+        );
+        drop(settled.enter());
+        let credit = tracing::info_span!(
+            "ledger.exchange.credit",
+            sentry.name = "ledger.exchange.credit",
+            sentry.op = "ledger.exchange.credit",
+            agent.id = PAYER,
+            bill.id = %bill.scoped,
+            "event.id" = %credit_id,
+            "link.settled_id" = %settled_id,
+            settlement.kind = "simulated",
+        );
+        drop(credit.enter());
+    }
+
+    /// Replays the books record of a bill that was settled before this run:
+    /// the original payment and its settlement, so a second payment has the
+    /// prior payment and settlement it contradicts on the same trace. Both
+    /// spans are marked `history.source = "books"`. The original payment
+    /// carries this run's approval for the bill. Returns the settled event id.
+    fn emit_books_settlement(
+        &mut self,
+        bill: &BillView,
+        amount: Money,
+        approval_id: Option<&str>,
+    ) -> String {
+        let pay_id = self.alloc_event_id();
+        let pay = tracing::info_span!(
+            "agent.pay_bill",
+            sentry.name = "agent.pay_bill",
+            sentry.op = "agent.pay_bill",
+            agent.id = PAYER,
+            bill.id = %bill.scoped,
+            amount = %amount,
+            "event.id" = %pay_id,
+            "history.source" = "books",
+            "link.approval_id" = tracing::field::Empty,
+        );
+        if let Some(approval) = approval_id {
+            pay.record("link.approval_id", approval);
+        }
+        drop(pay.enter());
+        let settled_id = self.alloc_event_id();
+        let settled = tracing::info_span!(
+            "ledger.exchange.settled",
+            sentry.name = "ledger.exchange.settled",
+            sentry.op = "ledger.exchange.settled",
+            agent.id = PAYER,
+            bill.id = %bill.scoped,
+            amount = %amount,
+            "event.id" = %settled_id,
+            "link.pay_id" = %pay_id,
+            "history.source" = "books",
+        );
+        drop(settled.enter());
+        settled_id
     }
 
     fn memo_for(&self, bill: &BillView) -> MemoFor {
@@ -957,7 +1065,7 @@ impl DeskInner {
     fn alloc_event_id(&mut self) -> String {
         let seq = self.next_event_seq;
         self.next_event_seq = seq.saturating_add(1);
-        format!("00000000-0000-4000-8000-{seq:012x}")
+        format!("{:08x}-0000-4000-8000-{seq:012x}", run_prefix())
     }
 
     fn alias(&self, bill_vendor_local: &str) -> Option<&Vendor> {
@@ -1003,6 +1111,19 @@ fn allocate(desk: &mut DeskInner) -> Result<OrderId, AgentError> {
     let id = desk.next_order_id;
     desk.next_order_id = id.checked_add(1).ok_or(AgentError::OrderIdOverflow)?;
     Ok(OrderId::new(id))
+}
+
+/// First UUID group of every event id this process mints. Ids from an earlier
+/// run of the desk must not repeat, or the engine would skip them as seen.
+fn run_prefix() -> u32 {
+    static PREFIX: std::sync::OnceLock<u32> = std::sync::OnceLock::new();
+    *PREFIX.get_or_init(|| {
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |elapsed| {
+                u32::try_from(elapsed.as_secs() & u64::from(u32::MAX)).unwrap_or(0)
+            })
+    })
 }
 
 fn settled_locals(books: &CompanyBooks) -> Vec<String> {
