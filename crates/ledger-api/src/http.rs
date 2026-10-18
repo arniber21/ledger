@@ -193,8 +193,12 @@ async fn stream(
     replayed.extend(scene_events(&app.store).await);
     let live =
         BroadcastStream::new(rx).filter_map(|item| item.ok().map(|frame| Ok(sse_event(&frame))));
+    // A leading comment flushes the response headers and first bytes at once,
+    // so an idle stream (no verdicts yet) is visibly open to clients and proxies.
+    let hello = stream::once(async { Ok(Event::default().comment("connected")) });
     let replay = stream::iter(replayed.into_iter().map(Ok));
-    Ok(Sse::new(replay.chain(live)).keep_alive(KeepAlive::new().interval(Duration::from_secs(10))))
+    Ok(Sse::new(hello.chain(replay).chain(live))
+        .keep_alive(KeepAlive::new().interval(Duration::from_secs(10))))
 }
 
 async fn scene_events(store: &Store) -> Vec<Event> {

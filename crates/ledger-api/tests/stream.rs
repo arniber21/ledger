@@ -5,20 +5,25 @@ use std::time::Duration;
 use chrono::{DateTime, Utc};
 use ledger_api::{serve, Engine, StreamMessage};
 use ledger_ingest::{persist, CapturedSpan};
-use ledger_store::{Store, Uuid};
+use ledger_store::{database_url, Store, Uuid};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::sync::broadcast;
 
-/// Both tests step every recent row. A second engine that inserts the same
-/// verdict first leaves this poll with nothing to publish.
-static ENGINE: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
-
-async fn test_store() -> Store {
-    let store = Store::connect_test()
+/// Each test gets its own scratch database on the local Timescale server. A
+/// stack running against the shared database would otherwise step these events
+/// first and insert the same deterministic verdict, leaving the poll empty.
+async fn test_store() -> (Store, String) {
+    Store::create_scratch(&database_url())
         .await
-        .expect("connect to ledger_test (just db-up)");
+        .expect("create scratch database on local timescale (just db-up)")
+}
+
+async fn cleanup(store: Store, name: String) {
     store
+        .drop_scratch(&database_url(), &name)
+        .await
+        .expect("drop scratch database");
 }
 
 fn span(name: &'static str, id: u64, at: DateTime<Utc>, fields: &[(&str, &str)]) -> CapturedSpan {
@@ -36,8 +41,7 @@ fn span(name: &'static str, id: u64, at: DateTime<Utc>, fields: &[(&str, &str)])
 
 #[tokio::test]
 async fn double_pay_fault_is_a_violate_on_the_stream_with_a_timeline() {
-    let _guard = ENGINE.lock().await;
-    let store = test_store().await;
+    let (store, scratch) = test_store().await;
     let bill = format!("bill-{}", Uuid::new_v4());
     let agent = format!("payer-{}", Uuid::new_v4());
     let pay = Uuid::new_v4().to_string();
@@ -135,6 +139,7 @@ async fn double_pay_fault_is_a_violate_on_the_stream_with_a_timeline() {
     assert_eq!(stored.outcome.as_str(), "Violate");
     assert_eq!(stored.spec_id, "ledger.bill.no-second-payment");
 
+    let store_for_cleanup = store.clone();
     let server = serve(store, "127.0.0.1:0").await.expect("serve");
     let traces = read_http(server.addr, "/api/traces").await;
     assert!(
@@ -154,12 +159,13 @@ async fn double_pay_fault_is_a_violate_on_the_stream_with_a_timeline() {
     assert!(payload.contains("timeline"));
     assert!(payload.contains(&bill) || payload.contains(&again));
     assert!(!payload.to_lowercase().contains("fraud"));
+    drop(server);
+    cleanup(store_for_cleanup, scratch).await;
 }
 
 #[tokio::test]
 async fn unresolved_order_after_three_ticks_violates() {
-    let _guard = ENGINE.lock().await;
-    let store = test_store().await;
+    let (store, scratch) = test_store().await;
     let order = format!("order-{}", Uuid::new_v4());
     let now = Utc::now();
     let mut spans = vec![span(
@@ -197,6 +203,7 @@ async fn unresolved_order_after_three_ticks_violates() {
     assert_eq!(frame.title, "needs review");
     assert!(frame.timeline.iter().any(|entry| entry.role == "order"));
     assert!(frame.timeline.iter().any(|entry| entry.role == "deadline"));
+    cleanup(store, scratch).await;
 }
 
 async fn read_http(addr: std::net::SocketAddr, path: &str) -> String {
