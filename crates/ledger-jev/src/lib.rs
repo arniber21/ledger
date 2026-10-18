@@ -1,19 +1,25 @@
 //! Jev (TypeSafe System One) client: binding judgments, the memo predicate,
-//! and Quick actions routing.
+//! Quick actions routing, and recurring-schedule versus duplicate-payment
+//! judgments.
 //!
 //! Deterministic guards on amount, bill id, vendor id, and currency run first
 //! and skip Jev when they decide. Otherwise the model returns a typed Choice.
 //! This crate maps that Choice onto [`BindingVerdict`] with the fixed 0.80
-//! thresholds. The memo Noul maps onto [`PredicateVerdict`]. This crate does
-//! not ask for or keep explanation text. [`BindingVerdict::Same`] merges
-//! monitor keys. [`BindingVerdict::Different`] keeps them apart.
-//! [`BindingVerdict::Unknown`] is inconclusive and does not merge.
+//! thresholds. The memo Noul maps onto [`PredicateVerdict`]. The same
+//! thresholds map a credit or cancellation memo onto [`CloseVerdict`]. A
+//! payment uses the same Choice mapper: same bill id and same period decide
+//! first. A weekly series is not a duplicate. A second payment of the same
+//! bill needs review. This crate does not ask for or keep explanation text.
+//! [`BindingVerdict::Same`] merges monitor keys. [`BindingVerdict::Different`]
+//! keeps them apart. [`BindingVerdict::Unknown`] is inconclusive and does not
+//! merge or retire. On a payment, `Unknown` is inconclusive and is not a pass.
 
 use serde_json::Value;
 use thiserror::Error;
 
 mod baseline;
 mod client;
+mod close;
 mod guard;
 mod matchers;
 mod memo;
@@ -21,9 +27,14 @@ mod obligation;
 mod quick;
 mod request;
 mod resolve;
+mod schedule;
 
 pub use baseline::{baseline_cases, baseline_report, BaselineCase, BaselineReport, CaseComparison};
 pub use client::{SystemOne, SystemOneClient, SYSTEM_ONE_URL};
+pub use close::{
+    close_memo_request, consider_alias, consider_close_memo, map_close_memo_body,
+    map_close_memo_exchange, CloseVerdict, MEMO_CLOSES_QUESTION,
+};
 pub use guard::{guard, GuardDecision};
 pub use matchers::{exact_match, fuzzy_match, FUZZY_NAME_THRESHOLD};
 pub use memo::{
@@ -37,6 +48,11 @@ pub use quick::{
 };
 pub use request::binding_request;
 pub use resolve::{resolve, BindingEffect, CallFault, Resolution};
+pub use schedule::{
+    judge_payment, schedule_cases, schedule_report, schedule_request, RecordKind, ScheduleCase,
+    ScheduleComparison, ScheduleFinding, ScheduleGuard, ScheduleJudgment, ScheduleRecord,
+    ScheduleReport, RECURRING_OR_DUPLICATE_QUESTION,
+};
 
 /// Question id for the binding smoke call.
 ///
