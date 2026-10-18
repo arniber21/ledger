@@ -1,0 +1,55 @@
+Cargo.lock
+  s_350cc85e154f98::t_60fb0fa9a4b2b1 2418
+Justfile
+  s_350cc85e154f98::t_be96144cdf864b 56
+README.md
+  s_350cc85e154f98::t_7821df24fd6ac1 47,89
+crates/ledger-api/Cargo.toml
+  s_350cc85e154f98::t_4515c6ba1b64c6 11
+crates/ledger-api/src/calibration.rs
+  s_350cc85e154f98::t_ea94ebaa3acb8a 1-86
+crates/ledger-api/src/http.rs
+  s_350cc85e154f98::t_83a796971d2c9a 101
+crates/ledger-api/src/lib.rs
+  s_350cc85e154f98::t_ed0cd812a491fe 26,28
+crates/ledger-api/src/main.rs
+  s_350cc85e154f98::t_11e53b0c134146 31
+crates/ledger-store/migrations/0003_jev_calibration.sql
+  s_878ee6d1d9d898::t_dfa5e47d9728d7 1-77
+crates/ledger-store/src/lib.rs
+  s_350cc85e154f98::t_47d3e43507a3f2 5,55-58,61-66,224-254,719,721-722,758-864,1283,1307-1547
+web/src/dashboard/calibration-panel.tsx
+  s_350cc85e154f98::t_e53f5bb2db44c8 1-116
+web/src/dashboard/calibration.test.ts
+  s_350cc85e154f98::t_c8c0ac2c5dd61d 1-56
+web/src/dashboard/calibration.ts
+  s_350cc85e154f98::t_3fd9ac1f678d0a 1-71
+web/src/dashboard/dashboard.tsx
+  s_350cc85e154f98::t_a105a9d28acecf 14,161-162
+web/src/styles.css
+  s_350cc85e154f98::t_8200ddcc81ee1f 1029-1054
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "34896b37a269451803049371cdf6c863d0f61e87",
+  "prompts": {},
+  "sessions": {
+    "s_350cc85e154f98": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "da1f435a-0824-4ee1-aa32-c9191ff85a58",
+        "model": "grok-4.7-high-fast"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    },
+    "s_878ee6d1d9d898": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "c0d9e802-ec2d-4cbc-9883-25473fff0afb",
+        "model": "grok-4.7-high-fast"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    }
+  }
+}
