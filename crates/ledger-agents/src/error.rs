@@ -46,8 +46,12 @@ pub enum AgentError {
     AlreadyRunning,
 
     /// Nothing is listening on the fault-control socket.
-    #[error("agents are not running")]
+    #[error("no ledger-agents is listening on .ledger/agents.sock in this checkout (start it with `just agents`; the socket path is relative to the directory the command runs in)")]
     NotRunning,
+
+    /// The desk did not answer in time. The toggle was probably applied; the cycle is still running.
+    #[error("the agents did not answer within the timeout; the fault was probably toggled and the cycle is still running, so check the agents log before toggling again")]
+    ControlTimeout,
 
     /// The control socket accepted a command it could not apply.
     #[error("fault control: {0}")]
@@ -58,7 +62,7 @@ pub enum AgentError {
     ControlBind(#[source] std::io::Error),
 
     /// A read or write on the control socket failed.
-    #[error("failed to use the fault control socket")]
+    #[error("fault control socket I/O failed")]
     ControlIo(#[source] std::io::Error),
 
     /// `SENTRY_DSN` was set, but the Sentry client did not start.
