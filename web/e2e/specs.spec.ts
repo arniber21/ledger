@@ -197,7 +197,7 @@ test("the soak chart stays flat and a later duplicate is needs review", async ({
   await expect(violate).toHaveCount(1);
   await violate.click();
   await expect(page.getByTestId("verdict-detail")).toBeVisible();
-  await expect(page.getByTestId("verdict-detail")).toContainText("Needs review");
+  await expect(page.getByTestId("verdict-detail")).toContainText(/needs review/i);
   await expect(page.getByTestId("verdict-detail")).toContainText("monitor stayed live");
   await expect(page.getByText(/fraud/i)).toHaveCount(0);
 });

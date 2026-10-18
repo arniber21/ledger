@@ -5,6 +5,7 @@
  * or from stored events. Missing fields stay missing.
  */
 
+import { outcomeTitle } from "../inbox/model";
 import type { StoredEvent } from "../traces/model";
 import type { RerankOutcome, TimelineStep, VerdictItem } from "../stream/types";
 
@@ -29,8 +30,8 @@ const VIOLATING_ROLE: Record<string, string> = {
 
 const SETTLE_KINDS = new Set(["exchange.settle", "agent.settle", "ledger.exchange.settled"]);
 
-export function verdictTitle(verdict: Pick<VerdictItem, "title">): string {
-  return /fraud/i.test(verdict.title) ? "needs review" : verdict.title;
+export function verdictTitle(verdict: Pick<VerdictItem, "outcome">): string {
+  return outcomeTitle(verdict.outcome);
 }
 
 /** Which timeline steps are visible, and how many stay behind expand. */
