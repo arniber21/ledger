@@ -5,7 +5,10 @@ import { useEffect, useRef } from "react";
 // prefixed with "!" (for example "!escape"), which is allowed while typing.
 
 export type HotkeyHandler = (event: KeyboardEvent) => void;
-export type HotkeyEntry = HotkeyHandler | { handler: HotkeyHandler; description?: string; hidden?: boolean };
+// passive entries only document a binding that another listener implements.
+export type HotkeyEntry =
+  | HotkeyHandler
+  | { handler?: HotkeyHandler; description?: string; hidden?: boolean; passive?: boolean };
 export type HotkeyMap = Record<string, HotkeyEntry>;
 export type HotkeyOptions = { scope?: string; enabled?: boolean; sequenceMs?: number };
 
@@ -82,12 +85,19 @@ export function useHotkeys(map: HotkeyMap, options: HotkeyOptions = {}): void {
     if (!enabled) return;
     const id = Symbol(scope);
     const build = (): Compiled[] =>
-      Object.entries(mapRef.current).map(([combo, entry]) => ({
-        combo,
-        steps: parseCombo(combo),
-        allowTyping: combo.startsWith("!"),
-        handler: (event) => (typeof entry === "function" ? entry : entry.handler)(event),
-      }));
+      Object.entries(mapRef.current).flatMap(([combo, entry]) =>
+        typeof entry !== "function" && (entry.passive || !entry.handler)
+          ? []
+          : [
+              {
+                combo,
+                steps: parseCombo(combo),
+                allowTyping: combo.startsWith("!"),
+                handler: (event: KeyboardEvent) =>
+                  typeof entry === "function" ? entry(event) : entry.handler?.(event),
+              },
+            ],
+      );
     registry.set(
       id,
       Object.entries(mapRef.current).flatMap(([combo, entry]) =>
