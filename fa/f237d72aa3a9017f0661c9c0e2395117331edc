@@ -1,0 +1,21 @@
+web/e2e/playwright.config.ts
+  s_61e0b0c14d18f7::t_99aaec5ddfed8a 28-40
+web/e2e/specs.spec.ts
+  s_61e0b0c14d18f7::t_513ec0b889d56a 33-39,73,85,95,105,127,141-143,152-154,164-168,191-199
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "faf237d72aa3a9017f0661c9c0e2395117331edc",
+  "prompts": {},
+  "sessions": {
+    "s_61e0b0c14d18f7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c168cc53-67a2-4357-967a-c871924e2eec",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    }
+  }
+}
