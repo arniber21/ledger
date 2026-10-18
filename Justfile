@@ -69,13 +69,14 @@ validator:
 api:
     cargo run -p ledger-api
 
-# Start the buying agents; pass faults to inject, e.g. `just agents double-pay no-approval` (pending #7).
+# Start the buying agents. Optional fault names turn those faults on.
+# Example: just agents double-pay no-approval
 agents *faults:
-    @echo "agents {{faults}}: pending #7" >&2; exit 1
+    cargo run -p ledger-agents --bin ledger-agents -- {{faults}}
 
-# Toggle a fault on the running agents (pending #7).
+# Toggle a fault on the running agents.
 fault name:
-    @echo "fault {{name}}: pending #7" >&2; exit 1
+    cargo run -p ledger-agents --bin ledger-agents -- --toggle {{name}}
 
 # Web UI dev server (pending #14).
 ui:

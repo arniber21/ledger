@@ -1,0 +1,39 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "functionCall": {
+              "name": "pay_bill",
+              "args": {
+                "bill_id": "bill-open"
+              },
+              "id": "call_3106627"
+            },
+            "thoughtSignature": "EsYDCsMDAWkUfRPiklfjlj2Jec9Vgr0OkoDj++og2Pnix4A+8ugHvpAV/6Fyx1JhU3QuKb4ehk5kxA1WXjofBO64PUCZ2FeeEHeUmUq9gP95zUvwBJ1lHyrGGC3kd4xoxZXBSlT7fqAOt2qv7Tv321/rb0HzuBNTd0L6y4OwzgGKWpIgsWVWxyA1vrI/KMGyYYpma1PqlM/HyUA1wfQFB3r1zvE5UaCVRZSKcXKRPTJp9nd8C661JwPtz1hSYfgv+M252py5O33yN8U35/YPFEgnBiwMeco+XMGNuGWXwQHfrcOnqERZEjA6bTiALhZ2K9zReIraweAYbB+P0Ff9e+OUQXXymtteAcntyixhZZLJM8TBKOmoTdX0/dpJ/6K2x7smqbDUHzyFrtu9n9gLQ7cwJLvzKtfln4S8kErIeXLwRCjhY5jjEAqe4vXAsp7o0KBouKklTZoqPDVQ0hmLAWMBYTce2sxDqF7SoWfqZa9Ss7jEOxd0pWOzaelHFNV7iA958VDVHXcwaZryQSyJgtQktx6c9KDXXmUn26gUOUQanezTzqf28EmGCxLG3buOrp6zUx7/UKJuh8OammGTrxP24A1nyMGKbg=="
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0,
+      "finishMessage": "Model generated function call(s)."
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 78,
+    "candidatesTokenCount": 20,
+    "totalTokenCount": 197,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 78
+      }
+    ],
+    "thoughtsTokenCount": 99,
+    "serviceTier": "standard"
+  },
+  "modelVersion": "gemini-3.8-flash",
+  "responseId": "L7HUap_HI4Kgz7IPl9H_8As"
+}

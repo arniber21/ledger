@@ -35,6 +35,10 @@ ledger-store = { path = "crates/ledger-store" }
 
 anyhow = "1"
 chrono = { version = "0.4", default-features = false, features = ["std"] }
+# Gemini provider and tool contracts (`rig-core`) plus the agent loop (`rig-agent`).
+rig-agent = "0.44"
+rig-core = { version = "0.44", features = ["reqwest"] }
+rig-reqwest = "0.44"
 rust_decimal = "1"
 # `tracing` enables sentry-tracing. `logs` enables structured logs (also a default).
 sentry = { version = "0.49", features = ["tracing", "logs"] }

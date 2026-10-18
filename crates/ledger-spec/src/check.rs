@@ -7,7 +7,7 @@
 use sentinel_compile::catalogue::catalogue;
 use serde_json::Value;
 
-use crate::draft::{parameters_json, PatternDraft};
+use crate::draft::{parameters_json, sort_objects, PatternDraft};
 
 /// Question id for the draft-match Choice.
 ///
@@ -20,8 +20,9 @@ pub const DRAFT_MATCH_QUESTION: &str = "draft_matches_policy";
 /// The body has no API key.
 #[must_use]
 pub fn match_request(sentence: &str, draft: &PatternDraft) -> String {
-    serde_json::to_string(&match_request_value(sentence, draft))
-        .expect("match request is finite JSON")
+    // Same sorted object keys as [`crate::draft::draft_request`].
+    let value = sort_objects(match_request_value(sentence, draft));
+    serde_json::to_string(&value).expect("match request is finite JSON")
 }
 
 fn match_request_value(sentence: &str, draft: &PatternDraft) -> Value {
