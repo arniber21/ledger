@@ -1,0 +1,56 @@
+crates/ledger-jev/src/lib.rs
+  s_4d65d29517b895::t_d5c8f96efa79e4 6-9,14-18
+  s_4d65d29517b895::t_ee3c87d0c12473 3-5
+  s_4d65d29517b895::t_13c0870b680229 19-21
+  s_4d65d29517b895::t_b63e487b5eb688 22-26,31-33,67
+Cargo.lock
+  s_4d65d29517b895::t_9d7eb1031e93f8 2492
+README.md
+  s_4d65d29517b895::t_e663d532cec9f4 46
+crates/ledger-jev/Cargo.toml
+  s_4d65d29517b895::t_c29c59fdd28fd3 9
+crates/ledger-jev/src/baseline.rs
+  s_4d65d29517b895::t_8f83338a95e666 1-227
+crates/ledger-jev/src/client.rs
+  s_4d65d29517b895::t_4610cf1adda86b 1-114
+crates/ledger-jev/src/guard.rs
+  s_4d65d29517b895::t_c1dd0be4464dd9 1-156
+crates/ledger-jev/src/matchers.rs
+  s_4d65d29517b895::t_fd06d3d3c69203 1-191
+crates/ledger-jev/src/obligation.rs
+  s_4d65d29517b895::t_5b6fc14697aee9 1-132
+crates/ledger-jev/src/request.rs
+  s_4d65d29517b895::t_9825872613d45c 1-103
+crates/ledger-jev/src/resolve.rs
+  s_4d65d29517b895::t_7e4777b667dab7 1-475
+crates/ledger-jev/tests/bindings.rs
+  s_4d65d29517b895::t_f466e754812be7 1-132
+fixtures/jev/bindings/abbreviated-vendor-request.json
+  s_4d65d29517b895::t_1499b762c48918 1
+fixtures/jev/bindings/abbreviated-vendor-response.json
+  s_4d65d29517b895::t_f331b1d2a2392a 1
+fixtures/jev/bindings/different-bills-request.json
+  s_4d65d29517b895::t_77869f1f954a6b 1
+fixtures/jev/bindings/different-bills-response.json
+  s_4d65d29517b895::t_4b78d281ff4624 1
+fixtures/jev/bindings/recurring-rent-request.json
+  s_4d65d29517b895::t_542ab3317f4972 1
+fixtures/jev/bindings/recurring-rent-response.json
+  s_4d65d29517b895::t_d64632ffebef92 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "bd6939a8e292bd3c376dfee7ccc8f4972fd36d89",
+  "prompts": {},
+  "sessions": {
+    "s_4d65d29517b895": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "77e82096-792c-4dc3-827c-1b9ecf33a354",
+        "model": "grok-4.7-high-fast"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    }
+  }
+}
