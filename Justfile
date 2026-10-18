@@ -45,16 +45,16 @@ data:
 
 # --- infrastructure ---
 
-# Start TimescaleDB (needs Docker/OrbStack running). Compose file lands with #4.
+# Start TimescaleDB (needs Docker/OrbStack running).
 db-up:
     docker compose up -d --wait timescaledb
 
 db-down:
     docker compose down
 
-# Apply migrations (pending #4).
-migrate:
-    @echo "migrate: pending #4" >&2; exit 1
+# Apply the events hypertable and verdicts table migrations.
+migrate: db-up
+    cargo run -p ledger-store --bin ledger-migrate
 
 # Local Solana validator used for exchange settlement. Foreground; run in its own terminal.
 validator:

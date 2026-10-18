@@ -46,10 +46,13 @@ Tasks run through [`just`](https://github.com/casey/just); `just` lists them. Re
 ```
 just data         # download company-001 (gitignored)
 just check
-just db-up        # TimescaleDB
+just db-up        # TimescaleDB on localhost:5433
+just migrate      # events hypertable and verdicts table
 just validator    # local Solana validator (own terminal)
 just demo         # everything, once #19 lands
 ```
+
+`docker-compose.yml` runs `timescale/timescaledb`. The password in that file (`ledger_local`) is for this local database only. `just test` includes a store insert/read round-trip and needs the database up (`just db-up`).
 
 ## Disclosure
 
