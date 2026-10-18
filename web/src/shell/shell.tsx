@@ -76,12 +76,12 @@ export function Shell() {
   const go = (to: string) => void navigate({ to });
   useHotkeys(
     {
-      "g d": { handler: () => void navigate({ to: "/" }), description: "Go to Dashboard" },
-      "g i": { handler: () => void navigate({ to: "/inbox" }), description: "Go to Inbox" },
-      "g t": { handler: () => void navigate({ to: "/traces" }), description: "Go to Traces" },
-      "g p": { handler: () => void navigate({ to: "/taint" }), description: "Go to Taint" },
-      "g s": { handler: () => void navigate({ to: "/specs" }), description: "Go to Specs" },
-      "g v": { handler: () => void navigate({ to: "/verdicts" }), description: "Go to Verdicts" },
+      "g d": { handler: () => go("/"), description: "Go to Dashboard" },
+      "g i": { handler: () => go("/inbox"), description: "Go to Inbox" },
+      "g t": { handler: () => go("/traces"), description: "Go to Traces" },
+      "g p": { handler: () => go("/taint"), description: "Go to Taint" },
+      "g s": { handler: () => go("/specs"), description: "Go to Specs" },
+      "g v": { handler: () => go("/verdicts"), description: "Go to Verdicts" },
     },
     { scope: "Navigate", enabled: !paletteOpen },
   );
