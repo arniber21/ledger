@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
-use ledger_agents::{CycleReport, Desk, FaultConfig};
+use ledger_agents::{CycleReport, Desk, Fault, FaultConfig, PayOutcome};
 use ledger_core::dataset::{load_company, CompanyBooks, Money};
 use tracing::field::{Field, Visit};
 use tracing::span::{Attributes, Id, Record};
@@ -139,14 +139,80 @@ pub fn event_field<'a>(event: &'a CapturedEvent, name: &str) -> &'a str {
     event.fields.get(name).map(String::as_str).unwrap_or("")
 }
 
+/// Drives the desk tools directly and records their spans.
+///
+/// This is the fault-test path. The live cycle is [`Desk::run_cycle`], which
+/// asks Rig to call the same tools.
 pub fn run_cycle(desk: &mut Desk) -> (CycleReport, CaptureState) {
     let capture = Capture::default();
     let layer = capture.clone();
     let report =
         tracing::subscriber::with_default(tracing_subscriber::registry().with(layer), || {
-            desk.run_cycle().expect("cycle")
+            drive_tools(desk)
         });
     (report, capture.snapshot())
+}
+
+fn drive_tools(desk: &Desk) -> CycleReport {
+    desk.begin_cycle();
+    let no_approval = desk.fault_enabled(Fault::PayWithoutApproval);
+    let double_pay = desk.fault_enabled(Fault::DoublePay);
+    let open = desk.open_bill_ids();
+    if !no_approval {
+        let span = tracing::info_span!(
+            "agent.decide",
+            sentry.name = "agent.decide",
+            sentry.op = "agent.decide",
+            agent.id = "approver",
+            decision.kind = "approve",
+        );
+        let _entered = span.enter();
+        for id in &open {
+            desk.approve_bill(id);
+        }
+        if double_pay {
+            if let Some(id) = desk.next_settled_bill() {
+                desk.approve_bill(&id);
+            }
+        }
+    }
+    {
+        let span = tracing::info_span!(
+            "agent.decide",
+            sentry.name = "agent.decide",
+            sentry.op = "agent.decide",
+            agent.id = "payer",
+            decision.kind = "pay",
+        );
+        let _entered = span.enter();
+        for id in open {
+            match desk.pay_bill(&id) {
+                PayOutcome::Withheld(_) => break,
+                PayOutcome::Paid(payment) if payment.faults.contains(&Fault::ExceedBudget) => {
+                    break;
+                }
+                PayOutcome::Paid(_) | PayOutcome::Inconclusive(_) | _ => {}
+            }
+        }
+        if double_pay {
+            if let Some(id) = desk.next_settled_bill() {
+                let _ = desk.pay_bill(&id);
+            }
+        }
+    }
+    desk.seed_liquidity().expect("resting ask");
+    let span = tracing::info_span!(
+        "agent.decide",
+        sentry.name = "agent.decide",
+        sentry.op = "agent.decide",
+        agent.id = "buyer",
+        decision.kind = "trade",
+        order.id = tracing::field::Empty,
+    );
+    let _entered = span.enter();
+    desk.buy_flour().expect("buyer fill");
+    drop(_entered);
+    desk.report()
 }
 
 pub fn load_fixture(name: &str) -> CompanyBooks {

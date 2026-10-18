@@ -16,8 +16,8 @@ pub struct CycleReport {
     pub withheld: Vec<Withheld>,
     /// Decisions that stopped because the evidence could not be read.
     pub inconclusive: Vec<Inconclusive>,
-    /// The buyer's fill against resting flour liquidity.
-    pub trade: Trade,
+    /// The buyer's fill, when the buyer tool submitted an order that traded.
+    pub trade: Option<Trade>,
 }
 
 /// An approval that must precede a payment, unless the no-approval fault is on.

@@ -1,13 +1,17 @@
 //! Line protocol on a Unix socket so `just fault <name>` can flip a running desk.
 //!
-//! One line `toggle <fault>` runs another decision cycle and replies `on` or `off`.
+//! One line `toggle <fault>` flips that fault, runs another Rig cycle, and
+//! replies `on` or `off`.
 
 use std::fs;
-use std::io::{BufRead, BufReader, Read, Write};
+use std::io::{Read, Write};
 use std::net::Shutdown;
-use std::os::unix::net::{UnixListener, UnixStream};
+use std::os::unix::net::UnixStream;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
+
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader as AsyncBufReader};
+use tokio::net::UnixListener;
 
 use crate::desk::Desk;
 use crate::error::AgentError;
@@ -23,19 +27,19 @@ struct ToggleOutcome {
     report: CycleReport,
 }
 
-/// Blocks, accepting `toggle <fault>` lines until the process is stopped.
+/// Accepts `toggle <fault>` lines until the process is stopped.
 ///
 /// # Errors
 ///
 /// Returns [`AgentError::AlreadyRunning`] when another desk holds `path`,
 /// and [`AgentError::ControlBind`] when the socket cannot be created.
-pub fn listen(desk: &mut Desk, path: &Path) -> Result<(), AgentError> {
-    let listener = bind(path)?;
+pub async fn listen(desk: &Desk, path: &Path) -> Result<(), AgentError> {
+    let listener = bind_async(path)?;
     let _cleanup = RemoveOnDrop(path.to_owned());
-    for connection in listener.incoming() {
-        match connection {
-            Ok(stream) => {
-                if let Err(err) = handle(desk, stream) {
+    loop {
+        match listener.accept().await {
+            Ok((stream, _)) => {
+                if let Err(err) = handle(desk, stream).await {
                     tracing::warn!(error = %err, "fault control");
                 }
             }
@@ -44,7 +48,6 @@ pub fn listen(desk: &mut Desk, path: &Path) -> Result<(), AgentError> {
             }
         }
     }
-    Ok(())
 }
 
 /// Tells the desk listening on `path` to flip `fault` and run a cycle.
@@ -56,7 +59,7 @@ pub fn listen(desk: &mut Desk, path: &Path) -> Result<(), AgentError> {
 pub fn toggle_running(path: &Path, fault: Fault) -> Result<bool, AgentError> {
     let mut stream = UnixStream::connect(path).map_err(not_running)?;
     stream
-        .set_read_timeout(Some(Duration::from_secs(5)))
+        .set_read_timeout(Some(Duration::from_secs(30)))
         .map_err(AgentError::ControlIo)?;
     writeln!(stream, "toggle {fault}").map_err(AgentError::ControlIo)?;
     stream
@@ -76,27 +79,30 @@ pub fn toggle_running(path: &Path, fault: Fault) -> Result<bool, AgentError> {
     }
 }
 
-fn apply_line(desk: &mut Desk, line: &str) -> Result<ToggleOutcome, AgentError> {
+async fn apply_line(desk: &Desk, line: &str) -> Result<ToggleOutcome, AgentError> {
     let line = line.trim();
     let Some(name) = line.strip_prefix("toggle ") else {
         return Err(AgentError::Control("expected toggle <fault>".to_owned()));
     };
     let fault = Fault::parse(name.trim())?;
     let enabled = desk.toggle_fault(fault);
-    let report = desk.run_cycle()?;
+    let report = desk.run_cycle().await?;
     tracing::info!(fault = fault.as_str(), enabled, "fault toggled");
     Ok(ToggleOutcome { enabled, report })
 }
 
-fn handle(desk: &mut Desk, stream: UnixStream) -> Result<(), AgentError> {
-    stream
-        .set_read_timeout(Some(Duration::from_secs(5)))
-        .map_err(AgentError::ControlIo)?;
-    let mut reader = BufReader::new(stream);
+async fn handle(desk: &Desk, stream: tokio::net::UnixStream) -> Result<(), AgentError> {
+    let mut reader = AsyncBufReader::new(stream);
     let mut line = String::new();
-    reader.read_line(&mut line).map_err(AgentError::ControlIo)?;
+    let read = tokio::time::timeout(Duration::from_secs(5), reader.read_line(&mut line))
+        .await
+        .map_err(|_| AgentError::Control("fault control timed out".to_owned()))?
+        .map_err(AgentError::ControlIo)?;
+    if read == 0 && line.is_empty() {
+        return Ok(());
+    }
     let mut stream = reader.into_inner();
-    let response = match apply_line(desk, &line) {
+    let response = match apply_line(desk, &line).await {
         Ok(outcome) => {
             let needs_review = outcome
                 .report
@@ -110,28 +116,30 @@ fn handle(desk: &mut Desk, stream: UnixStream) -> Result<(), AgentError> {
                 "fault cycle finished"
             );
             if outcome.enabled {
-                "on\n"
+                "on\n".to_owned()
             } else {
-                "off\n"
+                "off\n".to_owned()
             }
         }
-        Err(err) => {
-            return write_response(&mut stream, &format!("error {err}\n"));
-        }
+        Err(err) => format!("error {err}\n"),
     };
-    write_response(&mut stream, response)
-}
-
-fn write_response(stream: &mut UnixStream, response: &str) -> Result<(), AgentError> {
     stream
         .write_all(response.as_bytes())
+        .await
         .map_err(AgentError::ControlIo)?;
-    stream
-        .shutdown(Shutdown::Write)
-        .map_err(AgentError::ControlIo)
+    stream.shutdown().await.map_err(AgentError::ControlIo)?;
+    Ok(())
 }
 
-fn bind(path: &Path) -> Result<UnixListener, AgentError> {
+fn bind_async(path: &Path) -> Result<UnixListener, AgentError> {
+    let listener = bind(path)?;
+    listener
+        .set_nonblocking(true)
+        .map_err(AgentError::ControlBind)?;
+    UnixListener::from_std(listener).map_err(AgentError::ControlBind)
+}
+
+fn bind(path: &Path) -> Result<std::os::unix::net::UnixListener, AgentError> {
     if let Some(parent) = path.parent() {
         if !parent.as_os_str().is_empty() {
             fs::create_dir_all(parent).map_err(AgentError::ControlBind)?;
@@ -143,7 +151,7 @@ fn bind(path: &Path) -> Result<UnixListener, AgentError> {
             Err(_) => fs::remove_file(path).map_err(AgentError::ControlBind)?,
         }
     }
-    UnixListener::bind(path).map_err(AgentError::ControlBind)
+    std::os::unix::net::UnixListener::bind(path).map_err(AgentError::ControlBind)
 }
 
 fn not_running(err: std::io::Error) -> AgentError {
@@ -173,44 +181,56 @@ mod tests {
     use ledger_core::dataset::{load_company, CompanyBooks};
 
     use crate::fault::FaultConfig;
+    use crate::replay;
 
     static SOCKET_SEQ: AtomicU64 = AtomicU64::new(0);
 
-    #[test]
-    fn toggle_line_runs_a_cycle_with_that_fault() {
-        let mut desk = fixture_desk();
-        let outcome = apply_line(&mut desk, "toggle double-pay\n").expect("toggle");
+    #[tokio::test(flavor = "current_thread")]
+    async fn toggle_line_enables_the_fault_for_the_next_payment() {
+        let desk = fixture_desk();
+        let outcome = apply_line(&desk, "toggle double-pay\n")
+            .await
+            .expect("toggle");
         assert!(outcome.enabled);
-        assert!(outcome
-            .report
-            .payments
-            .iter()
-            .any(|payment| payment.faults.contains(&Fault::DoublePay)));
-        assert!(outcome
-            .report
-            .payments
-            .iter()
-            .filter(|payment| payment.needs_review)
-            .all(|payment| !format!("{payment:?}")
-                .to_ascii_lowercase()
-                .contains("fraud")));
+        assert!(desk.fault_enabled(Fault::DoublePay));
+        let _ = desk.approve_bill("bill-settled");
+        let paid = desk.pay_bill("bill-settled");
+        let crate::PayOutcome::Paid(payment) = paid else {
+            panic!("expected a second payment, got {paid:?}");
+        };
+        assert!(payment.faults.contains(&Fault::DoublePay));
+        assert!(payment.needs_review);
+        assert!(!format!("{payment:?}")
+            .to_ascii_lowercase()
+            .contains("fraud"));
     }
 
-    #[test]
-    fn unknown_toggle_does_not_run_a_cycle() {
-        let mut desk = fixture_desk();
-        let error = apply_line(&mut desk, "toggle fraud").expect_err("unknown");
+    #[tokio::test(flavor = "current_thread")]
+    async fn unknown_toggle_does_not_run_a_cycle() {
+        let desk = fixture_desk();
+        let error = apply_line(&desk, "toggle fraud")
+            .await
+            .expect_err("unknown");
         assert!(matches!(error, AgentError::UnknownFault { .. }));
+        assert!(desk.report().payments.is_empty());
     }
 
     #[test]
     fn socket_toggle_flips_the_running_desk() {
         let path = temp_socket();
         let listener = bind(&path).expect("bind");
-        let mut desk = fixture_desk();
+        listener.set_nonblocking(true).expect("nonblocking");
+        let desk = fixture_desk();
         let server = thread::spawn(move || {
-            serve_one(&mut desk, &listener).expect("first toggle");
-            serve_one(&mut desk, &listener).expect("second toggle");
+            let runtime = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .expect("runtime");
+            runtime.block_on(async move {
+                let listener = UnixListener::from_std(listener).expect("tokio listener");
+                serve_one(&desk, &listener).await.expect("first toggle");
+                serve_one(&desk, &listener).await.expect("second toggle");
+            });
         });
 
         assert!(toggle_running(&path, Fault::DoublePay).expect("on"));
@@ -219,14 +239,16 @@ mod tests {
         let _ = fs::remove_file(&path);
     }
 
-    fn serve_one(desk: &mut Desk, listener: &UnixListener) -> Result<(), AgentError> {
-        let stream = listener.accept().map_err(AgentError::ControlIo)?.0;
-        handle(desk, stream)
+    async fn serve_one(desk: &Desk, listener: &UnixListener) -> Result<(), AgentError> {
+        let (stream, _) = listener.accept().await.map_err(AgentError::ControlIo)?;
+        handle(desk, stream).await
     }
 
     fn fixture_desk() -> Desk {
         let books = load_fixture("company-fixture");
-        Desk::new(books, money("150.00"), FaultConfig::new()).expect("desk")
+        let desk = Desk::new(books, money("150.00"), FaultConfig::new()).expect("desk");
+        desk.replay_gemini(replay::serve());
+        desk
     }
 
     fn load_fixture(name: &str) -> CompanyBooks {

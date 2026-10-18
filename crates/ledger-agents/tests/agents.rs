@@ -1,4 +1,7 @@
-//! Fault toggles, span links, and one trade trace for the scripted buyers.
+//! Fault toggles, span links, and one trade trace.
+//!
+//! These tests drive the desk tools directly. The Rig agent loop is covered
+//! by the crate test that replays a recorded Gemini tool call.
 
 #[path = "common/mod.rs"]
 mod common;
@@ -250,13 +253,14 @@ fn trade_trace_covers_decision_order_fill_and_settlement() {
     let mut desk = fixture_desk(FaultConfig::new());
     let (report, state) = run_cycle(&mut desk);
 
+    let trade = report.trade.expect("trade");
     let decide = state
         .spans
         .iter()
         .find(|span| span.name == "agent.decide" && field(span, "decision.kind") == "trade")
         .expect("trade decision");
     assert_eq!(field(decide, "agent.id"), "buyer");
-    assert_eq!(field(decide, "order.id"), report.trade.order_id.to_string());
+    assert_eq!(field(decide, "order.id"), trade.order_id.to_string());
 
     let submit = state
         .spans
@@ -276,15 +280,11 @@ fn trade_trace_covers_decision_order_fill_and_settlement() {
         .spans
         .iter()
         .find(|span| {
-            span.name == "exchange.fill"
-                && field(span, "order.id") == report.trade.order_id.to_string()
+            span.name == "exchange.fill" && field(span, "order.id") == trade.order_id.to_string()
         })
         .expect("fill");
-    assert_eq!(
-        field(fill, "taker.order.id"),
-        report.trade.order_id.to_string()
-    );
-    assert_eq!(field(fill, "fill.id"), report.trade.fill_id.to_string());
+    assert_eq!(field(fill, "taker.order.id"), trade.order_id.to_string());
+    assert_eq!(field(fill, "fill.id"), trade.fill_id.to_string());
     let fill_names = ancestor_names(&state.spans, fill);
     assert!(fill_names.contains(&"exchange.match"));
     assert!(fill_names.contains(&"exchange.submit_order"));
@@ -296,14 +296,8 @@ fn trade_trace_covers_decision_order_fill_and_settlement() {
         .find(|span| span.name == "agent.settle")
         .expect("settlement");
     assert_eq!(settle.parent.as_ref(), Some(&decide.id));
-    assert_eq!(
-        field(settle, "link.order_id"),
-        report.trade.order_id.to_string()
-    );
-    assert_eq!(
-        field(settle, "link.fill_id"),
-        report.trade.fill_id.to_string()
-    );
+    assert_eq!(field(settle, "link.order_id"), trade.order_id.to_string());
+    assert_eq!(field(settle, "link.fill_id"), trade.fill_id.to_string());
     assert_eq!(field(settle, "settlement.kind"), "simulated");
     assert!(!settle.fields.contains_key("tx.signature"));
     assert!(state
@@ -336,7 +330,7 @@ fn company_001_faults_run_against_the_loaded_books() {
 
     let mut clean_desk =
         Desk::new(books.clone(), money("5000.00"), FaultConfig::new()).expect("desk");
-    let clean = clean_desk.run_cycle().expect("clean cycle");
+    let clean = run_cycle(&mut clean_desk).0;
     assert!(!clean.payments.is_empty());
     assert!(clean
         .payments
@@ -346,14 +340,12 @@ fn company_001_faults_run_against_the_loaded_books() {
         .withheld
         .iter()
         .any(|item| item.reason == WithholdReason::Budget));
-    assert!(clean.trade.fill_id.get() >= 1);
+    assert!(clean.trade.expect("trade").fill_id.get() >= 1);
 
     let mut double_pay = FaultConfig::new();
     double_pay.enable(Fault::DoublePay);
-    let again = Desk::new(books.clone(), money("5000.00"), double_pay)
-        .expect("desk")
-        .run_cycle()
-        .expect("double-pay cycle");
+    let mut again_desk = Desk::new(books.clone(), money("5000.00"), double_pay).expect("desk");
+    let again = run_cycle(&mut again_desk).0;
     let extra = again
         .payments
         .iter()
@@ -364,10 +356,8 @@ fn company_001_faults_run_against_the_loaded_books() {
 
     let mut hidden = FaultConfig::new();
     hidden.enable(Fault::HiddenMemo);
-    let memo = Desk::new(books.clone(), money("5000.00"), hidden)
-        .expect("desk")
-        .run_cycle()
-        .expect("memo cycle");
+    let mut memo_desk = Desk::new(books.clone(), money("5000.00"), hidden).expect("desk");
+    let memo = run_cycle(&mut memo_desk).0;
     let followed = memo
         .payments
         .iter()
@@ -382,20 +372,16 @@ fn company_001_faults_run_against_the_loaded_books() {
 
     let mut swapped = FaultConfig::new();
     swapped.enable(Fault::SwappedVendor);
-    let swapped_report = Desk::new(books.clone(), money("5000.00"), swapped)
-        .expect("desk")
-        .run_cycle()
-        .expect("swap cycle");
+    let mut swapped_desk = Desk::new(books.clone(), money("5000.00"), swapped).expect("desk");
+    let swapped_report = run_cycle(&mut swapped_desk).0;
     assert!(swapped_report.payments.iter().any(|item| {
         item.faults.contains(&Fault::SwappedVendor) && item.vendor_local != item.bill_vendor_local
     }));
 
     let mut missing = FaultConfig::new();
     missing.enable(Fault::PayWithoutApproval);
-    let unapproved = Desk::new(books.clone(), money("5000.00"), missing)
-        .expect("desk")
-        .run_cycle()
-        .expect("no-approval cycle");
+    let mut unapproved_desk = Desk::new(books.clone(), money("5000.00"), missing).expect("desk");
+    let unapproved = run_cycle(&mut unapproved_desk).0;
     assert!(unapproved.approvals.is_empty());
     assert!(unapproved
         .payments
@@ -409,10 +395,8 @@ fn company_001_faults_run_against_the_loaded_books() {
         .expect("withheld bill");
     let mut over = FaultConfig::new();
     over.enable(Fault::ExceedBudget);
-    let over_report = Desk::new(books, money("5000.00"), over)
-        .expect("desk")
-        .run_cycle()
-        .expect("exceed cycle");
+    let mut over_desk = Desk::new(books, money("5000.00"), over).expect("desk");
+    let over_report = run_cycle(&mut over_desk).0;
     let paid = over_report
         .payments
         .iter()

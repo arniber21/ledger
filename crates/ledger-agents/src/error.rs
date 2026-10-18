@@ -67,6 +67,20 @@ pub enum AgentError {
     #[error("sentry client is disabled")]
     TelemetryDisabled,
 
+    /// `GEMINI_API_KEY` was missing or empty. The value is never included here.
+    #[error("GEMINI_API_KEY is not set")]
+    MissingGeminiKey,
+
+    /// Gemini or Rig rejected the agent run.
+    ///
+    /// The message has the API key removed.
+    #[error("gemini request failed: {0}")]
+    Gemini(String),
+
+    /// A tool call did not include a usable bill id.
+    #[error("tool arguments are missing a bill id")]
+    ToolArgs,
+
     /// Company YAML could not be loaded.
     #[error(transparent)]
     Dataset(#[from] LoadError),

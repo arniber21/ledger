@@ -53,7 +53,28 @@ impl PatternDraft {
 /// The body has no API key. `store` is false.
 #[must_use]
 pub fn draft_request(sentence: &str) -> String {
-    serde_json::to_string(&draft_request_value(sentence)).expect("draft request is finite JSON")
+    // Object keys are emitted in sorted order so the saved request body does
+    // not change when another crate turns on `serde_json`'s `preserve_order`.
+    let value = sort_objects(draft_request_value(sentence));
+    serde_json::to_string(&value).expect("draft request is finite JSON")
+}
+
+pub(crate) fn sort_objects(value: Value) -> Value {
+    match value {
+        Value::Object(map) => {
+            let mut sorted = BTreeMap::new();
+            for (key, child) in map {
+                sorted.insert(key, sort_objects(child));
+            }
+            let mut object = Map::new();
+            for (key, child) in sorted {
+                object.insert(key, child);
+            }
+            Value::Object(object)
+        }
+        Value::Array(items) => Value::Array(items.into_iter().map(sort_objects).collect()),
+        other => other,
+    }
 }
 
 fn draft_request_value(sentence: &str) -> Value {
