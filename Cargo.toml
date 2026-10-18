@@ -20,7 +20,7 @@ edition = "2021"
 publish = false
 
 [workspace.dependencies]
-# Pre-existing Sentinel code, vendored in this repo (see README "Disclosure").
+# Pre-existing Sentinel code, vendored in this repo.
 sentinel-model = { path = "vendor/sentinel/model" }
 sentinel-compile = { path = "vendor/sentinel/compile" }
 sentinel-core = { path = "vendor/sentinel/core" }

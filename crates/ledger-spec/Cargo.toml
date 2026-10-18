@@ -7,3 +7,8 @@ publish.workspace = true
 [dependencies]
 ledger-core.workspace = true
 ledger-jev.workspace = true
+sentinel-compile.workspace = true
+sentinel-core.workspace = true
+sentinel-model.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
