@@ -1,0 +1,58 @@
+crates/ledger-jev/src/lib.rs
+  s_6ed421e15db5a4::t_61eea44b289d9a 2-4
+  s_6ed421e15db5a4::t_f2f42f0c987c25 30,58-61
+crates/ledger-api/src/engine.rs
+  s_6ed421e15db5a4::t_4aa190dc9f293c 7,11,49-67,93-95,135,145-157,167,171-198,327,335-350,354,371,390,417,460
+crates/ledger-api/src/http.rs
+  s_6ed421e15db5a4::t_ed3d165cb12144 3,6,14-15,64-76,84,91-93,161-166,169-172,177-181
+crates/ledger-api/src/main.rs
+  s_6ed421e15db5a4::t_05e267c3dde644 5-8,31-35,44-59
+crates/ledger-api/src/rank.rs
+  s_6ed421e15db5a4::t_d3ae0cd146b9f9 1-218
+crates/ledger-jev/src/rank.rs
+  s_6ed421e15db5a4::t_d03cbf0623a76e 1-728
+crates/ledger-store/migrations/0004_verdict_rank.sql
+  s_6ed421e15db5a4::t_3ffc207ff883c0 1-16
+crates/ledger-store/src/lib.rs
+  s_6ed421e15db5a4::t_6ba7d08c7a7b17 759-805,914-926,1368-1415
+fixtures/jev/rank-mapped.json
+  s_6ed421e15db5a4::t_774d9d43fb5e32 1
+fixtures/jev/rank-request.json
+  s_6ed421e15db5a4::t_cb11876267b53e 1
+fixtures/jev/rank-response.json
+  s_6ed421e15db5a4::t_cce09c57376a74 1
+web/src/inbox/inbox.tsx
+  s_6ed421e15db5a4::t_c7b0299b3f61ca 30-33,38,78-80,82-83,95,140,142-143,147-156,309-311,317-318,454-456,462-463,469-471,477-478,517,520-539,905,921-986
+web/src/inbox/model.test.ts
+  s_6ed421e15db5a4::t_d324b78afefcd1 161-206
+web/src/inbox/model.ts
+  s_6ed421e15db5a4::t_6dadc8739a93c9 2,10-43,117-187,341-346,348-349,373-395,457,462
+web/src/stream/reduce.test.ts
+  s_6ed421e15db5a4::t_9d9d8ffd1f2945 235-260
+web/src/stream/reduce.ts
+  s_6ed421e15db5a4::t_19215f7856d38c 11,95,99-126
+web/src/stream/types.ts
+  s_6ed421e15db5a4::t_a943d6263df25b 42-54,70,156
+web/src/styles.css
+  s_6ed421e15db5a4::t_d281140369af58 1402-1440
+web/src/verdicts/verdicts.tsx
+  s_6ed421e15db5a4::t_b19d315c4b2b65 10,229-236,391-411
+crates/ledger-api/src/lib.rs
+  s_6ed421e15db5a4::t_09fde362a73d60 36,42
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f29ecffcc8104468b22eb0260234bfe0eb7f5627",
+  "prompts": {},
+  "sessions": {
+    "s_6ed421e15db5a4": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "8679a62b-7dfe-472f-b787-ac525feb524b",
+        "model": "grok-4.7-high-fast"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    }
+  }
+}
