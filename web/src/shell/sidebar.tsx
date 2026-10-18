@@ -1,5 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
+import { useSpecRuns } from "../specs/runs";
 import { attentionCount, countSavedView } from "../stream/reduce";
 import { SAVED_VIEWS, type SavedView } from "../stream/types";
 import { useShell } from "./context";
@@ -25,7 +26,10 @@ const NAV = [
 export function Sidebar() {
   const { metrics, openPalette, reviewed, savedView } = useShell();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const search = useRouterState({ select: (state) => state.location.search });
   const onSpecs = pathname === "/specs";
+  const armed = useSpecRuns().filter((run) => run.status === "armed");
+  const specParam = specFromSearch(search);
   const attention = metrics.verdicts.filter(
     (verdict) =>
       (verdict.outcome === "Violate" || verdict.outcome === "Inconclusive") && !reviewed.has(verdict.id),
@@ -96,7 +100,27 @@ export function Sidebar() {
       {onSpecs ? (
         <section className="saved" aria-label="Armed specs">
           <h2>Armed specs</h2>
-          <p className="saved-empty">None armed</p>
+          {armed.length === 0 ? (
+            <p className="saved-empty">None armed</p>
+          ) : (
+            armed.map((run) => {
+              const id = run.specId ?? run.key;
+              const active = specParam === id || specParam === run.key;
+              return (
+                <Link
+                  key={run.key}
+                  to="/specs"
+                  search={{ spec: id }}
+                  className={active ? "saved-item is-active" : "saved-item"}
+                  data-testid={`armed-spec-${id}`}
+                  aria-current={active ? "page" : undefined}
+                >
+                  <span className="swatch swatch-armed" />
+                  <span className="saved-label">{run.patternId ?? "Armed spec"}</span>
+                </Link>
+              );
+            })
+          )}
         </section>
       ) : (
         <section className="saved" aria-label="Saved views">
@@ -108,6 +132,12 @@ export function Sidebar() {
       )}
     </aside>
   );
+}
+
+function specFromSearch(search: object): string | undefined {
+  if (!("spec" in search)) return undefined;
+  const value = (search as { spec: unknown }).spec;
+  return typeof value === "string" ? value : undefined;
 }
 
 function SavedLink({
