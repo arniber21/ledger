@@ -44,7 +44,7 @@ describe("inbox model", () => {
   test("keeps violate and inconclusive and labels violate as needs review", () => {
     const prepared = prepareInbox(
       [
-        verdict({ id: "v-1", outcome: "Violate", title: "needs review", specId: "no-second-payment" }),
+        verdict({ id: "v-1", outcome: "Violate", title: "needs review", specId: "ledger.bill.no-second-payment" }),
         verdict({ id: "v-2", outcome: "Inconclusive", title: "approval missing" }),
         verdict({ id: "v-3", outcome: "Satisfy", title: "held" }),
       ],

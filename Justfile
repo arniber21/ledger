@@ -13,9 +13,13 @@ default:
 
 # --- build ---
 
-check:
+check: web-deps
     cargo check --workspace --all-targets
     cd web && bun run typecheck
+
+# Install web/ dependencies from the lockfile when node_modules is missing (fresh clone).
+web-deps:
+    [ -d web/node_modules ] || (cd web && bun install --frozen-lockfile)
 
 build:
     cargo build --workspace --all-targets
@@ -81,7 +85,7 @@ fault name:
     cargo run -p ledger-agents --bin ledger-agents -- --toggle {{name}}
 
 # Web UI dev server. Vite on port 5173. The dashboard stays empty until VITE_SENTINEL_SSE is set.
-ui:
+ui: web-deps
     cd web && bun run dev
 
 # Count stored events per minute over the last hour (Timescale time_bucket).
@@ -109,11 +113,11 @@ up:
     bash scripts/demo.sh
 
 # Playwright against the local stack. Headless. LEDGER_JEV=replay and LEDGER_TEST=1.
-e2e:
+e2e: web-deps
     bash scripts/e2e.sh
 
 # The same harness in the Playwright UI.
-e2e-ui:
+e2e-ui: web-deps
     bash scripts/e2e.sh --ui
 
 # Database, validator, API, agents, and UI for the Playwright harness.

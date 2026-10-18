@@ -62,6 +62,20 @@ need_key() {
   fi
 }
 
+# Name the process that holds a TCP port: PID, command, cwd, and how to stop it.
+describe_port_holder() {
+  local port="$1" pid cwd cmd
+  pid="$(lsof -nP -iTCP:"$port" -sTCP:LISTEN -t 2>/dev/null | head -n1 || true)"
+  if [[ -z "$pid" ]]; then
+    printf 'held by a process I could not identify (try: lsof -nP -iTCP:%s -sTCP:LISTEN)' "$port"
+    return 0
+  fi
+  cwd="$(lsof -a -p "$pid" -d cwd -Fn 2>/dev/null | sed -n 's/^n//p' | head -n1 || true)"
+  cmd="$(ps -o command= -p "$pid" 2>/dev/null | cut -c1-120 || true)"
+  printf 'held by PID %s (%s) with cwd %s. Stop it with: kill %s (or run just reset to stop stale ledger processes)' \
+    "$pid" "$cmd" "${cwd:-unknown}" "$pid"
+}
+
 port_open() {
   python3 -c 'import socket, sys
 s = socket.socket()
@@ -173,7 +187,7 @@ if http_ok http://127.0.0.1:8080/health; then
   say "API already ready at http://127.0.0.1:8080"
 else
   if port_open 8080; then
-    die "port 8080 is open, but GET /health did not return ok. Stop the process on 8080 and run just demo again."
+    die "port 8080 is open, but GET /health did not return ok; it is $(describe_port_holder 8080). Then run just up again."
   fi
   say "the first API build can take several minutes"
   start_bg api cargo run -p ledger-api
@@ -192,10 +206,10 @@ if http_ok http://127.0.0.1:5173/; then
   say "UI already ready at http://127.0.0.1:5173"
 else
   if port_open 5173; then
-    die "port 5173 is open, and the dev server did not respond. Stop that process and run just demo again."
+    die "port 5173 is open, and the dev server did not respond; it is $(describe_port_holder 5173). Then run just up again."
   fi
   say "installing UI dependencies"
-  (cd web && bun install)
+  (cd web && bun install --frozen-lockfile)
   start_bg ui bash -c 'cd web && exec bun run dev -- --host 127.0.0.1 --port 5173 --strictPort'
   wait_for ui 180 "$last_pid" http_ok http://127.0.0.1:5173/
 fi
