@@ -22,8 +22,7 @@ export function useMetrics(): MetricsSnapshot {
   });
 
   useEffect(() => {
-    const url = import.meta.env.VITE_SENTINEL_SSE;
-    if (!url) return;
+    const url = import.meta.env.VITE_SENTINEL_SSE || "/v1/verdicts/stream";
 
     const source = new EventSource(url);
     const write = (next: MetricsSnapshot) => {

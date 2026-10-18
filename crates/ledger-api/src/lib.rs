@@ -22,11 +22,13 @@
 //!
 //! `GET /api/traces` and `GET /api/traces/stream` read ingested spans.
 //! `POST /api/faults/{name}` toggles a fault on the running desk.
+//! `GET` and `POST /api/inbox/triage` read and write inbox status.
 
 mod decode;
 mod engine;
 mod fault;
 mod http;
+mod inbox;
 mod stream;
 mod traces;
 

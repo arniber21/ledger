@@ -96,9 +96,11 @@ pub async fn serve(store: Store, addr: &str) -> Result<Server, ApiError> {
             store: store.clone(),
             tx,
         });
-    let app = verdicts.merge(crate::traces::router(crate::traces::AppState {
-        store: Some(store),
-    }));
+    let app = verdicts
+        .merge(crate::inbox::router(store.clone()))
+        .merge(crate::traces::router(crate::traces::AppState {
+            store: Some(store),
+        }));
     let mut stop = shutdown.subscribe();
     let join = tokio::spawn(async move {
         let server = axum::serve(listener, app).with_graceful_shutdown(async move {

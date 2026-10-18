@@ -14,6 +14,15 @@ export type SavedView = "assigned" | "violations" | "unknowns" | "over-1000";
 
 export type InboxView = "board" | "list" | "split";
 
+/** One evidence step from `GET /v1/verdicts/stream`. */
+export type TimelineStep = {
+  eventId: string;
+  observedAt: string;
+  source: string;
+  kind: string;
+  role: string;
+};
+
 /** One verdict the dashboard can show. Evidence only; no model prose. */
 export type VerdictItem = {
   id: string;
@@ -26,6 +35,8 @@ export type VerdictItem = {
   assignedToMe: boolean;
   jevUnknown: boolean;
   recordedAt: string;
+  binding?: string;
+  timeline?: TimelineStep[];
 };
 
 /** One bucket from a 10-minute events-per-second series, by source. */
@@ -108,6 +119,8 @@ export type VerdictInput = {
   assignedToMe?: boolean;
   jevUnknown?: boolean;
   recordedAt?: string;
+  binding?: string;
+  timeline?: TimelineStep[];
 };
 
 export const SAVED_VIEWS: { id: SavedView; label: string }[] = [

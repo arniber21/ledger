@@ -138,4 +138,29 @@ describe("parseStreamData", () => {
     );
     expect(rates?.kind).toBe("rates");
   });
+
+  test("keeps timeline evidence and does not invent a binding comparison", () => {
+    const event = parseStreamData(
+      JSON.stringify({
+        kind: "verdict",
+        verdict: {
+          id: "11111111-1111-4111-8111-111111111111",
+          outcome: "Violate",
+          title: "needs review",
+          specId: "ledger.bill.no-second-payment",
+          binding: "bill-9",
+          timeline: [
+            { eventId: "e1", observedAt: "2026-10-18T00:00:00Z", source: "agent.payer", kind: "pay", role: "payment" },
+          ],
+        },
+      }),
+    );
+    expect(event?.kind).toBe("verdict");
+    if (event?.kind !== "verdict") return;
+    const snapshot = applyStreamEvent(emptySnapshot(), event);
+    expect(snapshot.verdicts[0]?.timeline?.[0]?.source).toBe("agent.payer");
+    expect(snapshot.verdicts[0]?.binding).toBe("bill-9");
+    expect(snapshot.verdicts[0]?.title).toBe("needs review");
+    expect(JSON.stringify(snapshot.verdicts[0])).not.toContain("fraud");
+  });
 });
