@@ -13,6 +13,8 @@ export PATH="${HOME}/.local/share/solana/install/active_release/bin:${HOME}/.loc
 export LEDGER_TEST=1
 export LEDGER_JEV="${LEDGER_JEV:-replay}"
 export DATABASE_URL="${DATABASE_URL:-postgres://ledger:ledger_local@127.0.0.1:5433/ledger_e2e}"
+# shellcheck disable=SC1091
+source "${root}/scripts/e2e-slot.sh"
 
 if [[ -z "${LEDGER_API_PORT:-}" || -z "${LEDGER_UI_PORT:-}" ]]; then
   printf 'e2e: LEDGER_API_PORT and LEDGER_UI_PORT are unset. Run just e2e.\n' >&2
@@ -137,6 +139,9 @@ if [[ -f .env ]]; then
   source .env
   set +a
 fi
+# A slot wins over .env so this stack does not attach to the default database.
+# shellcheck disable=SC1091
+source "${root}/scripts/e2e-slot.sh"
 
 need_cmd docker
 need_cmd solana-test-validator
@@ -178,6 +183,7 @@ else
   wait_for validator 90 "$validator_pid" validator_ready
 fi
 
+say "compose project ${LEDGER_COMPOSE_PROJECT:-ledger}, database port ${LEDGER_DB_PORT:-5433}"
 say "starting TimescaleDB"
 just db-up
 exists="$(docker compose exec -T timescaledb psql -U ledger -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname = 'ledger_e2e'")"

@@ -134,7 +134,7 @@ test("priority weights reorder stored scores without calling Jev", async ({ page
   await openInbox(page, "split");
   await expect
     .poll(async () => {
-      const text = await page.getByTestId("inbox-split").innerText();
+      const text = (await page.getByTestId("inbox-split").innerText()).toLowerCase();
       const count = (await splitOrder(page)).length;
       return text.includes("inconclusive") && text.includes("needs review") && count >= 3;
     }, { timeout: 60_000 })
