@@ -1,0 +1,82 @@
+crates/ledger-agents/src/desk.rs
+  s_7671496087e664::t_9b53fdd83af997 582-587
+  s_7671496087e664::t_87e9d36cc3ce7c 145
+  s_7671496087e664::t_cbac174de6d539 1-144,146-581,588-724
+crates/ledger-agents/src/bin/ledger-agents.rs
+  s_7671496087e664::t_1b37b6ca6642d2 56
+  s_7671496087e664::t_86671d8f1c097f 96
+  s_7671496087e664::t_03997b092eeb73 1-55,57-95,97-106
+crates/ledger-agents/fixtures/company-fixture/rwm-v4/world-1/vendors.yaml
+  s_7671496087e664::t_fcf3e7d0df3ae1 1-43
+crates/ledger-agents/tests/common/mod.rs
+  s_7671496087e664::t_814212b75a428a 1-10,12,14-145,147,149-181
+  s_7671496087e664::t_c2742a22fd1051 11,13
+  s_61e0b0c14d18f7::t_19e3b4239a92a5 146,148
+Justfile
+  s_7671496087e664::t_e27e915f924495 70-71,73,75,77
+crates/ledger-agents/fixtures/company-garbled/rwm-v4/world-1/vendors.yaml
+  s_7671496087e664::t_8447417b9c5b83 1-43
+crates/ledger-agents/src/control.rs
+  s_7671496087e664::t_f186f7ac1c6e18 1-5,7-19,21-100,112-247
+  s_7671496087e664::t_9fe64e2da184b7 6
+  s_7671496087e664::t_791a5baf6f830e 101-111
+  s_7671496087e664::t_81fc8765598a85 20
+crates/ledger-agents/fixtures/company-fixture/rwm-v4/world-1/bill_payments.yaml
+  s_7671496087e664::t_9db6c78b5c5d4a 1-15
+crates/ledger-agents/fixtures/company-garbled/rwm-v4/world-1/bills.yaml
+  s_7671496087e664::t_683e24eefa48a9 1-24
+crates/ledger-agents/src/lib.rs
+  s_7671496087e664::t_ce68b7588bd090 1-33
+crates/ledger-agents/fixtures/company-garbled/rwm-v4/world-1/bill_payments.yaml
+  s_7671496087e664::t_a63b396403a96d 1
+crates/ledger-agents/src/memo.rs
+  s_7671496087e664::t_2de4f45f50a162 108
+  s_7671496087e664::t_e4589e86c73b9e 1-107,109-127
+crates/ledger-agents/Cargo.toml
+  s_7671496087e664::t_356f9450a5f39b 10-18
+crates/ledger-agents/fixtures/company-fixture/rwm-v4/world-1/bills.yaml
+  s_7671496087e664::t_757c69b890eb55 1-97
+crates/ledger-agents/tests/agents.rs
+  s_7671496087e664::t_307492b77674f4 318,322-326
+  s_7671496087e664::t_9114fa4d21dde5 1-10,12-212,214,216,218,221-277,279-280,282-317,319-320,327-504
+  s_7671496087e664::t_7c6ff42f79ffa6 11
+  s_7671496087e664::t_e6827afeb00bc9 213
+  s_7671496087e664::t_9bf3d6dbee5dd6 215
+  s_7671496087e664::t_b4e4f1cbe4319f 217
+  s_7671496087e664::t_2a055d06b51366 219-220
+  s_7671496087e664::t_071911398a400c 278
+  s_7671496087e664::t_d02e23cd160778 281
+  s_7671496087e664::t_eaf1c093ad7fc2 321
+crates/ledger-agents/src/error.rs
+  s_7671496087e664::t_8985380f565c3a 1-77
+crates/ledger-agents/src/fault.rs
+  s_7671496087e664::t_fb7739e28a3ea2 1-207
+crates/ledger-agents/src/report.rs
+  s_7671496087e664::t_0bbcca80129b25 1-105
+Cargo.lock
+  s_7671496087e664::t_ad13519d669e17 1222-1225
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "444d607e0ae842ae21aecacb7a941365a8a88e65",
+  "prompts": {},
+  "sessions": {
+    "s_61e0b0c14d18f7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c168cc53-67a2-4357-967a-c871924e2eec",
+        "model": "unknown"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    },
+    "s_7671496087e664": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "bc1e2831-635a-4b1c-bac8-f28ba0cf1149",
+        "model": "grok-4.7-high-fast"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    }
+  }
+}
