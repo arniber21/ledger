@@ -143,7 +143,11 @@ export function Shell() {
 
       if (key === "enter" && selectedId) {
         event.preventDefault();
-        void navigate({ to: "/verdicts", search: { id: selectedId } });
+        if (pathname === "/traces") {
+          void navigate({ to: "/traces", search: { trace: selectedId } });
+        } else {
+          void navigate({ to: "/verdicts", search: { id: selectedId } });
+        }
         return;
       }
 

@@ -345,6 +345,71 @@ impl Store {
         };
         Ok(counts)
     }
+
+    /// The latest `limit` events, oldest first.
+    ///
+    /// `limit` is clamped to 1..=1000. Ordering matches the hypertable primary
+    /// key `(id, observed_at)` so a later [`events_after`](Self::events_after)
+    /// call can continue from the last row.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError::Database`] when the query fails.
+    pub async fn recent_events(&self, limit: i64) -> Result<Vec<Event>, StoreError> {
+        let events = sqlx::query_as::<_, Event>(
+            "SELECT id, observed_at, source, kind, data_class, payload
+             FROM (
+                 SELECT id, observed_at, source, kind, data_class, payload
+                 FROM events
+                 ORDER BY observed_at DESC, id DESC
+                 LIMIT $1
+             ) AS recent
+             ORDER BY observed_at ASC, id ASC",
+        )
+        .bind(clamp_limit(limit))
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(events)
+    }
+
+    /// Events strictly after `cursor`, oldest first.
+    ///
+    /// Comparison uses `(observed_at, id)`, the hypertable primary key.
+    /// `limit` is clamped to 1..=1000.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError::Database`] when the query fails.
+    pub async fn events_after(
+        &self,
+        cursor: EventCursor,
+        limit: i64,
+    ) -> Result<Vec<Event>, StoreError> {
+        let events = sqlx::query_as::<_, Event>(
+            "SELECT id, observed_at, source, kind, data_class, payload
+             FROM events
+             WHERE (observed_at, id) > ($1, $2)
+             ORDER BY observed_at ASC, id ASC
+             LIMIT $3",
+        )
+        .bind(cursor.observed_at)
+        .bind(cursor.id)
+        .bind(clamp_limit(limit))
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(events)
+    }
+}
+
+/// Last hypertable row already delivered to a reader.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct EventCursor {
+    pub observed_at: DateTime<Utc>,
+    pub id: Uuid,
+}
+
+fn clamp_limit(limit: i64) -> i64 {
+    limit.clamp(1, 1_000)
 }
 
 fn sql_all(width: BucketWidth) -> &'static str {
@@ -588,5 +653,56 @@ mod tests {
         assert_eq!(counts[1].kind, "exchange.submit_order");
         assert_eq!(counts[1].events, 1);
         assert!(counts.iter().all(|count| count.source == source));
+    }
+
+    #[tokio::test]
+    async fn recent_events_and_events_after_follow_the_primary_key() {
+        let store = test_store().await;
+        let base = DateTime::from_timestamp(4_100_000_000, 0).expect("future timestamp");
+        let mut inserted = Vec::new();
+        for offset in 0..3 {
+            let event = Event {
+                id: Uuid::new_v4(),
+                observed_at: base + chrono::Duration::seconds(offset),
+                source: "exchange".to_owned(),
+                kind: "exchange.settle".to_owned(),
+                data_class: "tenant".to_owned(),
+                payload: serde_json::json!({
+                    "span": "exchange.settle",
+                    "span_id": offset.to_string(),
+                }),
+            };
+            store.insert_event(&event).await.expect("insert event");
+            inserted.push(event);
+        }
+
+        let recent = store.recent_events(20).await.expect("recent events");
+        let recent_ids: Vec<_> = recent.iter().map(|event| event.id).collect();
+        assert!(recent_ids.contains(&inserted[2].id));
+        assert!(recent.windows(2).all(|pair| {
+            (pair[0].observed_at, pair[0].id) <= (pair[1].observed_at, pair[1].id)
+        }));
+
+        let after = store
+            .events_after(
+                EventCursor {
+                    observed_at: inserted[0].observed_at,
+                    id: inserted[0].id,
+                },
+                1_000,
+            )
+            .await
+            .expect("events after");
+        let followed: Vec<_> = after
+            .iter()
+            .filter(|event| inserted.iter().any(|item| item.id == event.id))
+            .map(|event| event.id)
+            .collect();
+        assert_eq!(followed, vec![inserted[1].id, inserted[2].id]);
+        let second = after
+            .iter()
+            .find(|event| event.id == inserted[1].id)
+            .expect("second event");
+        assert_eq!(second.payload["span"], "exchange.settle");
     }
 }
