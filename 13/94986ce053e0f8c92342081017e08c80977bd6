@@ -1,0 +1,51 @@
+web/e2e/inbox.spec.ts
+  s_224458ef91f4af::t_b75052755ad4bd 177-178
+  s_224458ef91f4af::t_1c1b14ee27e66e 143-144,146,148-151,157,159,161
+  s_1725a43367892c::t_b75d71de93524f 179
+  s_224458ef91f4af::t_32c0f9ea42d3b7 317-318
+  s_1725a43367892c::t_3f25e0629fb0a7 352,359-362
+  s_1725a43367892c::t_1c865c9d7746d0 135-139,141-142,145,152-154,156,158,160,162
+  s_224458ef91f4af::t_67ffa6deda4f85 170
+  s_224458ef91f4af::t_a07cd7ecdad301 2-3,6,13,52,73,113,132,164,198,253,276-277,280,284-285,315-316,319-322,327-328,338-340,343-348,363-364,367
+  s_1725a43367892c::t_9c10ab7fed359d 140
+  s_1725a43367892c::t_b6ac1cbdd7cef1 180
+  s_224458ef91f4af::t_0c078e340d423e 98
+  s_1725a43367892c::t_fb8d2defa791ea 1,4-5,7-12,14-51,53-72,74-88,95-97,99-110,112,114-131,133-134,147,155,163,165-169,171-176,181-197,199-249,251-252,254-275,278-279,281-283,286-314,323-326,329-337,341-342,349-351,353-358,365-366
+  s_224458ef91f4af::t_3e05eb0d945232 90-94
+  s_224458ef91f4af::t_e408dab9761602 111
+  s_224458ef91f4af::t_ce8524ec021fa6 250
+  s_224458ef91f4af::t_09fd15f034adfe 89
+web/e2e/helpers.ts
+  s_1725a43367892c::t_e403a6311228b2 3-4,6,12
+web/src/inbox/inbox.tsx
+  s_224458ef91f4af::t_7c3fc6c799eb5f 243-244
+  s_224458ef91f4af::t_a06741d4037c35 246-253,257
+web/src/shell/shell.tsx
+  s_1725a43367892c::t_d2f6dfcf02d726 104-109
+crates/ledger-api/src/http.rs
+  s_1725a43367892c::t_f73e0ab85cb452 102-106
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1394986ce053e0f8c92342081017e08c80977bd6",
+  "prompts": {},
+  "sessions": {
+    "s_1725a43367892c": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "244cb0bd-0a2d-44ef-98d8-5e40daae471d",
+        "model": "grok-4.7-high-fast"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    },
+    "s_224458ef91f4af": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "68997a97-61d8-4c6e-970a-16066c285764",
+        "model": "grok-4.7-high-fast"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    }
+  }
+}
