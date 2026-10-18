@@ -28,6 +28,12 @@ use crate::stream::publish;
 /// How many hypertable rows a snapshot or a poll returns.
 const PAGE: i64 = 200;
 
+/// Rows observed after this are not traces. A bad clock must not fill the feed
+/// or move the stream cursor out of reach of real rows.
+fn ceiling() -> chrono::DateTime<chrono::Utc> {
+    chrono::Utc::now() + chrono::Duration::hours(1)
+}
+
 /// Shared store handle. `None` until Timescale accepts a connection.
 #[derive(Clone)]
 pub struct AppState {
@@ -49,7 +55,7 @@ async fn list_traces(State(state): State<AppState>) -> Result<Json<Value>, Statu
         .as_ref()
         .ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
     let events = store
-        .recent_events(PAGE)
+        .recent_events_until(ceiling(), PAGE)
         .await
         .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
     Ok(Json(
@@ -128,10 +134,10 @@ async fn read_page(
     let result = match cursor {
         Some(cursor) => {
             connected
-                .events_after(Some((cursor.observed_at, cursor.id)), PAGE)
+                .events_after_until((cursor.observed_at, cursor.id), ceiling(), PAGE)
                 .await
         }
-        None => connected.recent_events(PAGE).await,
+        None => connected.recent_events_until(ceiling(), PAGE).await,
     };
     result.map_err(|_| ())
 }

@@ -334,6 +334,93 @@ impl Store {
         Ok(Self { pool })
     }
 
+    /// Creates an empty, migrated database named `ledger_scratch_*` on the same
+    /// server as `admin_url` and connects to it.
+    ///
+    /// Integration tests use this so that a running stack on the shared
+    /// database never sees their events. Without it, the live verdict engine
+    /// inserts the same deterministic verdict first and the test publishes
+    /// nothing. Pair it with [`Store::drop_scratch`].
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError`] when the server is unreachable, the database
+    /// cannot be created, or a migration fails.
+    pub async fn create_scratch(admin_url: &str) -> Result<(Self, String), StoreError> {
+        let name = format!("ledger_scratch_{}", Uuid::new_v4().simple());
+        let admin = Self::connect(admin_url).await?;
+        sqlx::query(&format!("CREATE DATABASE {name}"))
+            .execute(&admin.pool)
+            .await?;
+        admin.pool.close().await;
+        let options = PgConnectOptions::from_str(admin_url)?
+            .database(&name)
+            .application_name("ledger-store");
+        let pool = PgPoolOptions::new()
+            .max_connections(5)
+            .acquire_timeout(Duration::from_secs(5))
+            .connect_with(options)
+            .await?;
+        let store = Self { pool };
+        store.migrate().await?;
+        Ok((store, name))
+    }
+
+    /// Closes this pool and drops a database made by [`Store::create_scratch`].
+    /// Refuses any name without the `ledger_scratch_` prefix.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError::Database`] when the drop fails.
+    pub async fn drop_scratch(self, admin_url: &str, name: &str) -> Result<(), StoreError> {
+        if !name.starts_with("ledger_scratch_")
+            || !name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
+        {
+            return Ok(());
+        }
+        self.pool.close().await;
+        let admin = Self::connect(admin_url).await?;
+        sqlx::query(&format!("DROP DATABASE IF EXISTS {name} WITH (FORCE)"))
+            .execute(&admin.pool)
+            .await?;
+        admin.pool.close().await;
+        Ok(())
+    }
+
+    /// Connects to the `ledger_test` database, creating and migrating it.
+    ///
+    /// Tests use this instead of [`Store::connect`] so they never write
+    /// fixture rows (`no-second-payment`, 2023 timestamps) into the live demo
+    /// database. The server is the one `DATABASE_URL` names; only the
+    /// database name changes.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError::Database`] when the server is unreachable or the
+    /// database cannot be created, and [`StoreError::Migrate`] on migration.
+    pub async fn connect_test() -> Result<Self, StoreError> {
+        let admin_url = database_url();
+        let test_url = match admin_url.rfind('/') {
+            Some(index) => format!("{}/ledger_test", &admin_url[..index]),
+            None => format!("{admin_url}/ledger_test"),
+        };
+        let admin = Self::connect(&admin_url).await?;
+        let exists: Option<i32> =
+            sqlx::query_scalar("SELECT 1 FROM pg_database WHERE datname = 'ledger_test'")
+                .fetch_optional(&admin.pool)
+                .await?;
+        if exists.is_none() {
+            // Parallel tests can race here; losing the race is fine.
+            let _ = sqlx::query("CREATE DATABASE ledger_test")
+                .execute(&admin.pool)
+                .await;
+        }
+        admin.pool.close().await;
+        let store = Self::connect(&test_url).await?;
+        store.migrate().await?;
+        Ok(store)
+    }
+
     /// Applies the embedded SQL migrations.
     ///
     /// Migrations create the `events` hypertable and the `verdicts` table.
@@ -707,6 +794,64 @@ impl Store {
         Ok(events)
     }
 
+    /// Same as [`Self::recent_events`], ignoring rows observed after `ceiling`.
+    ///
+    /// A row with a clock far in the future would otherwise fill the feed and
+    /// push every real row out of the page.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError::Database`] when the query fails.
+    pub async fn recent_events_until(
+        &self,
+        ceiling: DateTime<Utc>,
+        limit: i64,
+    ) -> Result<Vec<Event>, StoreError> {
+        let events = sqlx::query_as::<_, Event>(
+            "SELECT id, observed_at, source, kind, data_class, payload
+             FROM (
+                 SELECT id, observed_at, source, kind, data_class, payload
+                 FROM events
+                 WHERE observed_at <= $2
+                 ORDER BY observed_at DESC, id DESC
+                 LIMIT $1
+             ) AS recent
+             ORDER BY observed_at ASC, id ASC",
+        )
+        .bind(clamp_limit(limit))
+        .bind(ceiling)
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(events)
+    }
+
+    /// Same as [`Self::events_after`], ignoring rows observed after `ceiling`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError::Database`] when the query fails.
+    pub async fn events_after_until(
+        &self,
+        after: (DateTime<Utc>, Uuid),
+        ceiling: DateTime<Utc>,
+        limit: i64,
+    ) -> Result<Vec<Event>, StoreError> {
+        let events = sqlx::query_as::<_, Event>(
+            "SELECT id, observed_at, source, kind, data_class, payload
+             FROM events
+             WHERE (observed_at, id) > ($1, $2) AND observed_at <= $3
+             ORDER BY observed_at ASC, id ASC
+             LIMIT $4",
+        )
+        .bind(after.0)
+        .bind(after.1)
+        .bind(ceiling)
+        .bind(limit.clamp(1, 1_000))
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(events)
+    }
+
     /// Reads the next page of events after `(observed_at, id)`.
     ///
     /// `None` starts at the oldest row. Ordering matches [`Self::events_in_span`].
@@ -1014,6 +1159,94 @@ impl Store {
         Ok(rows)
     }
 
+    /// Counters for the dashboard, as of `now`. Events dated after `now` plus
+    /// one day are not counted.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError::Database`] when the query fails.
+    pub async fn metric_totals(&self, now: DateTime<Utc>) -> Result<MetricTotals, StoreError> {
+        let ceiling = now + chrono::Duration::days(1);
+        let totals = sqlx::query_as::<_, MetricTotals>(
+            "SELECT
+                 (SELECT count(*) FROM events
+                   WHERE observed_at <= $1
+                     AND (source = 'exchange' OR source LIKE 'agent%'))::bigint AS events,
+                 (SELECT count(*) FROM events
+                   WHERE observed_at > $2 AND observed_at <= $3
+                     AND (source = 'exchange' OR source LIKE 'agent%'))::bigint AS events_last_minute,
+                 (SELECT count(*) FROM events
+                   WHERE observed_at <= $1
+                     AND payload->'attributes' ? 'tx.signature')::bigint AS settled_on_chain,
+                 (SELECT count(*) FROM verdict_rank)::bigint AS jev_judgments,
+                 (SELECT count(*) FROM verdict_rank
+                   WHERE money IS NULL AND evidence IS NULL
+                     AND ambiguity IS NULL AND intent IS NULL)::bigint AS jev_unknown",
+        )
+        .bind(ceiling)
+        .bind(now - chrono::Duration::minutes(1))
+        .bind(now + chrono::Duration::seconds(5))
+        .fetch_one(&self.pool)
+        .await?;
+        Ok(totals)
+    }
+
+    /// Events per `seconds`-wide bucket in `[start, end)`, by source class.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError::Database`] when the query fails.
+    pub async fn rate_buckets(
+        &self,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+        seconds: i32,
+    ) -> Result<Vec<RateBucket>, StoreError> {
+        let rows = sqlx::query_as::<_, RateBucket>(
+            "SELECT time_bucket(make_interval(secs => $3), observed_at) AS bucket,
+                    (count(*) FILTER (WHERE source LIKE 'agent%'))::bigint AS agent,
+                    (count(*) FILTER (WHERE source = 'exchange'))::bigint AS exchange,
+                    (count(*) FILTER (WHERE payload->'attributes' ? 'tx.signature'))::bigint AS solana
+             FROM events
+             WHERE observed_at >= $1 AND observed_at < $2
+               AND (source = 'exchange' OR source LIKE 'agent%')
+             GROUP BY bucket
+             ORDER BY bucket",
+        )
+        .bind(start)
+        .bind(end)
+        .bind(f64::from(seconds))
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows)
+    }
+
+    /// Needs-review and inconclusive verdicts recorded per minute in `[start, end)`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError::Database`] when the query fails.
+    pub async fn attention_buckets(
+        &self,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+    ) -> Result<Vec<AttentionBucket>, StoreError> {
+        let rows = sqlx::query_as::<_, AttentionBucket>(
+            "SELECT date_trunc('minute', recorded_at) AS bucket,
+                    (count(*) FILTER (WHERE outcome = 'Violate'))::bigint AS violate,
+                    (count(*) FILTER (WHERE outcome = 'Inconclusive'))::bigint AS inconclusive
+             FROM verdicts
+             WHERE recorded_at >= $1 AND recorded_at < $2
+             GROUP BY bucket
+             ORDER BY bucket",
+        )
+        .bind(start)
+        .bind(end)
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows)
+    }
+
     /// Rows of [`Self::calibration`] for one question id.
     ///
     /// An empty vec means this question has no reviewed judgment. That is not
@@ -1055,6 +1288,46 @@ pub struct VerdictRank {
     pub evidence: Option<f64>,
     pub ambiguity: Option<f64>,
     pub intent: Option<f64>,
+}
+
+/// Totals behind the dashboard counters. Rows dated past the ceiling are
+/// ignored so a bad clock cannot inflate them.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, sqlx::FromRow)]
+pub struct MetricTotals {
+    /// Trace events from agents and the exchange.
+    pub events: i64,
+    /// Trace events observed in the last minute.
+    pub events_last_minute: i64,
+    /// Events that carry a Solana transaction signature.
+    pub settled_on_chain: i64,
+    /// Stored Jev scoring calls.
+    pub jev_judgments: i64,
+    /// Jev calls where no dimension came back as a number.
+    pub jev_unknown: i64,
+}
+
+/// Events in one time bucket, by source class.
+#[derive(Debug, Clone, PartialEq, Eq, sqlx::FromRow)]
+pub struct RateBucket {
+    /// Bucket start.
+    pub bucket: DateTime<Utc>,
+    /// Events from `agent*` sources.
+    pub agent: i64,
+    /// Events from the exchange.
+    pub exchange: i64,
+    /// Events with a Solana transaction signature.
+    pub solana: i64,
+}
+
+/// Verdicts recorded in one bucket.
+#[derive(Debug, Clone, PartialEq, Eq, sqlx::FromRow)]
+pub struct AttentionBucket {
+    /// Bucket start.
+    pub bucket: DateTime<Utc>,
+    /// Needs-review verdicts.
+    pub violate: i64,
+    /// Inconclusive verdicts.
+    pub inconclusive: i64,
 }
 
 /// Last hypertable row already delivered to a reader.
@@ -1139,10 +1412,9 @@ mod tests {
     /// Each test opens its own pool. A pool is bound to the tokio runtime that
     /// created it, and `#[tokio::test]` gives every test its own runtime.
     async fn test_store() -> Store {
-        let store = Store::connect(&database_url())
+        let store = Store::connect_test()
             .await
-            .expect("connect to local timescale (just db-up)");
-        store.migrate().await.expect("apply migrations");
+            .expect("connect to ledger_test (just db-up)");
         store
     }
 
@@ -1218,7 +1490,7 @@ mod tests {
             id: Uuid::new_v4(),
             recorded_at: timestamp(),
             outcome: VerdictOutcome::Violate,
-            spec_id: "no-second-payment".to_owned(),
+            spec_id: "ledger.bill.no-second-payment".to_owned(),
             reason_code: Some("second-payment".to_owned()),
             evidence: serde_json::json!([
                 {"kind": "bill.pay", "bill_id": "bill-1"}
@@ -1441,7 +1713,7 @@ mod tests {
             id: Uuid::new_v4(),
             recorded_at: timestamp(),
             outcome: VerdictOutcome::Violate,
-            spec_id: "no-second-payment".to_owned(),
+            spec_id: "ledger.bill.no-second-payment".to_owned(),
             reason_code: Some("second-payment".to_owned()),
             evidence: serde_json::json!([{"role": "second-payment"}]),
         };
@@ -1712,7 +1984,7 @@ mod tests {
                 id,
                 recorded_at: timestamp(),
                 outcome,
-                spec_id: "no-second-payment".to_owned(),
+                spec_id: "ledger.bill.no-second-payment".to_owned(),
                 reason_code: Some("second-payment".to_owned()),
                 evidence: serde_json::json!({
                     "title": title,

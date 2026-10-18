@@ -249,7 +249,7 @@ export function applyStreamEvent(snapshot: MetricsSnapshot, event: StreamEvent):
       return { ...snapshot, connection: "live", verdicts: [verdict, ...without] };
     }
     case "counters":
-      return { ...applyCounters(snapshot, event.counters), connection: "live" };
+      return { ...applyCounters(snapshot, event.counters), connection: "live", sceneMetrics: true };
     case "rates": {
       const point = event.point;
       if (!Number.isFinite(point.t)) return snapshot;
@@ -258,6 +258,7 @@ export function applyStreamEvent(snapshot: MetricsSnapshot, event: StreamEvent):
         ...snapshot,
         connection: "live",
         rates,
+        sceneMetrics: true,
         eventsPerSecond: point.agentLog + point.exchange + point.solana,
         sourceCount: rateSources(point),
       };
@@ -269,6 +270,7 @@ export function applyStreamEvent(snapshot: MetricsSnapshot, event: StreamEvent):
         ...snapshot,
         connection: "live",
         attention: trimWindow([...snapshot.attention, point], point.t),
+        sceneMetrics: true,
       };
     }
     case "monitors": {
@@ -279,11 +281,59 @@ export function applyStreamEvent(snapshot: MetricsSnapshot, event: StreamEvent):
         connection: "live",
         monitors: trimWindow([...snapshot.monitors, point], point.t),
         liveMonitors: point.withGc,
+        sceneMetrics: true,
       };
     }
     default:
       return snapshot;
   }
+}
+
+/**
+ * Apply `GET /api/metrics`. A recorded scene on the stream wins. A body that
+ * does not parse leaves the snapshot alone, so a failed read never shows zeros
+ * as data.
+ */
+export function applySamples(snapshot: MetricsSnapshot, body: unknown): MetricsSnapshot {
+  if (snapshot.sceneMetrics) return snapshot;
+  if (!isRecord(body) || !isRecord(body.counters)) return snapshot;
+  const next = applyCounters(snapshot, body.counters as CounterPatch);
+  return {
+    ...next,
+    rates: readSeries(body.rates, (item) => {
+      const t = finiteNumber(item.t);
+      if (t === undefined) return null;
+      return {
+        t,
+        agentLog: finiteNumber(item.agentLog) ?? 0,
+        exchange: finiteNumber(item.exchange) ?? 0,
+        solana: finiteNumber(item.solana) ?? 0,
+      };
+    }),
+    attention: readSeries(body.attention, (item) => {
+      const t = finiteNumber(item.t);
+      if (t === undefined) return null;
+      return { t, violate: finiteNumber(item.violate) ?? 0, inconclusive: finiteNumber(item.inconclusive) ?? 0 };
+    }),
+    monitors: readSeries(body.monitors, (item) => {
+      const t = finiteNumber(item.t);
+      const withGc = finiteNumber(item.withGc);
+      const withoutGc = finiteNumber(item.withoutGc);
+      if (t === undefined || withGc === undefined || withoutGc === undefined) return null;
+      return { t, withGc, withoutGc };
+    }),
+  };
+}
+
+function readSeries<T>(value: unknown, read: (item: Record<string, unknown>) => T | null): T[] {
+  if (!Array.isArray(value)) return [];
+  const points: T[] = [];
+  for (const item of value) {
+    if (!isRecord(item)) continue;
+    const point = read(item);
+    if (point) points.push(point);
+  }
+  return points;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

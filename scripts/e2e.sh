@@ -12,6 +12,8 @@ export PATH="${HOME}/.local/share/solana/install/active_release/bin:${HOME}/.loc
 export LEDGER_TEST=1
 export LEDGER_JEV="${LEDGER_JEV:-replay}"
 export DATABASE_URL="${DATABASE_URL:-postgres://ledger:ledger_local@127.0.0.1:5433/ledger_e2e}"
+# shellcheck disable=SC1091
+source "${root}/scripts/e2e-slot.sh"
 
 port_free() {
   python3 -c 'import socket, sys
@@ -47,16 +49,29 @@ http_ok() {
 
 reused=0
 if [[ -f .ledger/e2e/env ]]; then
-  # shellcheck disable=SC1091
-  source .ledger/e2e/env
-  if [[ -n "${LEDGER_UI_URL:-}" && -n "${LEDGER_API_ORIGIN:-}" ]] \
-    && http_ok "${LEDGER_UI_URL}/" \
-    && curl -fsS --max-time 2 "${LEDGER_API_ORIGIN}/api/test" | grep -q '"enabled":true'; then
-    reused=1
+  if [[ -n "${LEDGER_E2E_SLOT:-}" ]]; then
+    saved_origin="$(grep '^LEDGER_API_ORIGIN=' .ledger/e2e/env | cut -d= -f2-)"
+    saved_ui="$(grep '^LEDGER_UI_URL=' .ledger/e2e/env | cut -d= -f2-)"
+    if [[ "$saved_origin" == "$LEDGER_API_ORIGIN" && "$saved_ui" == "$LEDGER_UI_URL" ]] \
+      && http_ok "${LEDGER_UI_URL}/" \
+      && curl -fsS --max-time 2 "${LEDGER_API_ORIGIN}/api/test" | grep -q '"enabled":true'; then
+      reused=1
+    fi
+  elif grep -q '^LEDGER_E2E_SLOT=' .ledger/e2e/env; then
+    # A previous slot run recorded its own ports. Leave that stack alone.
+    :
+  else
+    # shellcheck disable=SC1091
+    source .ledger/e2e/env
+    if [[ -n "${LEDGER_UI_URL:-}" && -n "${LEDGER_API_ORIGIN:-}" ]] \
+      && http_ok "${LEDGER_UI_URL}/" \
+      && curl -fsS --max-time 2 "${LEDGER_API_ORIGIN}/api/test" | grep -q '"enabled":true'; then
+      reused=1
+    fi
   fi
 fi
 
-if [[ "$reused" != 1 ]]; then
+if [[ "$reused" != 1 && -z "${LEDGER_E2E_SLOT:-}" ]]; then
   # 5174 and 8091 have failed in this environment. Prefer the documented ports,
   # then any other free port.
   skip=(5174 8091 5433 8899)
@@ -71,14 +86,19 @@ fi
 export LEDGER_API_PORT LEDGER_UI_PORT LEDGER_API_ADDR LEDGER_API_ORIGIN LEDGER_UI_URL
 
 mkdir -p .ledger/e2e
-cat >.ledger/e2e/env <<EOF
-LEDGER_API_PORT=${LEDGER_API_PORT}
-LEDGER_UI_PORT=${LEDGER_UI_PORT}
-LEDGER_API_ADDR=${LEDGER_API_ADDR}
-LEDGER_API_ORIGIN=${LEDGER_API_ORIGIN}
-LEDGER_UI_URL=${LEDGER_UI_URL}
-DATABASE_URL=${DATABASE_URL}
-EOF
+{
+  echo "LEDGER_API_PORT=${LEDGER_API_PORT}"
+  echo "LEDGER_UI_PORT=${LEDGER_UI_PORT}"
+  echo "LEDGER_API_ADDR=${LEDGER_API_ADDR}"
+  echo "LEDGER_API_ORIGIN=${LEDGER_API_ORIGIN}"
+  echo "LEDGER_UI_URL=${LEDGER_UI_URL}"
+  echo "DATABASE_URL=${DATABASE_URL}"
+  if [[ -n "${LEDGER_E2E_SLOT:-}" ]]; then
+    echo "LEDGER_E2E_SLOT=${LEDGER_E2E_SLOT}"
+    echo "LEDGER_COMPOSE_PROJECT=${LEDGER_COMPOSE_PROJECT}"
+    echo "LEDGER_DB_PORT=${LEDGER_DB_PORT}"
+  fi
+} >.ledger/e2e/env
 
 stop_recorded() {
   local file pid

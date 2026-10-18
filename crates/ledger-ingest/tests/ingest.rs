@@ -4,15 +4,14 @@ use std::collections::BTreeMap;
 
 use chrono::Duration;
 use ledger_ingest::{persist, IngestLayer};
-use ledger_store::{database_url, BucketWidth, Store};
+use ledger_store::{BucketWidth, Store};
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::Registry;
 
 async fn test_store() -> Store {
-    let store = Store::connect(&database_url())
+    let store = Store::connect_test()
         .await
-        .expect("connect to local timescale (just db-up)");
-    store.migrate().await.expect("apply migrations");
+        .expect("connect to ledger_test (just db-up)");
     store
 }
 
