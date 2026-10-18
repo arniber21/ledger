@@ -1,0 +1,73 @@
+crates/ledger-ingest/src/capture.rs
+  s_7b1e0d04176d6e::t_1a35dfd98b5158 1-116,118-300
+  s_7b1e0d04176d6e::t_94e66b2f04d9d1 117
+crates/ledger-ingest/src/bin/ledger-window.rs
+  s_7b1e0d04176d6e::t_366c394574c46b 1-40
+crates/ledger-exchange/src/bin/order_flow.rs
+  s_7b1e0d04176d6e::t_029e87f3742ef3 20-21,23-28
+crates/ledger-exchange/Cargo.toml
+  s_7b1e0d04176d6e::t_0306206d451587 9
+README.md
+  s_7b1e0d04176d6e::t_6cef85d2a01c83 46-61
+crates/ledger-ingest/tests/ingest.rs
+  s_7b1e0d04176d6e::t_1b09996f3e9cad 83-90,96
+  s_7b1e0d04176d6e::t_e90cac84471377 5
+  s_7b1e0d04176d6e::t_da9f5206965440 1-4,6-82,91-95,97-127
+crates/ledger-ingest/src/lib.rs
+  s_7b1e0d04176d6e::t_826872cd026694 2-22
+crates/ledger-ingest/src/normalize.rs
+  s_7b1e0d04176d6e::t_5f4e878d845c76 18,20,22,44,51-52,58,84-88,118-119,148-149,151-154,185-202,204-309,311-444
+  s_7b1e0d04176d6e::t_2b371ca5b6506b 1-16,21,23-43,45-50,53-57,59-83,89-117,120-147,150,155-184,445
+  s_7b1e0d04176d6e::t_d32aacb0d95a57 17
+  s_d6528d5831096f::t_58b8387bebb8f6 19,203,310
+crates/ledger-exchange/src/telemetry.rs
+  s_7b1e0d04176d6e::t_26c49ebc4c66e2 44-52
+  s_7b1e0d04176d6e::t_79caea80c19550 18,24-25,27
+  s_7b1e0d04176d6e::t_ffdb3b61b57b7e 58-61
+  s_7b1e0d04176d6e::t_8a5f2f6e5cd24c 88,92-94,97-108,110-121
+  s_7b1e0d04176d6e::t_8dae2b28c92dc8 7-10
+crates/ledger-exchange/src/lib.rs
+  s_7b1e0d04176d6e::t_c3328fa71640ba 10-11
+Justfile
+  s_7b1e0d04176d6e::t_af6f6f29a8be9f 84-86
+crates/ledger-store/src/lib.rs
+  s_7b1e0d04176d6e::t_79d9b735496588 145-166
+  s_7b1e0d04176d6e::t_8abe280da8b649 544-591
+  s_7b1e0d04176d6e::t_dd2a36ab901b1d 299-347,350-408
+  s_d6528d5831096f::t_8d676cc7ff458b 409
+crates/ledger-ingest/src/persist.rs
+  s_7b1e0d04176d6e::t_ccbb44b0363db9 1-21
+crates/ledger-ingest/src/error.rs
+  s_7b1e0d04176d6e::t_8dd94ab786cb97 1-21
+crates/ledger-ingest/Cargo.toml
+  s_7b1e0d04176d6e::t_60b2622b25b9f9 9-14,16-19
+  s_7b1e0d04176d6e::t_26dcc1dbbb177c 20-23
+crates/ledger-ingest/src/export.rs
+  s_7b1e0d04176d6e::t_0fb4204f2d54e3 1-193
+Cargo.lock
+  s_7b1e0d04176d6e::t_fd03632af5fb91 2221,2247,2249-2253,2255,2278
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "098b2141732b2bc4cb865607406fb714d9b94fc8",
+  "prompts": {},
+  "sessions": {
+    "s_7b1e0d04176d6e": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "9b1fc66c-f72f-4a91-ad2f-025dd9cbfc89",
+        "model": "grok-4.7-high-fast"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    },
+    "s_d6528d5831096f": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "85ed3642-8139-42d8-8390-346488d18368",
+        "model": "grok-4.7-high-fast"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    }
+  }
+}
