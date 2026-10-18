@@ -1,0 +1,40 @@
+web/src/shell/shell.tsx
+  s_61e0b0c14d18f7::t_b388b58f9155be 136,138,140-141
+  s_61e0b0c14d18f7::t_f4761275b1d600 10,134-135,137,139,142-144,146,263-264,292,294-295
+web/src/styles.css
+  s_61e0b0c14d18f7::t_7595c77a75399e 1811
+  s_61e0b0c14d18f7::t_f4761275b1d600 1812-1839
+  s_61e0b0c14d18f7::t_1cee239824dc3c 1840
+web/src/ui/shortcuts-help.tsx
+  s_61e0b0c14d18f7::t_7565fbde26617d 1-54
+web/src/ui/optimistic.ts
+  s_61e0b0c14d18f7::t_7565fbde26617d 1-38
+web/src/ui/confirm.tsx
+  s_61e0b0c14d18f7::t_7565fbde26617d 1-117
+web/src/ui/hotkeys.ts
+  s_61e0b0c14d18f7::t_7565fbde26617d 1-156
+web/src/ui/toast.tsx
+  s_61e0b0c14d18f7::t_7565fbde26617d 1-149
+web/src/ui/index.ts
+  s_61e0b0c14d18f7::t_7565fbde26617d 1-5
+web/src/shell/faults.ts
+  s_61e0b0c14d18f7::t_3870e8246dfd58 2,58,69-77,79-84,86
+web/src/ui/hotkeys.test.ts
+  s_61e0b0c14d18f7::t_7565fbde26617d 1-8
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c79832a0a20345b2af2b8af07582c2db4c4e40e6",
+  "prompts": {},
+  "sessions": {
+    "s_61e0b0c14d18f7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c168cc53-67a2-4357-967a-c871924e2eec",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    }
+  }
+}
