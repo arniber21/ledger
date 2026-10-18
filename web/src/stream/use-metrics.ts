@@ -6,8 +6,8 @@ import { emptySnapshot, type MetricsSnapshot } from "./types";
 export const metricsKey = ["sentinel", "metrics"] as const;
 
 /**
- * Reads the verdict stream when `VITE_SENTINEL_SSE` is set.
- * With no URL the snapshot stays empty and offline. Nothing is invented.
+ * Reads `GET /v1/verdicts/stream`, or `VITE_SENTINEL_SSE` when that is set.
+ * A stream that is down leaves the snapshot empty. Nothing is invented.
  */
 export function useMetrics(): MetricsSnapshot {
   const queryClient = useQueryClient();

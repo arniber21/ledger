@@ -23,6 +23,22 @@ export type TimelineStep = {
   role: string;
 };
 
+/** Same, Different, or Unknown. Unknown is not a pass. */
+export type BindingOutcome = "Same" | "Different" | "Unknown";
+
+/** One exact, fuzzy, or Jev line. Present only when the stream sent it. */
+export type BindingLine = {
+  outcome: BindingOutcome;
+  reasonCode: string | null;
+};
+
+/** Baselines stored with a verdict. Null lines were not on the stream. */
+export type BindingComparison = {
+  exact: BindingLine | null;
+  fuzzy: BindingLine | null;
+  jev: BindingLine | null;
+};
+
 /** One verdict the dashboard can show. Evidence only; no model prose. */
 export type VerdictItem = {
   id: string;
@@ -37,6 +53,7 @@ export type VerdictItem = {
   recordedAt: string;
   binding?: string;
   timeline?: TimelineStep[];
+  comparison?: BindingComparison | null;
 };
 
 /** One bucket from a 10-minute events-per-second series, by source. */
@@ -121,6 +138,7 @@ export type VerdictInput = {
   recordedAt?: string;
   binding?: string;
   timeline?: TimelineStep[];
+  comparison?: unknown;
 };
 
 export const SAVED_VIEWS: { id: SavedView; label: string }[] = [
