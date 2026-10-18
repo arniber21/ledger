@@ -194,7 +194,7 @@ export function Shell() {
         return;
       }
 
-      if (key === "enter" && selectedId && pathname !== "/specs") {
+      if (key === "enter" && selectedId && pathname !== "/specs" && pathname !== "/inbox") {
         event.preventDefault();
         if (pathname === "/traces") {
           void navigate({ to: "/traces", search: { trace: selectedId } });

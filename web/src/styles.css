@@ -1915,3 +1915,19 @@ a.tool { text-decoration: none; }
   .card, .list-row, .row, .is-fresh, .new-pill, .bulk-bar { animation: none !important; transition: none !important; }
   .card:active, .list-row:active { transform: none; }
 }
+
+/* ---- inbox peek ---- */
+.peek-scrim { position: fixed; inset: 0; z-index: 30; background: rgba(34, 38, 43, 0.18); animation: peek-fade 160ms ease-out; }
+.peek {
+  position: fixed; top: 0; right: 0; bottom: 0; z-index: 31;
+  width: min(34rem, 100vw); display: flex; flex-direction: column;
+  background: var(--paper); border-left: 1px solid var(--rule);
+  box-shadow: -1rem 0 2.5rem rgba(34, 38, 43, 0.08);
+  animation: peek-in 180ms cubic-bezier(0.2, 0.7, 0.2, 1); outline: none;
+}
+.peek-head { display: flex; justify-content: space-between; gap: 0.5rem; padding: 0.75rem 1rem; border-bottom: 1px solid var(--rule); }
+.peek-head kbd { font-family: var(--mono); font-size: 0.6875rem; color: var(--muted); margin-left: 0.25rem; }
+.peek-body { flex: 1; overflow: auto; padding: 1rem 1.25rem 2rem; }
+@keyframes peek-in { from { transform: translateX(1.5rem); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes peek-fade { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .peek, .peek-scrim { animation: none; } }

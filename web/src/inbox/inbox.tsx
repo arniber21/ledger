@@ -127,6 +127,15 @@ export function InboxPage({ search }: { search: InboxSearch }) {
   const items = prepared.items;
   const groups = prepared.groups;
   const active = items.find((item) => item.verdict.id === selectedId) ?? null;
+  const [peekOpen, setPeekOpen] = useState(false);
+  const peekItem = peekOpen && view !== "split" ? active : null;
+  useEffect(() => {
+    if (peekOpen && !active) setPeekOpen(false);
+  }, [peekOpen, active]);
+  const openPeek = (id: string) => {
+    setSelectedId(id);
+    setPeekOpen(true);
+  };
   const calm = prepared.attention === 0 && !search.dismissed && !hasInboxFilters(search);
   const feedKey = orderedIds(view, items, groups, collapsed).join("|");
 
@@ -428,7 +437,12 @@ export function InboxPage({ search }: { search: InboxSearch }) {
       "/": { handler: () => filterRef.current?.focus(), description: "Focus the filter" },
       j: { passive: true, description: "Move down" },
       k: { passive: true, description: "Move up" },
-      enter: { passive: true, description: "Open the selected verdict" },
+      enter: {
+        handler: () => {
+          if (active && view !== "split") setPeekOpen(true);
+        },
+        description: "Open the selected verdict",
+      },
       escape: { passive: true, description: "Clear checks, then selection" },
     },
     { scope: "Inbox", enabled: !assignOpen },
@@ -538,7 +552,7 @@ export function InboxPage({ search }: { search: InboxSearch }) {
                 fresh={fresh}
                 dropStatus={dropStatus}
                 now={now}
-                onSelect={setSelectedId}
+                onSelect={openPeek}
                 onOpenAssign={openAssignAt}
                 onDropStatus={setDropStatus}
                 onDrop={(status, id) => {
@@ -564,7 +578,7 @@ export function InboxPage({ search }: { search: InboxSearch }) {
                     return next;
                   });
                 }}
-                onSelect={setSelectedId}
+                onSelect={openPeek}
                 onOpenAssign={openAssignAt}
               />
             ) : (
@@ -581,6 +595,17 @@ export function InboxPage({ search }: { search: InboxSearch }) {
           </>
         )}
       </div>
+      {peekItem ? (
+        <PeekDrawer
+          item={peekItem}
+          now={now}
+          onClose={() => setPeekOpen(false)}
+          onOpenFull={() => void navigate({ to: "/verdicts", search: { id: peekItem.verdict.id } })}
+          onReview={markReviewed}
+          onDismiss={dismiss}
+          onOpenAssign={openAssignAt}
+        />
+      ) : null}
       <footer className="hintbar">
         <span>J and K move · X checks · Enter opens · E marks reviewed · D dismisses · A assigns · Z undoes</span>
         <span>1, 2, 3 switch view · / filters · ? all shortcuts</span>
@@ -1118,10 +1143,32 @@ function Split({
       </ul>
       {preview ? (
         <article className="split-detail" data-testid="split-detail">
-          <p className="mono">{preview.verdict.id}</p>
-          <h2 className="title-case">{cardTitle(preview.verdict)}</h2>
-          <p className="card-subtitle">{cardSubtitle(preview.verdict)}</p>
-          <p className={`outcome outcome-${preview.verdict.outcome}`}>{outcomeLabel(preview.verdict.outcome)}</p>
+          <VerdictDetail item={preview} now={now} onReview={onReview} onDismiss={onDismiss} onOpenAssign={onOpenAssign} />
+        </article>
+      ) : null}
+    </div>
+  );
+}
+
+function VerdictDetail({
+  item,
+  now,
+  onReview,
+  onDismiss,
+  onOpenAssign,
+}: {
+  item: InboxItem;
+  now: number;
+  onReview: () => void;
+  onDismiss: () => void;
+  onOpenAssign: (item: InboxItem, node: HTMLElement) => void;
+}) {
+  return (
+    <>
+          <p className="mono">{item.verdict.id}</p>
+          <h2 className="title-case">{cardTitle(item.verdict)}</h2>
+          <p className="card-subtitle">{cardSubtitle(item.verdict)}</p>
+          <p className={`outcome outcome-${item.verdict.outcome}`}>{outcomeLabel(item.verdict.outcome)}</p>
           <div className="inbox-actions">
             <button type="button" className="primary" onClick={onReview}>
               Mark reviewed
@@ -1132,35 +1179,95 @@ function Split({
             <button
               type="button"
               className="tool"
-              data-assignee={preview.verdict.id}
-              onClick={(event) => onOpenAssign(preview, event.currentTarget)}
+              data-assignee={item.verdict.id}
+              onClick={(event) => onOpenAssign(item, event.currentTarget)}
             >
-              <span className="avatar">{initials(preview.assignee)}</span>
-              {preview.assignee ?? "Unassigned"}
+              <span className="avatar">{initials(item.assignee)}</span>
+              {item.assignee ?? "Unassigned"}
             </button>
           </div>
           <dl className="props">
-            <Prop label="Status" value={preview.status} />
-            <Prop label="Spec" value={preview.verdict.specId || "—"} />
-            <Prop label="Reason" value={preview.verdict.reasonCode || "—"} />
-            <Prop label="Source" value={sourceLabel(preview.verdict)} />
-            <Prop label="Amount" value={amountLabel(preview.verdict.amountCents)} />
-            <Prop label="Age" value={ageLabel(preview.verdict.recordedAt, now)} />
-            <Prop label="Binding" value={preview.verdict.binding || "No binding id was stored."} />
+            <Prop label="Status" value={item.status} />
+            <Prop label="Spec" value={item.verdict.specId || "—"} />
+            <Prop label="Reason" value={item.verdict.reasonCode || "—"} />
+            <Prop label="Source" value={sourceLabel(item.verdict)} />
+            <Prop label="Amount" value={amountLabel(item.verdict.amountCents)} />
+            <Prop label="Age" value={ageLabel(item.verdict.recordedAt, now)} />
+            <Prop label="Binding" value={item.verdict.binding || "No binding id was stored."} />
           </dl>
-          <RankScoresView verdict={preview.verdict} />
+          <RankScoresView verdict={item.verdict} />
           <h3 className="prop-label">Evidence</h3>
-          {preview.verdict.evidence ? <p>{preview.verdict.evidence}</p> : <p className="reason">No evidence text on this verdict.</p>}
-          <Timeline steps={preview.verdict.timeline ?? []} />
+          {item.verdict.evidence ? <p>{item.verdict.evidence}</p> : <p className="reason">No evidence text on this verdict.</p>}
+          <Timeline steps={item.verdict.timeline ?? []} />
           <h3 className="prop-label">Binding comparison</h3>
           <dl className="props">
-            <Prop label="Exact" value={bindingLine(preview.verdict.comparison?.exact)} />
-            <Prop label="Fuzzy" value={bindingLine(preview.verdict.comparison?.fuzzy)} />
-            <Prop label="Jev" value={bindingLine(preview.verdict.comparison?.jev)} />
+            <Prop label="Exact" value={bindingLine(item.verdict.comparison?.exact)} />
+            <Prop label="Fuzzy" value={bindingLine(item.verdict.comparison?.fuzzy)} />
+            <Prop label="Jev" value={bindingLine(item.verdict.comparison?.jev)} />
           </dl>
-        </article>
-      ) : null}
-    </div>
+    </>
+  );
+}
+
+/** Side peek opened by clicking a card or row, or by Enter. J/K move to the neighbour; Esc closes. */
+function PeekDrawer({
+  item,
+  now,
+  onClose,
+  onOpenFull,
+  onReview,
+  onDismiss,
+  onOpenAssign,
+}: {
+  item: InboxItem;
+  now: number;
+  onClose: () => void;
+  onOpenFull: () => void;
+  onReview: () => void;
+  onDismiss: () => void;
+  onOpenAssign: (item: InboxItem, node: HTMLElement) => void;
+}) {
+  const panelRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    panelRef.current?.focus({ preventScroll: true });
+    return () => previous?.focus({ preventScroll: true });
+  }, []);
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      if (event.target instanceof HTMLElement && event.target.closest(".assign-menu")) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      onClose();
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [onClose]);
+  return (
+    <>
+      <div className="peek-scrim" data-testid="peek-scrim" onClick={onClose} />
+      <aside
+        ref={panelRef}
+        className="peek"
+        role="dialog"
+        aria-label={`${cardTitle(item.verdict)} verdict`}
+        tabIndex={-1}
+        data-testid="peek"
+      >
+        <header className="peek-head">
+          <button type="button" className="tool" onClick={onOpenFull}>
+            Open full verdict
+          </button>
+          <button type="button" className="tool" aria-label="Close" data-testid="peek-close" onClick={onClose}>
+            Close <kbd>Esc</kbd>
+          </button>
+        </header>
+        <div className="peek-body">
+          <VerdictDetail item={item} now={now} onReview={onReview} onDismiss={onDismiss} onOpenAssign={onOpenAssign} />
+        </div>
+      </aside>
+    </>
   );
 }
 
