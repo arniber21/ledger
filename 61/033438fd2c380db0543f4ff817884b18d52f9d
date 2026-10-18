@@ -1,0 +1,29 @@
+Justfile
+  s_6ed421e15db5a4::t_cc5b0a02ce0295 93-94,96
+README.md
+  s_6ed421e15db5a4::t_ef4a1d52b4d74a 29,32-47,49,57-65,124-128
+SPEC.md
+  s_6ed421e15db5a4::t_a282bd15cef7ac 138,156
+docs/demo.md
+  s_6ed421e15db5a4::t_ee02ab536fb483 1-40
+docs/devpost.md
+  s_6ed421e15db5a4::t_5cc94b1f4e139a 1-45
+scripts/demo.sh
+  s_6ed421e15db5a4::t_334844ecfed17e 1-217
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "61033438fd2c380db0543f4ff817884b18d52f9d",
+  "prompts": {},
+  "sessions": {
+    "s_6ed421e15db5a4": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "8679a62b-7dfe-472f-b787-ac525feb524b",
+        "model": "grok-4.7-high-fast"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    }
+  }
+}
