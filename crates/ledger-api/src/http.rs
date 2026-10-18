@@ -117,6 +117,7 @@ pub async fn serve_with_ranker(
         });
     let app = verdicts
         .merge(crate::inbox::router(store.clone()))
+        .merge(crate::calibration::router(store.clone()))
         .merge(crate::traces::router(crate::traces::AppState {
             store: Some(store),
         }));

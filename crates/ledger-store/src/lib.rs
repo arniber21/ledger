@@ -2,6 +2,7 @@
 //!
 //! Events live in a hypertable partitioned on `observed_at`. Verdicts are a
 //! regular table. An outcome is `Satisfy`, `Violate`, or `Inconclusive`.
+//! `jev_calibration` counts stored inbox reviews by Jev score band.
 
 use std::str::FromStr;
 use std::time::Duration;
@@ -51,7 +52,17 @@ pub enum StoreError {
     /// A stored triage status was not New, Reviewing, Confirmed, or Dismissed.
     #[error("invalid triage status: {0}")]
     InvalidStatus(String),
+
+    /// A Jev judgment was stored with no question id.
+    #[error("jev question is empty")]
+    EmptyQuestion,
 }
+
+/// `events.kind` for an inbox review. The calibration view reads this kind.
+pub const REVIEW_EVENT_KIND: &str = "verdict.review";
+
+/// `events.kind` for a stored Jev score. The calibration view reads this kind.
+pub const JUDGMENT_EVENT_KIND: &str = "jev.judgment";
 
 /// `Satisfy`, `Violate`, or `Inconclusive`.
 ///
@@ -208,6 +219,37 @@ pub enum TriageWrite {
     Stored(TriageChange),
     /// No verdict has this id, so nothing was written.
     UnknownVerdict,
+}
+
+/// Result of asking the store to record a Jev score for a verdict.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum JudgmentWrite {
+    /// The verdict exists and a `jev.judgment` event was stored.
+    Stored {
+        /// Id of the hypertable row.
+        event_id: Uuid,
+    },
+    /// No verdict has this id, so nothing was written.
+    UnknownVerdict,
+}
+
+/// One row of `jev_calibration`.
+///
+/// `confirmed` and `dismissed` are inbox labels. They are not verdict
+/// outcomes. `unknown` means the stored score was missing or not usable.
+/// That band is inconclusive, not a pass. `reviewed` is the sample size.
+#[derive(Debug, Clone, PartialEq, Eq, sqlx::FromRow)]
+pub struct CalibrationRow {
+    /// Jev question id stored on the judgment event.
+    pub question: String,
+    /// Score band, or `unknown` when the score is not a probability in `[0, 1]`.
+    pub band: String,
+    /// Latest review for the verdict was Confirmed.
+    pub confirmed: i64,
+    /// Latest review for the verdict was Dismissed.
+    pub dismissed: i64,
+    /// `confirmed` plus `dismissed`. This is the sample, not a rate.
+    pub reviewed: i64,
 }
 
 #[derive(sqlx::FromRow)]
@@ -674,10 +716,10 @@ impl Store {
             "assignee": assignee,
             "actor": actor,
         });
-        sqlx::query(
+        sqlx::query(&format!(
             "INSERT INTO events (id, observed_at, source, kind, data_class, payload)
-             VALUES ($1, $2, 'inbox', 'verdict.review', 'tenant', $3)",
-        )
+             VALUES ($1, $2, 'inbox', '{REVIEW_EVENT_KIND}', 'tenant', $3)"
+        ))
         .bind(event_id)
         .bind(updated_at)
         .bind(&payload)
@@ -760,6 +802,113 @@ impl Store {
         .await?;
         Ok(rows)
     }
+
+    /// Stores one Jev score for a verdict as a `jev.judgment` event.
+    ///
+    /// `probability` is the score already returned by Jev. `None`, a non-finite
+    /// value, or a value outside `[0, 1]` is stored as a missing score. The
+    /// calibration view reports that as `unknown`, which is inconclusive, not
+    /// a pass. This method does not call Jev and does not change the 0.80
+    /// thresholds.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError::EmptyQuestion`] when `question` is blank, or
+    /// [`StoreError::Database`] when a query fails.
+    pub async fn record_jev_judgment(
+        &self,
+        verdict_id: Uuid,
+        question: &str,
+        probability: Option<f64>,
+    ) -> Result<JudgmentWrite, StoreError> {
+        let question = question.trim();
+        if question.is_empty() {
+            return Err(StoreError::EmptyQuestion);
+        }
+        if self.fetch_verdict(verdict_id).await?.is_none() {
+            return Ok(JudgmentWrite::UnknownVerdict);
+        }
+        let event_id = Uuid::new_v4();
+        let observed_at = Utc::now();
+        let score = usable_probability(probability);
+        let mut payload = serde_json::json!({
+            "verdict_id": verdict_id.to_string(),
+            "question": question,
+            "probability": score,
+        });
+        if score.is_none() {
+            payload["evidence"] = serde_json::json!("inconclusive");
+            payload["reason"] = serde_json::json!("jev score is not usable");
+        }
+        sqlx::query(&format!(
+            "INSERT INTO events (id, observed_at, source, kind, data_class, payload)
+             VALUES ($1, $2, 'jev', '{JUDGMENT_EVENT_KIND}', 'tenant', $3)"
+        ))
+        .bind(event_id)
+        .bind(observed_at)
+        .bind(&payload)
+        .execute(&self.pool)
+        .await?;
+        Ok(JudgmentWrite::Stored { event_id })
+    }
+
+    /// Reads the calibration view.
+    ///
+    /// Rows come from stored `verdict.review` events joined to stored
+    /// `jev.judgment` events. The definition is
+    /// `migrations/0003_jev_calibration.sql`. An empty vec means no reviewed
+    /// judgment is stored. That is not a pass.
+    ///
+    /// ```sql
+    /// SELECT question, band, confirmed, dismissed, reviewed
+    /// FROM jev_calibration
+    /// ORDER BY question, band
+    /// LIMIT 1000
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError::Database`] when the query fails.
+    pub async fn calibration(&self) -> Result<Vec<CalibrationRow>, StoreError> {
+        let rows = sqlx::query_as::<_, CalibrationRow>(
+            "SELECT question, band, confirmed, dismissed, reviewed
+             FROM jev_calibration
+             ORDER BY question, band
+             LIMIT 1000",
+        )
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows)
+    }
+
+    /// Rows of [`Self::calibration`] for one question id.
+    ///
+    /// An empty vec means this question has no reviewed judgment. That is not
+    /// a pass.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError::Database`] when the query fails.
+    #[cfg(test)]
+    pub(crate) async fn calibration_for(
+        &self,
+        question: &str,
+    ) -> Result<Vec<CalibrationRow>, StoreError> {
+        let rows = sqlx::query_as::<_, CalibrationRow>(
+            "SELECT question, band, confirmed, dismissed, reviewed
+             FROM jev_calibration
+             WHERE question = $1
+             ORDER BY band",
+        )
+        .bind(question)
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows)
+    }
+}
+
+fn usable_probability(value: Option<f64>) -> Option<f64> {
+    value.filter(|score| score.is_finite() && (0.0..=1.0).contains(score))
 }
 
 /// Raw Jev scores for one verdict. NULL dimensions are Unknown.
@@ -1191,7 +1340,7 @@ mod tests {
             .expect("fetch review event")
             .expect("review event");
         assert_eq!(event.source, "inbox");
-        assert_eq!(event.kind, "verdict.review");
+        assert_eq!(event.kind, REVIEW_EVENT_KIND);
         assert_eq!(event.data_class, "tenant");
         assert_eq!(event.payload["verdict_id"], verdict.id.to_string());
         assert_eq!(event.payload["status"], "Confirmed");
@@ -1263,5 +1412,245 @@ mod tests {
         assert_eq!(loaded.ambiguity, Some(0.0));
         assert_eq!(loaded.intent, Some(2.0));
         assert!(!format!("{loaded:?}").to_lowercase().contains("fraud"));
+    }
+    #[test]
+    fn calibration_sql_reads_review_events_and_keeps_the_threshold() {
+        let sql = include_str!("../migrations/0003_jev_calibration.sql");
+        assert!(sql.contains(&format!("'{REVIEW_EVENT_KIND}'")));
+        assert!(sql.contains(&format!("'{JUDGMENT_EVENT_KIND}'")));
+        assert!(sql.contains(">= 0.80"));
+        assert!(sql.contains("CREATE VIEW jev_calibration"));
+        assert!(sql.contains("'Confirmed'"));
+        assert!(sql.contains("'Dismissed'"));
+        assert!(sql.contains("'unknown'"));
+        assert!(!sql.to_ascii_lowercase().contains("fraud"));
+    }
+
+    #[tokio::test]
+    async fn calibration_rejects_a_blank_question_and_an_unknown_verdict() {
+        let store = test_store().await;
+        let blank = store
+            .record_jev_judgment(Uuid::new_v4(), "  ", Some(0.91))
+            .await;
+        assert!(matches!(blank, Err(StoreError::EmptyQuestion)));
+
+        let missing = store
+            .record_jev_judgment(Uuid::new_v4(), "same_obligation", Some(0.91))
+            .await
+            .expect("unknown verdict");
+        assert_eq!(missing, JudgmentWrite::UnknownVerdict);
+    }
+
+    #[tokio::test]
+    async fn calibration_counts_match_stored_review_events() {
+        let store = test_store().await;
+        let question = format!("cal-{}", Uuid::new_v4());
+        let other = format!("cal-other-{}", Uuid::new_v4());
+        let lonely = format!("cal-none-{}", Uuid::new_v4());
+
+        let low = open_verdict(&store, VerdictOutcome::Violate).await;
+        let below = open_verdict(&store, VerdictOutcome::Violate).await;
+        let threshold = open_verdict(&store, VerdictOutcome::Violate).await;
+        let mid = open_verdict(&store, VerdictOutcome::Violate).await;
+        let high = open_verdict(&store, VerdictOutcome::Violate).await;
+        let top = open_verdict(&store, VerdictOutcome::Violate).await;
+        let replaced = open_verdict(&store, VerdictOutcome::Violate).await;
+        let missing = open_verdict(&store, VerdictOutcome::Inconclusive).await;
+        let unusable = open_verdict(&store, VerdictOutcome::Violate).await;
+        let not_a_number = open_verdict(&store, VerdictOutcome::Violate).await;
+        let direct = open_verdict(&store, VerdictOutcome::Violate).await;
+        let unreviewed = open_verdict(&store, VerdictOutcome::Violate).await;
+        let reviewing = open_verdict(&store, VerdictOutcome::Violate).await;
+        let reopened = open_verdict(&store, VerdictOutcome::Violate).await;
+        let ignored_fraud = open_verdict(&store, VerdictOutcome::Violate).await;
+        let ignored_pass = open_verdict(&store, VerdictOutcome::Violate).await;
+        let review_only = open_verdict(&store, VerdictOutcome::Violate).await;
+        let second = open_verdict(&store, VerdictOutcome::Violate).await;
+        let alone = open_verdict(&store, VerdictOutcome::Violate).await;
+
+        judge(&store, low, &question, Some(0.0)).await;
+        judge(&store, below, &question, Some(0.79)).await;
+        judge(&store, threshold, &question, Some(0.80)).await;
+        judge(&store, mid, &question, Some(0.85)).await;
+        judge(&store, high, &question, Some(0.91)).await;
+        judge(&store, top, &question, Some(1.0)).await;
+        judge(&store, replaced, &question, Some(0.55)).await;
+        judge(&store, missing, &question, None).await;
+        judge(&store, unusable, &question, Some(1.2)).await;
+        judge(&store, not_a_number, &question, Some(f64::NAN)).await;
+        judge(&store, direct, &question, Some(0.41)).await;
+        judge(&store, unreviewed, &question, Some(0.15)).await;
+        judge(&store, reviewing, &question, Some(0.85)).await;
+        judge(&store, reopened, &question, Some(0.85)).await;
+        judge(&store, ignored_fraud, &question, Some(0.85)).await;
+        judge(&store, ignored_pass, &question, Some(0.99)).await;
+        judge(&store, second, &other, Some(0.95)).await;
+        judge(&store, alone, &lonely, Some(0.85)).await;
+
+        review(&store, low, TriageStatus::Confirmed).await;
+        review(&store, below, TriageStatus::Confirmed).await;
+        review(&store, threshold, TriageStatus::Confirmed).await;
+        review(&store, mid, TriageStatus::Confirmed).await;
+        review(&store, high, TriageStatus::Dismissed).await;
+        review(&store, top, TriageStatus::Dismissed).await;
+        review(&store, missing, TriageStatus::Confirmed).await;
+        review(&store, unusable, TriageStatus::Confirmed).await;
+        review(&store, not_a_number, TriageStatus::Confirmed).await;
+        review(&store, reviewing, TriageStatus::Reviewing).await;
+        review(&store, second, TriageStatus::Confirmed).await;
+        review(&store, review_only, TriageStatus::Confirmed).await;
+
+        review(&store, replaced, TriageStatus::Confirmed).await;
+        later().await;
+        judge(&store, replaced, &question, Some(0.85)).await;
+        later().await;
+        review(&store, replaced, TriageStatus::Dismissed).await;
+
+        review(&store, reopened, TriageStatus::Confirmed).await;
+        later().await;
+        review(&store, reopened, TriageStatus::Reviewing).await;
+
+        let event_id = review_event(&store, direct, "Confirmed").await;
+        review_event(&store, ignored_fraud, "fraud").await;
+        review_event(&store, ignored_pass, "pass").await;
+
+        let event = store
+            .fetch_event(event_id)
+            .await
+            .expect("read stored review")
+            .expect("review event");
+        assert_eq!(event.kind, REVIEW_EVENT_KIND);
+        assert_eq!(event.source, "inbox");
+        assert_eq!(event.payload["status"], "Confirmed");
+        assert_eq!(event.payload["verdict_id"], direct.to_string());
+
+        store.calibration().await.expect("read calibration");
+        let mut rows = store
+            .calibration_for(&question)
+            .await
+            .expect("read question rows");
+        rows.extend(
+            store
+                .calibration_for(&other)
+                .await
+                .expect("read other question"),
+        );
+        rows.extend(
+            store
+                .calibration_for(&lonely)
+                .await
+                .expect("read lonely question"),
+        );
+        for row in rows.iter().filter(|row| row.question == question) {
+            assert_eq!(row.reviewed, row.confirmed + row.dismissed);
+            assert_ne!(row.band, "pass");
+        }
+
+        expect_counts(band(&rows, &question, "0.00-0.10"), 1, 0);
+        expect_counts(band(&rows, &question, "0.70-0.80"), 1, 0);
+        expect_counts(band(&rows, &question, "0.80-0.90"), 2, 1);
+        expect_counts(band(&rows, &question, "0.90-1.00"), 0, 2);
+        expect_counts(band(&rows, &question, "unknown"), 3, 0);
+        expect_counts(band(&rows, &question, "0.40-0.50"), 1, 0);
+        expect_counts(band(&rows, &other, "0.90-1.00"), 1, 0);
+
+        absent(&rows, &question, "0.10-0.20");
+        absent(&rows, &question, "0.50-0.60");
+        absent(&rows, &lonely, "0.80-0.90");
+        assert!(rows.iter().all(|row| row.question != lonely));
+
+        let stored = store
+            .fetch_verdict(missing)
+            .await
+            .expect("fetch verdict")
+            .expect("inconclusive verdict");
+        assert_eq!(stored.outcome, VerdictOutcome::Inconclusive);
+    }
+
+    async fn open_verdict(store: &Store, outcome: VerdictOutcome) -> Uuid {
+        let id = Uuid::new_v4();
+        let title = match outcome {
+            VerdictOutcome::Violate => "needs review",
+            VerdictOutcome::Satisfy => "satisfied",
+            VerdictOutcome::Inconclusive => "inconclusive",
+        };
+        store
+            .insert_verdict(&Verdict {
+                id,
+                recorded_at: timestamp(),
+                outcome,
+                spec_id: "no-second-payment".to_owned(),
+                reason_code: Some("second-payment".to_owned()),
+                evidence: serde_json::json!({
+                    "title": title,
+                    "binding": "bill",
+                    "evidence": "second-payment",
+                    "timeline": []
+                }),
+            })
+            .await
+            .expect("insert verdict");
+        id
+    }
+
+    async fn judge(store: &Store, verdict_id: Uuid, question: &str, probability: Option<f64>) {
+        let write = store
+            .record_jev_judgment(verdict_id, question, probability)
+            .await
+            .expect("store judgment");
+        assert!(matches!(write, JudgmentWrite::Stored { .. }));
+    }
+
+    async fn review(store: &Store, verdict_id: Uuid, status: TriageStatus) {
+        let write = store
+            .record_triage(verdict_id, status, None, "me")
+            .await
+            .expect("store review");
+        assert!(matches!(write, TriageWrite::Stored(_)));
+    }
+
+    async fn review_event(store: &Store, verdict_id: Uuid, status: &str) -> Uuid {
+        let id = Uuid::new_v4();
+        store
+            .insert_event(&Event {
+                id,
+                observed_at: Utc::now(),
+                source: "inbox".to_owned(),
+                kind: REVIEW_EVENT_KIND.to_owned(),
+                data_class: "tenant".to_owned(),
+                payload: serde_json::json!({
+                    "verdict_id": verdict_id.to_string(),
+                    "status": status,
+                    "assignee": serde_json::Value::Null,
+                    "actor": "me",
+                }),
+            })
+            .await
+            .expect("insert review event");
+        id
+    }
+
+    async fn later() {
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    }
+
+    fn band<'a>(rows: &'a [CalibrationRow], question: &str, band: &str) -> &'a CalibrationRow {
+        rows.iter()
+            .find(|row| row.question == question && row.band == band)
+            .unwrap_or_else(|| panic!("missing {question} {band}"))
+    }
+
+    fn expect_counts(row: &CalibrationRow, confirmed: i64, dismissed: i64) {
+        assert_eq!(row.confirmed, confirmed, "{}", row.band);
+        assert_eq!(row.dismissed, dismissed, "{}", row.band);
+        assert_eq!(row.reviewed, confirmed + dismissed);
+    }
+
+    fn absent(rows: &[CalibrationRow], question: &str, band: &str) {
+        assert!(
+            rows.iter()
+                .all(|row| row.question != question || row.band != band),
+            "{question} {band} should be absent"
+        );
     }
 }

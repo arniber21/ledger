@@ -20,6 +20,16 @@ use crate::{JevCallFailure, DIFFERENT_PROBABILITY_THRESHOLD, SAME_PROBABILITY_TH
 /// and criteria, not this string.
 pub const MEMO_INSTRUCTS_QUESTION: &str = "memo_instructs_payment";
 
+/// Instructions for [`MEMO_INSTRUCTS_QUESTION`] when the state field is `memo`.
+pub(crate) const INSTRUCTS_INSTRUCTIONS: &str = "Does `memo` instruct a payment?";
+
+/// True criterion for [`MEMO_INSTRUCTS_QUESTION`].
+pub(crate) const INSTRUCTS_TRUE: &str =
+    "The memo tells the reader to pay a payee or to send an amount.";
+
+/// False criterion for [`MEMO_INSTRUCTS_QUESTION`].
+pub(crate) const INSTRUCTS_FALSE: &str = "The memo does not tell the reader to pay. A description of goods, stock, rent, or an agreed charge is not an instruction to pay.";
+
 /// Bill memo used for the saved instruction call.
 ///
 /// The sentence is the hidden-instruction fixture: a charge note plus an
@@ -66,10 +76,10 @@ pub fn memo_request(memo: &str) -> String {
         "questions": {
             MEMO_INSTRUCTS_QUESTION: {
                 "type": "noul",
-                "instructions": "Does `memo` instruct a payment?",
+                "instructions": INSTRUCTS_INSTRUCTIONS,
                 "criteria": {
-                    "true": "The memo tells the reader to pay a payee or to send an amount.",
-                    "false": "The memo does not tell the reader to pay. A description of goods, stock, rent, or an agreed charge is not an instruction to pay."
+                    "true": INSTRUCTS_TRUE,
+                    "false": INSTRUCTS_FALSE
                 }
             }
         }
@@ -131,18 +141,28 @@ pub(crate) fn map_noul_question(value: &Value, question_id: &str) -> PredicateVe
     else {
         return PredicateVerdict::Unknown;
     };
+    score_noul_answer(answer).1
+}
+
+/// Maps one Noul answer with the fixed 0.80 thresholds.
+///
+/// The probability is kept when it is inside `[0, 1]`, including a score that
+/// lands in [`PredicateVerdict::Unknown`]. A contradiction drops the number.
+pub(crate) fn score_noul_answer(answer: &Value) -> (Option<f64>, PredicateVerdict) {
     if answer.get("type").and_then(Value::as_str) != Some("noul") {
-        return PredicateVerdict::Unknown;
+        return (None, PredicateVerdict::Unknown);
     }
     let Some(p_yes) = answer.get("noul").and_then(Value::as_f64) else {
-        return PredicateVerdict::Unknown;
+        return (None, PredicateVerdict::Unknown);
     };
     if let Some(probabilities) = answer.get("probabilities") {
         if !probabilities_agree(probabilities, p_yes) {
-            return PredicateVerdict::Unknown;
+            return (None, PredicateVerdict::Unknown);
         }
     }
-    decide_noul(p_yes)
+    let verdict = decide_noul(p_yes);
+    let probability = if unit(p_yes) { Some(p_yes) } else { None };
+    (probability, verdict)
 }
 
 fn map_memo_value(value: &Value) -> PredicateVerdict {
