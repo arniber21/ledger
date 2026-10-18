@@ -66,7 +66,9 @@ validator:
 
 # --- run ---
 
-# HTTP/SSE API. Verdicts stream at GET /v1/verdicts/stream.
+# HTTP/SSE API.
+# Verdicts stream at GET /v1/verdicts/stream.
+# Live traces are GET /api/traces and GET /api/traces/stream.
 api:
     cargo run -p ledger-api
 

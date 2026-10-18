@@ -1,4 +1,4 @@
-//! HTTP/SSE API serving live verdicts to the web UI.
+//! HTTP/SSE API serving live verdicts and traces to the web UI.
 
 use std::process::ExitCode;
 
@@ -22,9 +22,12 @@ async fn main() -> ExitCode {
 async fn run() -> Result<(), ledger_api::ApiError> {
     let store = Store::connect(&database_url()).await?;
     store.migrate().await?;
-    let bind = std::env::var("API_BIND").unwrap_or_else(|_| "127.0.0.1:8080".to_owned());
+    let bind = std::env::var("API_BIND")
+        .or_else(|_| std::env::var("LEDGER_API_ADDR"))
+        .unwrap_or_else(|_| "127.0.0.1:8080".to_owned());
     let server = serve(store, &bind).await?;
     println!("verdicts at http://{}/v1/verdicts/stream", server.addr);
+    println!("traces at http://{}/api/traces", server.addr);
     server.wait().await;
     Ok(())
 }

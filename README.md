@@ -90,6 +90,7 @@ ORDER BY bucket, source, kind;
   - `sqlx`
 - **API** (`ledger-api`)
   - HTTP and Server-Sent Events at `GET /v1/verdicts/stream`
+  - Live traces at `GET /api/traces` and `GET /api/traces/stream`
 - **Web UI** (`web/`)
   - React, Vite, TypeScript, bun
   - TanStack Router, Query and Table

@@ -413,6 +413,32 @@ impl Store {
         Ok(events)
     }
 
+    /// The latest `limit` events, oldest first.
+    ///
+    /// `limit` is clamped to 1..=1000. Ordering matches the hypertable primary
+    /// key `(id, observed_at)` so a later [`events_after`](Self::events_after)
+    /// call can continue from the last row.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError::Database`] when the query fails.
+    pub async fn recent_events(&self, limit: i64) -> Result<Vec<Event>, StoreError> {
+        let events = sqlx::query_as::<_, Event>(
+            "SELECT id, observed_at, source, kind, data_class, payload
+             FROM (
+                 SELECT id, observed_at, source, kind, data_class, payload
+                 FROM events
+                 ORDER BY observed_at DESC, id DESC
+                 LIMIT $1
+             ) AS recent
+             ORDER BY observed_at ASC, id ASC",
+        )
+        .bind(clamp_limit(limit))
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(events)
+    }
+
     /// Reads the next page of events after `(observed_at, id)`.
     ///
     /// `None` starts at the oldest row. Ordering matches [`Self::events_in_span`].
@@ -497,6 +523,17 @@ impl Store {
         .await?;
         rows.into_iter().map(Verdict::try_from).collect()
     }
+}
+
+/// Last hypertable row already delivered to a reader.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct EventCursor {
+    pub observed_at: DateTime<Utc>,
+    pub id: Uuid,
+}
+
+fn clamp_limit(limit: i64) -> i64 {
+    limit.clamp(1, 1_000)
 }
 
 fn sql_all(width: BucketWidth) -> &'static str {
@@ -746,7 +783,11 @@ mod tests {
     async fn events_after_reads_the_same_observed_at_order() {
         let store = test_store().await;
         let source = format!("cursor-{}", Uuid::new_v4());
-        let first_at = DateTime::from_timestamp(1_800_000_000, 0).expect("time");
+        // A fresh window. Repeated runs share one database, and a fixed
+        // timestamp fills the page limit with older rows.
+        let skew = i64::try_from(Uuid::new_v4().as_u128() % 86_400_000_000).expect("skew");
+        let first_at = DateTime::from_timestamp(4_500_000_000, 0).expect("time")
+            + chrono::Duration::microseconds(skew);
         let mut ids = Vec::new();
         for offset in 0..3 {
             let id = Uuid::new_v4();
@@ -765,7 +806,7 @@ mod tests {
         }
 
         let page = store
-            .events_in_span(first_at, first_at + chrono::Duration::seconds(3), 10)
+            .events_in_span(first_at, first_at + chrono::Duration::seconds(3), 1_000)
             .await
             .expect("span");
         let ours: Vec<_> = page
@@ -777,7 +818,7 @@ mod tests {
         assert_eq!(ours[2].id, ids[2]);
 
         let after = store
-            .events_after(Some((ours[0].observed_at, ours[0].id)), 10)
+            .events_after(Some((ours[0].observed_at, ours[0].id)), 1_000)
             .await
             .expect("after");
         let rest: Vec<_> = after
@@ -787,5 +828,54 @@ mod tests {
         assert_eq!(rest.len(), 2);
         assert_eq!(rest[0].id, ids[1]);
         assert_eq!(rest[1].id, ids[2]);
+    }
+
+    #[tokio::test]
+    async fn recent_events_and_events_after_follow_the_primary_key() {
+        let store = test_store().await;
+        let base = DateTime::from_timestamp(4_100_000_000, 0).expect("future timestamp");
+        let mut inserted = Vec::new();
+        for offset in 0..3 {
+            let event = Event {
+                id: Uuid::new_v4(),
+                observed_at: base + chrono::Duration::seconds(offset),
+                source: "exchange".to_owned(),
+                kind: "exchange.settle".to_owned(),
+                data_class: "tenant".to_owned(),
+                payload: serde_json::json!({
+                    "span": "exchange.settle",
+                    "span_id": offset.to_string(),
+                }),
+            };
+            store.insert_event(&event).await.expect("insert event");
+            inserted.push(event);
+        }
+
+        let recent = store.recent_events(20).await.expect("recent events");
+        let recent_ids: Vec<_> = recent.iter().map(|event| event.id).collect();
+        assert!(recent_ids.contains(&inserted[2].id));
+        assert!(recent.windows(2).all(|pair| {
+            (pair[0].observed_at, pair[0].id) <= (pair[1].observed_at, pair[1].id)
+        }));
+
+        let cursor = EventCursor {
+            observed_at: inserted[0].observed_at,
+            id: inserted[0].id,
+        };
+        let after = store
+            .events_after(Some((cursor.observed_at, cursor.id)), 1_000)
+            .await
+            .expect("events after");
+        let followed: Vec<_> = after
+            .iter()
+            .filter(|event| inserted.iter().any(|item| item.id == event.id))
+            .map(|event| event.id)
+            .collect();
+        assert_eq!(followed, vec![inserted[1].id, inserted[2].id]);
+        let second = after
+            .iter()
+            .find(|event| event.id == inserted[1].id)
+            .expect("second event");
+        assert_eq!(second.payload["span"], "exchange.settle");
     }
 }

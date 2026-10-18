@@ -1,8 +1,9 @@
 import { createRootRoute, createRoute, createRouter, RouterProvider } from "@tanstack/react-router";
 import { isSavedView } from "./stream/reduce";
 import { Dashboard, parseOutcomeSearch } from "./dashboard/dashboard";
-import { InboxPage, TracesPage, VerdictsPage } from "./pages/places";
+import { InboxPage, VerdictsPage } from "./pages/places";
 import { SpecsPage } from "./specs/specs";
+import { TracesPage } from "./traces/traces";
 import { Shell } from "./shell/shell";
 
 const rootRoute = createRootRoute({

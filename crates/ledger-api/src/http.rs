@@ -89,10 +89,16 @@ pub async fn serve(store: Store, addr: &str) -> Result<Server, ApiError> {
             }
         }
     });
-    let app = Router::new()
+    let verdicts = Router::new()
         .route("/health", get(health))
         .route("/v1/verdicts/stream", get(stream))
-        .with_state(App { store, tx });
+        .with_state(App {
+            store: store.clone(),
+            tx,
+        });
+    let app = verdicts.merge(crate::traces::router(crate::traces::AppState {
+        store: Some(store),
+    }));
     let mut stop = shutdown.subscribe();
     let join = tokio::spawn(async move {
         let server = axum::serve(listener, app).with_graceful_shutdown(async move {

@@ -19,10 +19,16 @@
 //!
 //! The timeline is matched evidence in observation order. A `Violate` title is
 //! `needs review`.
+//!
+//! `GET /api/traces` and `GET /api/traces/stream` read ingested spans.
+//! `POST /api/faults/{name}` toggles a fault on the running desk.
 
 mod decode;
 mod engine;
+mod fault;
 mod http;
+mod stream;
+mod traces;
 
 pub use engine::{ApiError, Engine, StreamEntry, StreamMessage, StreamVerdict};
 pub use http::serve;

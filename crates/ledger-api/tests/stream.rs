@@ -10,6 +10,10 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::sync::broadcast;
 
+/// Both tests step every recent row. A second engine that inserts the same
+/// verdict first leaves this poll with nothing to publish.
+static ENGINE: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
 async fn test_store() -> Store {
     let store = Store::connect(&database_url())
         .await
@@ -33,6 +37,7 @@ fn span(name: &'static str, id: u64, at: DateTime<Utc>, fields: &[(&str, &str)])
 
 #[tokio::test]
 async fn double_pay_fault_is_a_violate_on_the_stream_with_a_timeline() {
+    let _guard = ENGINE.lock().await;
     let store = test_store().await;
     let bill = format!("bill-{}", Uuid::new_v4());
     let agent = format!("payer-{}", Uuid::new_v4());
@@ -132,6 +137,15 @@ async fn double_pay_fault_is_a_violate_on_the_stream_with_a_timeline() {
     assert_eq!(stored.spec_id, "ledger.bill.no-second-payment");
 
     let server = serve(store, "127.0.0.1:0").await.expect("serve");
+    let traces = read_http(server.addr, "/api/traces").await;
+    assert!(
+        traces.starts_with("HTTP/1.1 200"),
+        "traces status: {traces}"
+    );
+    assert!(
+        traces.contains("\"events\""),
+        "traces response has no events array"
+    );
     let payload = read_until(server.addr, &frame.id.to_string()).await;
     assert!(payload.contains("\"kind\":\"verdict\"") || payload.contains("\"kind\": \"verdict\""));
     assert!(
@@ -145,6 +159,7 @@ async fn double_pay_fault_is_a_violate_on_the_stream_with_a_timeline() {
 
 #[tokio::test]
 async fn unresolved_order_after_three_ticks_violates() {
+    let _guard = ENGINE.lock().await;
     let store = test_store().await;
     let order = format!("order-{}", Uuid::new_v4());
     let now = Utc::now();
@@ -183,6 +198,21 @@ async fn unresolved_order_after_three_ticks_violates() {
     assert_eq!(frame.title, "needs review");
     assert!(frame.timeline.iter().any(|entry| entry.role == "order"));
     assert!(frame.timeline.iter().any(|entry| entry.role == "deadline"));
+}
+
+async fn read_http(addr: std::net::SocketAddr, path: &str) -> String {
+    let mut stream = TcpStream::connect(addr).await.expect("connect");
+    let request = format!("GET {path} HTTP/1.1\r\nHost: {addr}\r\nConnection: close\r\n\r\n");
+    stream.write_all(request.as_bytes()).await.expect("write");
+    let mut buf = Vec::new();
+    loop {
+        let mut tmp = [0_u8; 8192];
+        match stream.read(&mut tmp).await {
+            Ok(0) | Err(_) => break,
+            Ok(n) => buf.extend_from_slice(&tmp[..n]),
+        }
+    }
+    String::from_utf8_lossy(&buf).into_owned()
 }
 
 async fn read_until(addr: std::net::SocketAddr, needle: &str) -> String {
