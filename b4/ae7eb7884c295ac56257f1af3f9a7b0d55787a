@@ -1,0 +1,49 @@
+.gitignore
+  s_b8648f7062bd74::t_f7d43b6669a1e6 8-9
+CLAUDE.md
+  s_b8648f7062bd74::t_3fc738e365a16e 6
+Cargo.lock
+  s_b8648f7062bd74::t_bcfc0010b1b1c1 26-31,77-100,135-140,425-436,445,709-710,715,742,859,1000-1008,1050-1055,1069-1080,1090-1100,1112-1120,1166,1173-1189,1319-1331,1377,1543,1583,1753-1782,1848-1853,1907-1915,1931,2203-2217
+Cargo.toml
+  s_b8648f7062bd74::t_96920437b0389d 34-35,38
+README.md
+  s_b8648f7062bd74::t_b9cd1641bafaad 62-67
+crates/ledger-core/Cargo.toml
+  s_b8648f7062bd74::t_76c37f386cc4c3 11-12,14
+crates/ledger-core/src/dataset/ids.rs
+  s_b8648f7062bd74::t_fa3a761aa78cbe 1-185
+crates/ledger-core/src/dataset/mod.rs
+  s_b8648f7062bd74::t_f15a0b68cfadf4 1-738
+crates/ledger-core/src/dataset/model.rs
+  s_b8648f7062bd74::t_58f1166ddff2c4 1-166
+crates/ledger-core/src/dataset/money.rs
+  s_b8648f7062bd74::t_4abae01eefc3eb 1-110
+crates/ledger-core/src/dataset/raw.rs
+  s_b8648f7062bd74::t_dbded64b5f6d7f 1-105
+crates/ledger-core/src/lib.rs
+  s_b8648f7062bd74::t_757df9ffe08981 2-3
+crates/ledger-jev/Cargo.toml
+  s_b8648f7062bd74::t_cd515e06a48bb3 11
+crates/ledger-jev/smoke_request.json
+  s_b8648f7062bd74::t_406b81437fd1ac 1-37
+crates/ledger-jev/src/lib.rs
+  s_b8648f7062bd74::t_5ab5243f0b6606 1-297
+fixtures/jev/same-obligation.json
+  s_b8648f7062bd74::t_f377ea7e742082 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b4ae7eb7884c295ac56257f1af3f9a7b0d55787a",
+  "prompts": {},
+  "sessions": {
+    "s_b8648f7062bd74": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "db731d67-b0b5-433b-b2bf-34aeca98cada",
+        "model": "grok-4.7-high-fast"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    }
+  }
+}
