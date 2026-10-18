@@ -1,0 +1,134 @@
+fixtures/jev/two-clause-coverage.json
+  s_4394ef51692b99::t_5815c41b8c3450 1
+crates/ledger-api/src/main.rs
+  s_c585501d5f28f9::t_68e4e7e431b6c0 41
+web/src/specs/reduce.ts
+  s_b9fd779d8065fc::t_93d451d5c86792 152-153
+  s_b9fd779d8065fc::t_6c5a6fa0ffd7e4 230-233,237
+crates/ledger-api/src/engine.rs
+  s_c585501d5f28f9::t_e17c3963183abc 132-140
+crates/ledger-api/src/test_api.rs
+  s_c585501d5f28f9::t_5bccea69f2bcd6 57-58,61-65,69
+  s_c585501d5f28f9::t_7859df8cceeac5 327-331
+  s_c585501d5f28f9::t_1cb76f7dda31f3 55-56
+crates/ledger-spec/tests/record_clauses.rs
+  s_b9fd779d8065fc::t_b2a94e0123e93a 20
+  s_c585501d5f28f9::t_d950b9a3a93b19 1,4-5,30,33,41-47,52,103-106,114-121
+  s_b9fd779d8065fc::t_f3b0123657c3b5 112-113
+  s_b9fd779d8065fc::t_345dec42506326 55-59,61,63-68,70,108-111,122
+  s_c585501d5f28f9::t_cf3051b142050b 107
+  s_b9fd779d8065fc::t_9b19648eb24e7a 31-32,34-40,48,50
+  s_c585501d5f28f9::t_3942036b933bbe 76-77
+  s_b9fd779d8065fc::t_50df372b5d5e33 11
+  s_c585501d5f28f9::t_7108e1bbc5047c 18
+  s_c585501d5f28f9::t_ef2e1597614a35 2-3,6-10,12-17,21-29,49,51,53-54,60,62,69,71-75,78-88,100-102,123-175
+  s_c585501d5f28f9::t_97994459120dc3 19
+  s_c585501d5f28f9::t_49e781dcc4658d 89-99
+crates/ledger-api/src/author.rs
+  s_c585501d5f28f9::t_cc360e5852d03e 21
+  s_c585501d5f28f9::t_d1961dd7da6d0e 1-20,22-83,85-98,102-104,122-185,187-222,234-267
+  s_c585501d5f28f9::t_7056c94f51cade 84,99-101,105-121
+  s_c585501d5f28f9::t_d7b28fdaf4aed4 223-233
+  s_61e0b0c14d18f7::t_d9c8a52c466f34 186
+web/e2e/helpers.ts
+  s_b9fd779d8065fc::t_0757e063f8b529 15-20
+fixtures/gemini/two-clause.json
+  s_4394ef51692b99::t_5815c41b8c3450 1
+fixtures/jev/two-clause-match-request.json
+  s_4394ef51692b99::t_5815c41b8c3450 1
+crates/ledger-scene/src/play.rs
+  s_c585501d5f28f9::t_1d4845bc5eafff 187-189,191
+  s_c585501d5f28f9::t_b36764a4a70c33 771
+  s_c585501d5f28f9::t_c191c0b714a6a3 13-14
+  s_c585501d5f28f9::t_0f0e48bb64c79e 1011-1058,1060-1072,1076
+  s_b9fd779d8065fc::t_5abe3b4f5b9b16 1433-1440
+  s_b9fd779d8065fc::t_53b1df292d7d6c 408-410
+  s_c585501d5f28f9::t_ead20c2875ec53 166
+  s_c585501d5f28f9::t_3522d6149a3ba1 876-894,897-899
+  s_b9fd779d8065fc::t_f997047329917d 8-11
+  s_c585501d5f28f9::t_bb894e88869edb 333-335,338-407,411-477
+  s_c585501d5f28f9::t_2ce8247dcc01cd 683-694
+  s_c585501d5f28f9::t_bd7e1800b9cfc5 718
+  s_c585501d5f28f9::t_d5aa98159399e9 799-801
+  s_c585501d5f28f9::t_90bb952ce343a9 895-896
+  s_b9fd779d8065fc::t_7130874f23b509 981-998
+  s_b9fd779d8065fc::t_b491866237319b 1278-1286,1288-1292,1294-1298,1300-1316
+  s_c585501d5f28f9::t_009e0bdec218cb 1317-1383
+  s_75e4351225f10e::t_94f23341ce9e1d 15-16,336-337,1287,1293,1299
+fixtures/jev/two-clause-match.json
+  s_4394ef51692b99::t_5815c41b8c3450 1
+scripts/e2e-stack.sh
+  s_c585501d5f28f9::t_3d9af1451b00b9 25
+fixtures/gemini/two-clause-request.json
+  s_4394ef51692b99::t_5815c41b8c3450 1
+fixtures/jev/two-clause-coverage-request.json
+  s_4394ef51692b99::t_5815c41b8c3450 1
+crates/ledger-api/src/http.rs
+  s_c585501d5f28f9::t_1bb58faa7102dd 126-127,129
+  s_c585501d5f28f9::t_8c48de62d90ed2 6
+crates/ledger-api/Cargo.toml
+  s_c585501d5f28f9::t_2ff5fd15d4e938 12
+web/e2e/specs.spec.ts
+  s_b9fd779d8065fc::t_5ccce625d81917 6
+  s_c585501d5f28f9::t_3538440f995571 14-23
+  s_c585501d5f28f9::t_21ba9ec071e31f 7
+  s_b9fd779d8065fc::t_3fb760e9c0fdf8 1-5,8-13,24-55,57-59,63-171
+  s_c585501d5f28f9::t_42a18e3deaea56 56,60-62
+web/src/specs/reduce.test.ts
+  s_b9fd779d8065fc::t_d2cddb20a76e14 59
+  s_b9fd779d8065fc::t_d96026f9b7eeb0 88
+  s_b9fd779d8065fc::t_673a78d21b3a45 171
+  s_b9fd779d8065fc::t_b838ae60d32701 107
+crates/ledger-api/src/lib.rs
+  s_c585501d5f28f9::t_c164aa97d7ad20 29-32,34-35,37
+Cargo.lock
+  s_c585501d5f28f9::t_b616e9d4a1a524 2420
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c2e727c8d49f18c8f18a40ce109b1d64aa0eb90e",
+  "prompts": {},
+  "sessions": {
+    "s_4394ef51692b99": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "0783bbec-b50d-44f4-88e5-e4ef372e9c55",
+        "model": "grok-4.7-high-fast"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    },
+    "s_61e0b0c14d18f7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c168cc53-67a2-4357-967a-c871924e2eec",
+        "model": "unknown"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    },
+    "s_75e4351225f10e": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "1ed62e5b-968c-4418-87bc-4db3a8b60c5d",
+        "model": "grok-4.7-high-fast"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    },
+    "s_b9fd779d8065fc": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "33568c46-fd28-4497-a298-e8fe87cce25a",
+        "model": "grok-4.7-high-fast"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    },
+    "s_c585501d5f28f9": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "55cbb41c-b5ca-4b53-b677-858e2363c319",
+        "model": "grok-4.7-high-fast"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    }
+  }
+}
