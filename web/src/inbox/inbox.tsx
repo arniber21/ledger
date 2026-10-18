@@ -240,20 +240,21 @@ export function InboxPage({ search }: { search: InboxSearch }) {
     }
   }
 
-  inboxBridge.current = {
-    assignOpen,
-    onAssignKey,
-    markReviewed,
-    dismiss,
-    openAssign,
-    focusFilter: () => filterRef.current?.focus(),
-  };
-
+  // The bridge is restored in the effect. A render-only write is cleared by
+  // Strict Mode's simulated unmount, and Esc back to the inbox would then ignore e, d, and a.
   useEffect(() => {
+    inboxBridge.current = {
+      assignOpen,
+      onAssignKey,
+      markReviewed,
+      dismiss,
+      openAssign,
+      focusFilter: () => filterRef.current?.focus(),
+    };
     return () => {
       inboxBridge.current = null;
     };
-  }, []);
+  });
 
   const meta = calm ? "Nothing needs attention" : `${prepared.attention} need attention`;
   const chips = filterChips(search);

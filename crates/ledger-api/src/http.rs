@@ -99,6 +99,11 @@ pub async fn serve_with_ranker(
             if let Err(error) = engine.poll_once().await {
                 tracing::warn!(error = %error, "verdict poll failed");
             }
+            // Scenes store verdicts on their own. Score those rows after startup
+            // so the inbox can reorder from stored scores without another call.
+            if let Err(error) = engine.score_unranked().await {
+                tracing::warn!(error = %error, "could not score stored verdicts");
+            }
             tokio::select! {
                 changed = watch_rx.changed() => {
                     if changed.is_err() || *watch_rx.borrow() {
