@@ -1,0 +1,46 @@
+web/src/router.tsx
+  s_415555492e76b1::t_98fb42d8863bb9 4
+  s_18a32a5c95eee7::t_a25350ed274b0c 5,47-53
+web/src/shell/sidebar.tsx
+  s_415555492e76b1::t_b78ef763ee9481 3,29,31-32,103-123,137-142
+web/src/specs/reduce.test.ts
+  s_415555492e76b1::t_b8910430481254 1-152
+web/src/specs/reduce.ts
+  s_415555492e76b1::t_4dd386d0ecc30b 1-314
+web/src/specs/runs.ts
+  s_415555492e76b1::t_0cb251a978db8f 1-27
+web/src/specs/specs.tsx
+  s_415555492e76b1::t_23970a0ab527ee 1-413
+web/src/specs/stream.ts
+  s_415555492e76b1::t_901f217310ba6a 1-77
+web/src/specs/types.ts
+  s_415555492e76b1::t_ef0ce59e239367 1-63
+web/src/styles.css
+  s_415555492e76b1::t_9891b5041b034f 38,225-232,782-1027,1030
+web/src/vite-env.d.ts
+  s_415555492e76b1::t_139fdae79ccc4f 8-12
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "04aac480d6912f89dce0c0d1ceb826ab8431dc04",
+  "prompts": {},
+  "sessions": {
+    "s_18a32a5c95eee7": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "bad77824-f23c-4c20-aba9-a92bd2e5ec13",
+        "model": "grok-4.7-high-fast"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    },
+    "s_415555492e76b1": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "40e3a318-57c7-427c-ab4c-d0b15e62c116",
+        "model": "grok-4.7-high-fast"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    }
+  }
+}
