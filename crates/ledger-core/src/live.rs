@@ -12,6 +12,7 @@ use sentinel_model::{Event, InconclusiveReason, VerdictOutcome};
 use crate::adapt::TraceCursor;
 use crate::error::AdapterError;
 use crate::event::{AgentId, LedgerEvent, LedgerKind};
+use crate::gc::MonitorDesk;
 use crate::specs::{
     absence_evaluator, precedence_evaluator, response_evaluator, SPEC_ABSENCE, SPEC_PRECEDENCE,
     SPEC_RESPONSE,
@@ -71,6 +72,7 @@ pub struct Session {
     response: Evaluator,
     orders: BTreeMap<String, OpenOrder>,
     tick_count: u64,
+    desk: MonitorDesk,
 }
 
 impl Session {
@@ -88,7 +90,23 @@ impl Session {
             response: response_evaluator()?,
             orders: BTreeMap::new(),
             tick_count: 0,
+            desk: MonitorDesk::new()?,
         })
+    }
+
+    /// How many per-bill monitors are still watching.
+    ///
+    /// Paid-in-full, a passed horizon, and an affirmed ambiguous close remove
+    /// a monitor. Unknown evidence does not.
+    #[must_use]
+    pub fn live_monitor_count(&self) -> usize {
+        self.desk.live_count()
+    }
+
+    /// The retirement desk for this session.
+    #[must_use]
+    pub fn monitors(&mut self) -> &mut MonitorDesk {
+        &mut self.desk
     }
 
     /// Steps one event into every running monitor.
@@ -179,6 +197,7 @@ impl Session {
         self.note_order(&event);
         self.history.push(event.clone());
         self.adapted.push(adapted);
+        self.desk.follow(&event)?;
         if create_agent {
             let mut monitor = AgentMonitors::new(event.agent_id())?;
             for prior in &self.adapted {
@@ -734,5 +753,21 @@ mod tests {
             .expect("response");
         assert_eq!(verdict.outcome, VerdictOutcome::Satisfy);
         assert!(verdict.timeline.iter().any(|entry| entry.role == "fill"));
+    }
+
+    #[test]
+    fn live_monitor_count_tracks_an_open_bill() {
+        let mut session = Session::new().expect("session");
+        assert_eq!(session.live_monitor_count(), 0);
+        session.push(pay("pay", 10, &[])).expect("pay");
+        assert_eq!(session.live_monitor_count(), 1);
+        assert!(matches!(
+            session
+                .monitors()
+                .record_payment("bill-1", "1.00", "USD", 10)
+                .expect("partial without owed stays open"),
+            crate::gc::Decision::Kept { .. }
+        ));
+        assert_eq!(session.live_monitor_count(), 1);
     }
 }
