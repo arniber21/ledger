@@ -1,0 +1,53 @@
+CLAUDE.md
+  s_61e0b0c14d18f7::t_2db6c67f96fcec 6
+worktrees/issue-1
+  s_eb3f1e996a1e9e::t_86e7232df532c2 1
+worktrees/issue-2
+  s_5b6886f587b7bc::t_81b0d3b8effe6f 1
+worktrees/issue-3
+  s_e6be874620ab28::t_178513075a0c42 1
+ledger
+  s_61e0b0c14d18f7::t_5b8b7cad76c445 1
+worktrees/issue-4
+  s_61e0b0c14d18f7::t_1d0a009496e129 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c482f917af3e760e27896ac4530c0fc6f6f34dd5",
+  "prompts": {},
+  "sessions": {
+    "s_5b6886f587b7bc": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "278b5ff4-9aa3-4da6-9f99-a000d49ed14f",
+        "model": "grok-4.7-high-fast"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    },
+    "s_61e0b0c14d18f7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c168cc53-67a2-4357-967a-c871924e2eec",
+        "model": "unknown"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    },
+    "s_e6be874620ab28": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "d8952fa5-47e5-452e-99a6-d6c1d85fbe6a",
+        "model": "grok-4.7-high-fast"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    },
+    "s_eb3f1e996a1e9e": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "06b34b26-1c10-4170-a615-2c40e2997086",
+        "model": "grok-4.7-high-fast"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    }
+  }
+}
