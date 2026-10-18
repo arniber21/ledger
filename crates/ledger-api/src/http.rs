@@ -65,7 +65,7 @@ pub async fn serve(store: Store, addr: &str) -> Result<Server, ApiError> {
     serve_with_ranker(store, addr, None).await
 }
 
-/// Binds `addr` and, when `ranker` is set, scores verdicts that have no raw scores yet.
+/// Binds `addr` and, when `ranker` is set, scores verdicts and reranks violating traces.
 ///
 /// # Errors
 ///
@@ -121,7 +121,8 @@ pub async fn serve_with_ranker(
         .merge(crate::calibration::router(store.clone()))
         .merge(crate::traces::router(crate::traces::AppState {
             store: Some(store),
-        }));
+        }))
+        .merge(crate::quick::router_from_env());
     let mut stop = shutdown.subscribe();
     let join = tokio::spawn(async move {
         let server = axum::serve(listener, app).with_graceful_shutdown(async move {
@@ -195,21 +196,32 @@ async fn stream(
 
 async fn scene_events(store: &Store) -> Vec<Event> {
     let mut events = Vec::new();
-    if let Ok(rows) = store.events_by_kind("scene.counters", 50).await {
+    let start = chrono::DateTime::from_timestamp(1_578_322_800, 0).expect("scene epoch");
+    let end = start + chrono::Duration::days(40);
+    if let Ok(rows) = store
+        .events_by_kind_between("scene.counters", start, end, 50)
+        .await
+    {
         for row in rows {
             if let Some(event) = counters_event(&row) {
                 events.push(event);
             }
         }
     }
-    if let Ok(rows) = store.events_by_kind("scene.rates", 200).await {
+    if let Ok(rows) = store
+        .events_by_kind_between("scene.rates", start, end, 200)
+        .await
+    {
         for row in rows {
             if let Some(event) = rates_event(&row) {
                 events.push(event);
             }
         }
     }
-    if let Ok(rows) = store.events_by_kind("scene.monitors", 400).await {
+    if let Ok(rows) = store
+        .events_by_kind_between("scene.monitors", start, end, 400)
+        .await
+    {
         for row in rows {
             if let Some(event) = monitors_event(&row) {
                 events.push(event);

@@ -149,70 +149,123 @@ pub(crate) fn map_noul_question(value: &Value, question_id: &str) -> PredicateVe
 /// The probability is kept when it is inside `[0, 1]`, including a score that
 /// lands in [`PredicateVerdict::Unknown`]. A contradiction drops the number.
 pub(crate) fn score_noul_answer(answer: &Value) -> (Option<f64>, PredicateVerdict) {
-    if answer.get("type").and_then(Value::as_str) != Some("noul") {
-        return (None, PredicateVerdict::Unknown);
-    }
-    let Some(p_yes) = answer.get("noul").and_then(Value::as_f64) else {
-        return (None, PredicateVerdict::Unknown);
+    let class = classify_noul(answer);
+    let probability = answer
+        .get("noul")
+        .and_then(Value::as_f64)
+        .filter(|score| unit(*score));
+    let kept = match class {
+        NoulClass::Yes | NoulClass::No | NoulClass::BelowThreshold => probability,
+        NoulClass::Contradiction | NoulClass::Unusable => None,
     };
-    if let Some(probabilities) = answer.get("probabilities") {
-        if !probabilities_agree(probabilities, p_yes) {
-            return (None, PredicateVerdict::Unknown);
-        }
-    }
-    let verdict = decide_noul(p_yes);
-    let probability = if unit(p_yes) { Some(p_yes) } else { None };
-    (probability, verdict)
+    (kept, class.verdict())
 }
 
 fn map_memo_value(value: &Value) -> PredicateVerdict {
     map_noul_question(value, MEMO_INSTRUCTS_QUESTION)
 }
 
-fn probabilities_agree(probabilities: &Value, p_yes: f64) -> bool {
+/// Why a Noul answer is yes, no, or unusable.
+///
+/// The 0.80 thresholds are [`SAME_PROBABILITY_THRESHOLD`] and
+/// [`DIFFERENT_PROBABILITY_THRESHOLD`]. This is the mapper the memo predicate,
+/// the close predicate, and the trace rerank all use.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum NoulClass {
+    /// `P(yes)` clears [`SAME_PROBABILITY_THRESHOLD`](crate::SAME_PROBABILITY_THRESHOLD).
+    Yes,
+    /// `P(no)` clears [`DIFFERENT_PROBABILITY_THRESHOLD`](crate::DIFFERENT_PROBABILITY_THRESHOLD).
+    No,
+    /// The probability sits between the two thresholds.
+    BelowThreshold,
+    /// The answer disagrees with itself.
+    Contradiction,
+    /// The answer is missing or malformed.
+    Unusable,
+}
+
+impl NoulClass {
+    pub(crate) const fn verdict(self) -> PredicateVerdict {
+        match self {
+            Self::Yes => PredicateVerdict::Instructs,
+            Self::No => PredicateVerdict::DoesNot,
+            Self::BelowThreshold | Self::Contradiction | Self::Unusable => {
+                PredicateVerdict::Unknown
+            }
+        }
+    }
+}
+
+pub(crate) fn classify_noul(answer: &Value) -> NoulClass {
+    if answer.get("type").and_then(Value::as_str) != Some("noul") {
+        return NoulClass::Unusable;
+    }
+    let Some(p_yes) = answer.get("noul").and_then(Value::as_f64) else {
+        return NoulClass::Unusable;
+    };
+    if let Some(probabilities) = answer.get("probabilities") {
+        match probabilities_class(probabilities, p_yes) {
+            ProbCheck::Agree => {}
+            ProbCheck::Contradiction => return NoulClass::Contradiction,
+            ProbCheck::Unusable => return NoulClass::Unusable,
+        }
+    }
+    decide_class(p_yes)
+}
+
+enum ProbCheck {
+    Agree,
+    Contradiction,
+    Unusable,
+}
+
+fn probabilities_class(probabilities: &Value, p_yes: f64) -> ProbCheck {
     let Some(object) = probabilities.as_object() else {
-        return false;
+        return ProbCheck::Unusable;
     };
     if object.len() != 2 {
-        return false;
+        return ProbCheck::Unusable;
     }
     let Some(p_true) = object.get("true").and_then(Value::as_f64) else {
-        return false;
+        return ProbCheck::Unusable;
     };
     let Some(p_false) = object.get("false").and_then(Value::as_f64) else {
-        return false;
+        return ProbCheck::Unusable;
     };
     if !unit(p_true) || !unit(p_false) {
-        return false;
+        return ProbCheck::Unusable;
     }
     let yes_clears = p_true >= SAME_PROBABILITY_THRESHOLD;
     let no_clears = p_false >= DIFFERENT_PROBABILITY_THRESHOLD;
     // Both options clearing is a contradiction even when the two probabilities
     // do not form a distribution.
     if yes_clears && no_clears {
-        return false;
+        return ProbCheck::Contradiction;
     }
     if (p_true - p_yes).abs() > crate::PROBABILITY_SUM_TOLERANCE {
-        return false;
+        return ProbCheck::Contradiction;
     }
-    (p_true + p_false - 1.0).abs() <= crate::PROBABILITY_SUM_TOLERANCE
+    if (p_true + p_false - 1.0).abs() > crate::PROBABILITY_SUM_TOLERANCE {
+        return ProbCheck::Unusable;
+    }
+    ProbCheck::Agree
 }
 
-fn decide_noul(p_yes: f64) -> PredicateVerdict {
+fn decide_class(p_yes: f64) -> NoulClass {
     if !unit(p_yes) {
-        return PredicateVerdict::Unknown;
+        return NoulClass::Unusable;
     }
     let yes_clears = p_yes >= SAME_PROBABILITY_THRESHOLD;
     let no_clears = (1.0 - p_yes) >= DIFFERENT_PROBABILITY_THRESHOLD;
     if yes_clears && no_clears {
-        return PredicateVerdict::Unknown;
+        return NoulClass::Contradiction;
     }
     if yes_clears {
-        PredicateVerdict::Instructs
+        NoulClass::Yes
     } else if no_clears {
-        PredicateVerdict::DoesNot
+        NoulClass::No
     } else {
-        PredicateVerdict::Unknown
+        NoulClass::BelowThreshold
     }
 }
 

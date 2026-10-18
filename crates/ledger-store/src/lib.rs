@@ -403,20 +403,33 @@ impl Store {
         Ok(())
     }
 
-    /// Reads up to `limit` events of `kind`, in observation order.
+    /// Reads up to `limit` events of `kind` inside `[start, end)`.
+    ///
+    /// The time bounds let Timescale skip chunks. A kind-only scan reads every
+    /// chunk.
     ///
     /// # Errors
     ///
     /// Returns [`StoreError::Database`] when the query fails.
-    pub async fn events_by_kind(&self, kind: &str, limit: i64) -> Result<Vec<Event>, StoreError> {
+    pub async fn events_by_kind_between(
+        &self,
+        kind: &str,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+        limit: i64,
+    ) -> Result<Vec<Event>, StoreError> {
         let events = sqlx::query_as::<_, Event>(
             "SELECT id, observed_at, source, kind, data_class, payload
              FROM events
              WHERE kind = $1
+               AND observed_at >= $2
+               AND observed_at < $3
              ORDER BY observed_at ASC, id ASC
-             LIMIT $2",
+             LIMIT $4",
         )
         .bind(kind)
+        .bind(start)
+        .bind(end)
         .bind(limit)
         .fetch_all(&self.pool)
         .await?;

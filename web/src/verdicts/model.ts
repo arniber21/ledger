@@ -6,7 +6,7 @@
  */
 
 import type { StoredEvent } from "../traces/model";
-import type { TimelineStep, VerdictItem } from "../stream/types";
+import type { RerankOutcome, TimelineStep, VerdictItem } from "../stream/types";
 
 const ROLE_LABEL: Record<string, string> = {
   payment: "Payment",
@@ -31,6 +31,44 @@ const SETTLE_KINDS = new Set(["exchange.settle", "agent.settle", "ledger.exchang
 
 export function verdictTitle(verdict: Pick<VerdictItem, "title">): string {
   return /fraud/i.test(verdict.title) ? "needs review" : verdict.title;
+}
+
+/** Which timeline steps are visible, and how many stay behind expand. */
+export function counterexampleView(
+  verdict: Pick<VerdictItem, "timeline" | "rest" | "rerank">,
+  expanded: boolean,
+): { steps: TimelineStep[]; hiddenCount: number; unknown: boolean } {
+  const shown = verdict.timeline ?? [];
+  const rest = verdict.rest ?? [];
+  const unknown = Boolean(verdict.rerank?.failure);
+  if (unknown) {
+    return { steps: byTime([...shown, ...rest]), hiddenCount: 0, unknown: true };
+  }
+  if (rest.length === 0 || !expanded) {
+    return { steps: shown, hiddenCount: rest.length, unknown: false };
+  }
+  return { steps: byTime([...shown, ...rest]), hiddenCount: rest.length, unknown: false };
+}
+
+export function relevanceLabel(outcome: RerankOutcome): string {
+  if (outcome === "Relevant") return "Relevant";
+  if (outcome === "NotRelevant") return "Not relevant";
+  return "Unknown";
+}
+
+/** Drops a stored exchange that carries explanation text. */
+export function exchangeText(raw: string): string {
+  return raw.toLowerCase().includes("explanation") ? "" : raw;
+}
+
+function byTime(steps: readonly TimelineStep[]): TimelineStep[] {
+  return [...steps].sort((left, right) => {
+    if (left.observedAt < right.observedAt) return -1;
+    if (left.observedAt > right.observedAt) return 1;
+    if (left.eventId < right.eventId) return -1;
+    if (left.eventId > right.eventId) return 1;
+    return 0;
+  });
 }
 
 export function entryLabel(step: TimelineStep): string {

@@ -197,6 +197,8 @@ mod tests {
             }],
             comparison: None,
             signatures: Vec::new(),
+            rest: Vec::new(),
+            rerank: None,
             rank: None,
         }
     }

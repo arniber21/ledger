@@ -2412,6 +2412,7 @@ dependencies = [
  "axum",
  "chrono",
  "futures",
+ "http-body-util",
  "ledger-agents",
  "ledger-core",
  "ledger-ingest",

@@ -10,6 +10,7 @@ export type ShellContextValue = {
   setShortcutsOpen: (open: boolean) => void;
   faultNotice: string | null;
   reportFaultUnavailable: () => void;
+  reportNotice: (message: string) => void;
   selectedId: string | null;
   setSelectedId: (id: string | null) => void;
   registerFeed: (ids: readonly string[]) => void;

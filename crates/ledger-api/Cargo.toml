@@ -26,5 +26,6 @@ uuid = { version = "1", features = ["serde", "v5"] }
 
 [dev-dependencies]
 ledger-ingest.workspace = true
+http-body-util = "0.1"
 tokio.workspace = true
 tower = { version = "0.5", features = ["util"] }

@@ -7,11 +7,15 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use chrono::{DateTime, Duration, Utc};
-use ledger_core::{Judged, LedgerEvent, LedgerKind, Session, VerdictOutcome};
-use ledger_jev::SystemOne;
+use ledger_core::{Judged, LedgerEvent, LedgerKind, Session, TimelineEntry, VerdictOutcome};
+use ledger_jev::{
+    rank_exchange, rerank_request, strip_explanation, Candidate, Counterexample, JevCallFailure,
+    Ranking, Relevance, SystemOne, ViolatedSpec,
+};
 use ledger_store::{Event as StoredEvent, Store, Uuid, Verdict, VerdictOutcome as StoredOutcome};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::str::FromStr;
 use thiserror::Error;
 use tokio::sync::broadcast;
@@ -89,6 +93,9 @@ pub struct StreamVerdict {
     /// When the verdict was recorded.
     pub recorded_at: DateTime<Utc>,
     /// Evidence events in observation order.
+    ///
+    /// When `rank` is `ranked`, this is the minimal counterexample. When
+    /// `rank` is `unknown`, this is the full trace.
     pub timeline: Vec<StreamEntry>,
     /// Exact, fuzzy, and Jev lines. Absent when this verdict is not a binding.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -96,6 +103,12 @@ pub struct StreamVerdict {
     /// Solana signatures on the counterexample, when the scene recorded them.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub signatures: Vec<String>,
+    /// Events behind the expand control. Empty when the rerank failed.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub rest: Vec<StreamEntry>,
+    /// Stored Jev input and mapped scores for the counterexample. No explanation text.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rerank: Option<RerankRecord>,
     /// Stored raw scores. Absent until Jev has been asked.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub rank: Option<StreamRank>,
@@ -122,6 +135,33 @@ pub struct StreamComparison {
     pub fuzzy: StreamBindingLine,
     /// Mapped Jev verdict.
     pub jev: StreamBindingLine,
+}
+
+/// One stored rerank. `failure` is a reason code, not model prose.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct RerankRecord {
+    /// Request body. It has no API key.
+    pub request: String,
+    /// Response body with explanation fields removed. Empty when the call failed.
+    pub response: String,
+    /// `timeout`, `contradiction`, `unusable`, and the other rank failures.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub failure: Option<String>,
+    /// One mapped score per candidate, in trace order.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub scores: Vec<RerankScore>,
+}
+
+/// Mapped relevance for one event.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct RerankScore {
+    /// Ledger event id.
+    #[serde(rename = "eventId")]
+    pub event_id: String,
+    /// `Relevant`, `NotRelevant`, or `Unknown`.
+    pub outcome: String,
 }
 
 /// One step on the counterexample timeline.
@@ -155,6 +195,10 @@ struct StoredBody {
     signatures: Vec<String>,
     #[serde(default)]
     scene: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    rest: Vec<StreamEntry>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    rerank: Option<RerankRecord>,
 }
 
 /// Reads events and publishes verdicts.
@@ -180,7 +224,10 @@ impl Engine {
         Self::with_ranker(store, tx, None)
     }
 
-    /// Opens a session and scores new verdicts with `ranker` when it is set.
+    /// Opens a session that scores verdicts and reranks violating traces.
+    ///
+    /// `None` leaves the evidence timeline unchanged and stores no scores.
+    /// A rerank error shows the full trace in time order.
     ///
     /// # Errors
     ///
@@ -357,24 +404,27 @@ impl Engine {
         if !self.emitted.insert(id) {
             return Ok(None);
         }
-        let frame = stream_verdict(id, outcome, item, self.amounts.get(&item.binding).copied());
+        let mut frame = stream_verdict(id, outcome, item, self.amounts.get(&item.binding).copied());
+        if item.outcome == VerdictOutcome::Violate {
+            if let Some(ranked) = self.rank_violation(item).await {
+                frame.timeline = ranked.timeline;
+                frame.rest = if ranked.counterexample == "full" {
+                    Vec::new()
+                } else {
+                    ranked.rest
+                };
+                frame.rerank = Some(ranked.rerank);
+                frame.evidence = evidence_of(&frame.timeline, item.reason_code.as_deref());
+            }
+        }
         let stored = Verdict {
             id,
             recorded_at: frame.recorded_at,
             outcome: stored_outcome(outcome),
             spec_id: item.spec_id.clone(),
             reason_code: reason,
-            evidence: serde_json::to_value(StoredBody {
-                binding: item.binding.clone(),
-                title: frame.title.clone(),
-                evidence: frame.evidence.clone(),
-                timeline: frame.timeline.clone(),
-                amount_cents: frame.amount_cents,
-                comparison: frame.comparison.clone(),
-                signatures: frame.signatures.clone(),
-                scene: None,
-            })
-            .unwrap_or_else(|_| serde_json::json!({})),
+            evidence: serde_json::to_value(stored_body(item, &frame))
+                .unwrap_or_else(|_| serde_json::json!({})),
         };
         if self.store.insert_verdict_if_absent(&stored).await? {
             let frame = self.attach_rank(frame).await;
@@ -423,6 +473,8 @@ impl Engine {
             }],
             comparison: None,
             signatures: Vec::new(),
+            rest: Vec::new(),
+            rerank: None,
             rank: None,
         };
         if self.emitted.insert(id) {
@@ -441,6 +493,8 @@ impl Engine {
                     comparison: None,
                     signatures: Vec::new(),
                     scene: None,
+                    rest: Vec::new(),
+                    rerank: None,
                 })
                 .unwrap_or_else(|_| serde_json::json!({})),
             };
@@ -474,8 +528,17 @@ pub fn verdict_from_stored(verdict: &Verdict) -> Option<StreamVerdict> {
         timeline: body.timeline,
         comparison: body.comparison,
         signatures: body.signatures,
+        rest: body.rest,
+        rerank: body.rerank,
         rank: None,
     })
+}
+
+async fn rank_call(ranker: Arc<dyn SystemOne>, request: String) -> Result<String, JevCallFailure> {
+    match tokio::task::spawn_blocking(move || ranker.evaluate(&request)).await {
+        Ok(result) => result,
+        Err(_) => Err(JevCallFailure::Transport),
+    }
 }
 
 fn stream_verdict(
@@ -519,8 +582,144 @@ fn stream_verdict(
         timeline,
         comparison: None,
         signatures: Vec::new(),
+        rest: Vec::new(),
+        rerank: None,
         rank: None,
     }
+}
+
+struct AppliedRank {
+    timeline: Vec<StreamEntry>,
+    rest: Vec<StreamEntry>,
+    counterexample: &'static str,
+    rerank: RerankRecord,
+}
+
+impl Engine {
+    async fn rank_violation(&self, item: &Judged) -> Option<AppliedRank> {
+        let ranker = Arc::clone(self.ranker.as_ref()?);
+        let trace = self
+            .session
+            .trace(&item.spec_id, &item.binding, &item.matched);
+        if trace.is_empty() {
+            return None;
+        }
+        let candidates: Vec<Candidate> = trace.iter().map(candidate_of).collect();
+        let spec = ViolatedSpec {
+            id: &item.spec_id,
+            reason: item.reason_code.as_deref().unwrap_or("needs-review"),
+        };
+        let request = rerank_request(spec, &item.matched, &candidates);
+        let exchange = rank_call(ranker, request.clone()).await;
+        let response = stored_response(&exchange);
+        let ranking = match &exchange {
+            Ok(body) => rank_exchange(&candidates, &item.matched, Ok(body.as_str())),
+            Err(failure) => rank_exchange(&candidates, &item.matched, Err(*failure)),
+        };
+        Some(apply_counterexample(&trace, &ranking, request, response))
+    }
+}
+
+fn candidate_of(entry: &TimelineEntry) -> Candidate {
+    Candidate::new(
+        entry.event_id.clone(),
+        entry.role.clone(),
+        entry.kind.clone(),
+        entry.source.clone(),
+    )
+}
+
+fn apply_counterexample(
+    trace: &[TimelineEntry],
+    ranking: &Ranking,
+    request: String,
+    response: String,
+) -> AppliedRank {
+    let entries = |ids: &[String]| -> Vec<StreamEntry> {
+        ids.iter()
+            .filter_map(|id| trace.iter().find(|entry| entry.event_id == *id))
+            .map(stream_entry)
+            .collect()
+    };
+    let (timeline, rest, counterexample) = match &ranking.counterexample {
+        Counterexample::Selected { shown, rest } => (entries(shown), entries(rest), "ranked"),
+        Counterexample::Full { events } => (entries(events), Vec::new(), "unknown"),
+    };
+    let timeline = if timeline.is_empty() {
+        trace.iter().map(stream_entry).collect()
+    } else {
+        timeline
+    };
+    AppliedRank {
+        timeline,
+        rest,
+        counterexample,
+        rerank: RerankRecord {
+            request,
+            response,
+            failure: ranking.failure.map(|failure| failure.code().to_owned()),
+            scores: ranking
+                .scores
+                .iter()
+                .map(|score| RerankScore {
+                    event_id: score.id.clone(),
+                    outcome: match score.relevance {
+                        Relevance::Relevant => "Relevant",
+                        Relevance::NotRelevant => "NotRelevant",
+                        Relevance::Unknown => "Unknown",
+                    }
+                    .to_owned(),
+                })
+                .collect(),
+        },
+    }
+}
+
+fn stream_entry(entry: &TimelineEntry) -> StreamEntry {
+    StreamEntry {
+        event_id: entry.event_id.clone(),
+        observed_at: ns_to_rfc3339(entry.observed_at_ns),
+        source: entry.source.clone(),
+        kind: entry.kind.clone(),
+        role: entry.role.clone(),
+    }
+}
+
+fn stored_body(item: &Judged, frame: &StreamVerdict) -> StoredBody {
+    StoredBody {
+        binding: item.binding.clone(),
+        title: frame.title.clone(),
+        evidence: frame.evidence.clone(),
+        timeline: frame.timeline.clone(),
+        amount_cents: frame.amount_cents,
+        comparison: frame.comparison.clone(),
+        signatures: frame.signatures.clone(),
+        scene: None,
+        rest: frame.rest.clone(),
+        rerank: frame.rerank.clone(),
+    }
+}
+
+fn stored_response(exchange: &Result<String, JevCallFailure>) -> String {
+    let Ok(body) = exchange else {
+        return String::new();
+    };
+    let Ok(mut value) = serde_json::from_str::<Value>(body) else {
+        return String::new();
+    };
+    strip_explanation(&mut value);
+    value.to_string()
+}
+
+fn evidence_of(timeline: &[StreamEntry], reason: Option<&str>) -> String {
+    if timeline.is_empty() {
+        return reason.unwrap_or("evidence").to_owned();
+    }
+    timeline
+        .iter()
+        .map(|entry| format!("{} {}", entry.role, entry.event_id))
+        .collect::<Vec<_>>()
+        .join(" → ")
 }
 
 fn title_for(outcome: &str) -> &'static str {
@@ -565,6 +764,88 @@ fn amount_cents(row: &StoredEvent) -> Option<i64> {
     let decimal = Decimal::from_str(text).ok()?;
     let cents = decimal * Decimal::from(100);
     i64::try_from(cents).ok()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ledger_jev::{double_pay_candidates, double_pay_matched, rank_body};
+
+    fn ids(entries: &[StreamEntry]) -> Vec<&str> {
+        entries
+            .iter()
+            .map(|entry| entry.event_id.as_str())
+            .collect()
+    }
+
+    fn trace_from_candidates() -> Vec<TimelineEntry> {
+        double_pay_candidates()
+            .into_iter()
+            .enumerate()
+            .map(|(index, event)| TimelineEntry {
+                event_id: event.id,
+                observed_at_ns: i128::from(u32::try_from(index).unwrap_or(0)) * 1_000_000_000,
+                source: event.source,
+                kind: event.kind,
+                role: event.role,
+            })
+            .collect()
+    }
+
+    #[test]
+    fn fixture_ranking_shows_the_three_key_events() {
+        let body = include_str!("../../../fixtures/jev/rerank-double-pay.json");
+        let ranking = rank_body(&double_pay_candidates(), &double_pay_matched(), body);
+        let applied = apply_counterexample(
+            &trace_from_candidates(),
+            &ranking,
+            "{}".to_owned(),
+            body.to_owned(),
+        );
+        assert_eq!(applied.counterexample, "ranked");
+        assert_eq!(ids(&applied.timeline), vec!["pay", "again", "again:close"]);
+        assert_eq!(ids(&applied.rest), vec!["tick-1", "settled", "order-9"]);
+        assert!(applied.rerank.failure.is_none());
+        assert!(applied
+            .timeline
+            .windows(2)
+            .all(|pair| pair[0].observed_at <= pair[1].observed_at));
+        assert!(!body.to_ascii_lowercase().contains("explain"));
+        assert!(
+            !format!("{} {}", applied.rerank.request, applied.rerank.response)
+                .to_ascii_lowercase()
+                .contains("fraud")
+        );
+    }
+
+    #[test]
+    fn call_failure_shows_the_full_trace_in_time_order() {
+        let ranking = rank_exchange(
+            &double_pay_candidates(),
+            &double_pay_matched(),
+            Err(JevCallFailure::Timeout),
+        );
+        let applied = apply_counterexample(
+            &trace_from_candidates(),
+            &ranking,
+            "{}".to_owned(),
+            String::new(),
+        );
+        assert_eq!(applied.counterexample, "unknown");
+        assert!(applied.rest.is_empty());
+        assert_eq!(
+            ids(&applied.timeline),
+            vec![
+                "pay",
+                "tick-1",
+                "settled",
+                "order-9",
+                "again",
+                "again:close"
+            ]
+        );
+        assert_eq!(applied.rerank.failure.as_deref(), Some("timeout"));
+    }
 }
 
 /// JSON object written on the SSE stream.

@@ -1,18 +1,19 @@
-//! Jev (TypeSafe System One) client: binding judgments, the memo predicate, the
-//! eight-question semantic panel, recurring-schedule versus duplicate-payment
-//! judgments, and inbox ranking scores.
+//! Jev (TypeSafe System One) client: binding judgments, the memo predicate,
+//! Quick actions routing, the eight-question semantic panel,
+//! recurring-schedule versus duplicate-payment judgments, and inbox ranking
+//! scores.
 //!
 //! Deterministic guards on amount, bill id, vendor id, and currency run first
 //! and skip Jev when they decide. Otherwise the model returns a typed Choice.
 //! This crate maps that Choice onto [`BindingVerdict`] with the fixed 0.80
-//! thresholds. The memo Noul maps onto [`PredicateVerdict`]. The same
-//! thresholds map a credit or cancellation memo onto [`CloseVerdict`]. A
-//! payment uses the same Choice mapper: same bill id and same period decide
-//! first. A weekly series is not a duplicate. A second payment of the same
-//! bill needs review. This crate does not ask for or keep explanation text.
-//! [`BindingVerdict::Same`] merges monitor keys. [`BindingVerdict::Different`]
-//! keeps them apart. [`BindingVerdict::Unknown`] is inconclusive and does not
-//! merge or retire. On a payment, `Unknown` is inconclusive and is not a pass.
+//! thresholds. The memo Noul, the close Noul, and the trace rerank use the
+//! same thresholds. A payment uses the same Choice mapper: same bill id and
+//! same period decide first. A weekly series is not a duplicate. A second
+//! payment of the same bill needs review. This crate does not ask for or keep
+//! explanation text. [`BindingVerdict::Same`] merges monitor keys.
+//! [`BindingVerdict::Different`] keeps them apart.
+//! [`BindingVerdict::Unknown`] is inconclusive and does not merge or retire.
+//! On a payment, `Unknown` is inconclusive and is not a pass.
 
 use serde_json::Value;
 use thiserror::Error;
@@ -25,9 +26,11 @@ mod matchers;
 mod memo;
 mod obligation;
 mod panel;
+mod quick;
 mod rank;
 mod replay;
 mod request;
+mod rerank;
 mod resolve;
 mod schedule;
 
@@ -50,12 +53,21 @@ pub use panel::{
     PANEL_QUESTION_IDS, REFERENCES_APPROVAL_QUESTION, REFUND_QUESTION, SKIP_APPROVAL_QUESTION,
     URGENCY_QUESTION,
 };
+pub use quick::{
+    map_quick_exchange, quick_examples, quick_request, route_phrase, Candidates, QuickAction,
+    QuickError, QuickExample, QuickReply, QuickStatus,
+};
 pub use rank::{
     map_ranking_body, map_ranking_exchange, no_second_payment_subject, priority, ranking_request,
     DimensionScore, RankScore, RankStep, RankSubject, RankWeights, RANK_TOP_LEVEL,
 };
 pub use replay::{ReplayCatalog, ReplayError};
 pub use request::binding_request;
+pub use rerank::{
+    double_pay_candidates, double_pay_matched, double_pay_spec, rank_body, rank_exchange,
+    rerank_request, strip_explanation, Candidate, Counterexample, RankFailure, Ranking, Relevance,
+    ScoredEvent, ViolatedSpec,
+};
 pub use resolve::{resolve, BindingEffect, CallFault, Resolution};
 pub use schedule::{
     judge_payment, schedule_cases, schedule_report, schedule_request, RecordKind, ScheduleCase,
