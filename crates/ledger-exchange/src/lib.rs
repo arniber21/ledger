@@ -7,8 +7,8 @@
 //! Spans `exchange.submit_order`, `exchange.match`, `exchange.fill`, and
 //! `exchange.settle` follow the caller's active tracing span. Pass a
 //! `sentry-trace` header to [`OrderBook::submit`] when that call is the root
-//! of a distributed trace. [`install_telemetry`] sends those spans and the
-//! order-lifecycle logs to Sentry.
+//! of a distributed trace. [`install_telemetry`] fans those spans out to
+//! Sentry and to ledger-ingest. Ingest is not sampled.
 
 mod book;
 mod error;
