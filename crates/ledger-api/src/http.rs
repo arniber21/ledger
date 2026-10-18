@@ -120,7 +120,8 @@ pub async fn serve_with_ranker(
         .merge(crate::calibration::router(store.clone()))
         .merge(crate::traces::router(crate::traces::AppState {
             store: Some(store),
-        }));
+        }))
+        .merge(crate::quick::router_from_env());
     let mut stop = shutdown.subscribe();
     let join = tokio::spawn(async move {
         let server = axum::serve(listener, app).with_graceful_shutdown(async move {

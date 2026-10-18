@@ -55,6 +55,7 @@ export function Shell() {
     setShortcutsOpen,
     faultNotice,
     reportFaultUnavailable: () => setFaultNotice("Fault injection is not connected."),
+    reportNotice: (message) => setFaultNotice(message),
     selectedId,
     setSelectedId,
     registerFeed,

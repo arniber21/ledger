@@ -213,4 +213,30 @@ describe("inbox model", () => {
       "Amount · Over $1,000",
     ]);
   });
+
+  test("a spec filter is a chip and does not invent a verdict", () => {
+    const search = parseInboxSearch({
+      spec: "ledger.bill.approval-before-payment",
+      verdict: "Inconclusive",
+    });
+    expect(filterChips(search).map((chip) => chip.label)).toEqual([
+      "Verdict · Inconclusive",
+      "Spec · ledger.bill.approval-before-payment",
+    ]);
+    const prepared = prepareInbox(
+      [
+        verdict({
+          id: "v-1",
+          outcome: "Inconclusive",
+          title: "needs review",
+          specId: "ledger.bill.approval-before-payment",
+        }),
+        verdict({ id: "v-2", outcome: "Inconclusive", title: "other", specId: "ledger.order.fill-or-cancel" }),
+      ],
+      [],
+      queryFromSearch(search),
+    );
+    expect(prepared.items.map((item) => item.verdict.id)).toEqual(["v-1"]);
+    expect(JSON.stringify(prepared)).not.toContain("fraud");
+  });
 });

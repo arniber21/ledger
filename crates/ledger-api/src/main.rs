@@ -37,6 +37,7 @@ async fn run() -> Result<(), ledger_api::ApiError> {
     println!("inbox at http://{}/api/inbox/triage", server.addr);
     println!("calibration at http://{}/api/calibration", server.addr);
     println!("traces at http://{}/api/traces", server.addr);
+    println!("quick actions at http://{}/api/quick-actions", server.addr);
     server.wait().await;
     Ok(())
 }

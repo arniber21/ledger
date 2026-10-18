@@ -23,6 +23,7 @@
 //! `GET /api/traces` and `GET /api/traces/stream` read ingested spans.
 //! `POST /api/faults/{name}` toggles a fault on the running desk.
 //! `GET` and `POST /api/inbox/triage` read and write inbox status.
+//! `POST /api/quick-actions` routes a phrase. It does not create a verdict.
 //! `GET /api/calibration` counts stored inbox reviews by Jev score band.
 
 mod calibration;
@@ -31,6 +32,7 @@ mod engine;
 mod fault;
 mod http;
 mod inbox;
+mod quick;
 mod rank;
 mod stream;
 mod traces;
