@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from "react";
-import { useToast } from "../ui/toast";
+import { useToast } from "../ui";
 
 export const FAULTS = ["double-pay", "no-approval", "exceed-budget", "swapped-vendor", "hidden-memo"] as const;
 
@@ -55,7 +55,7 @@ export function useFaultControl(onState?: (name: FaultName, enabled: boolean) =>
       });
       try {
         const result = await postFault(name);
-        dismiss(toast, waiting);
+        toast.dismiss(waiting);
         if (!result.ok) {
           toast.push({ message: faultFailure(name, result.reason), tone: "error" });
           return false;
@@ -66,27 +66,24 @@ export function useFaultControl(onState?: (name: FaultName, enabled: boolean) =>
             ? `${name} is on. A payment that carries it needs review.`
             : `${name} is off.`,
           tone: "success",
-          undo: {
-            label: "Undo",
-            run: async () => {
-              if (busy.current) return;
-              busy.current = true;
-              setPending(name);
-              try {
-                const back = await postFault(name);
-                if (!back.ok) {
-                  toast.push({ message: faultFailure(name, back.reason), tone: "error" });
-                  return;
-                }
-                onState?.(name, back.enabled);
-                toast.push({ message: back.enabled ? `${name} is on.` : `${name} is off.`, tone: "info" });
-              } finally {
-                busy.current = false;
-                setPending(null);
+          undo: async () => {
+            if (busy.current) return;
+            busy.current = true;
+            setPending(name);
+            try {
+              const back = await postFault(name);
+              if (!back.ok) {
+                toast.push({ message: faultFailure(name, back.reason), tone: "error" });
+                return;
               }
-            },
+              onState?.(name, back.enabled);
+              toast.push({ message: back.enabled ? `${name} is on.` : `${name} is off.`, tone: "info" });
+            } finally {
+              busy.current = false;
+              setPending(null);
+            }
           },
-        } as never);
+        });
         return intent === "on" ? result.enabled : true;
       } finally {
         busy.current = false;
@@ -97,9 +94,4 @@ export function useFaultControl(onState?: (name: FaultName, enabled: boolean) =>
   );
 
   return { toggle, pending };
-}
-
-function dismiss(toast: unknown, id: unknown) {
-  const api = toast as { dismiss?: (id: unknown) => void };
-  if (id !== undefined && typeof api.dismiss === "function") api.dismiss(id);
 }

@@ -7,7 +7,7 @@ import type { InboxView, SavedView } from "../stream/types";
 import { useMetrics } from "../stream/use-metrics";
 import { ShellProvider, type ShellContextValue } from "./context";
 import { Palette } from "./palette";
-import { Shortcuts } from "./shortcuts";
+import { ConfirmProvider, ShortcutsHelp, ToastProvider, useHotkeys } from "../ui";
 import { Sidebar } from "./sidebar";
 
 const TITLES: Record<string, string> = {
@@ -131,10 +131,19 @@ export function Shell() {
     return () => window.clearTimeout(timer);
   }, [faultNotice]);
 
-  useEffect(() => {
-    let chord = false;
-    let timer = 0;
+  useHotkeys(
+    {
+      "g d": { handler: () => void navigate({ to: "/", search: { view: undefined, outcome: undefined } }), description: "Go to Dashboard" },
+      "g i": { handler: () => void navigate({ to: "/inbox" }), description: "Go to Inbox" },
+      "g t": { handler: () => void navigate({ to: "/traces", search: { trace: undefined } }), description: "Go to Traces" },
+      "g p": { handler: () => void navigate({ to: "/taint" }), description: "Go to Taint" },
+      "g s": { handler: () => void navigate({ to: "/specs", search: { spec: undefined } }), description: "Go to Specs" },
+      "g v": { handler: () => void navigate({ to: "/verdicts", search: { id: undefined } }), description: "Go to Verdicts" },
+    },
+    { scope: "Navigate", enabled: !paletteOpen },
+  );
 
+  useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "k" && (event.metaKey || event.ctrlKey)) {
         event.preventDefault();
@@ -175,43 +184,7 @@ export function Shell() {
 
       if (shortcutsOpen) return;
 
-      if (event.key === "?") {
-        event.preventDefault();
-        setShortcutsOpen(true);
-        return;
-      }
-
       const key = event.key.toLowerCase();
-      if (event.key === "[" && !event.metaKey && !event.ctrlKey && !event.altKey) {
-        event.preventDefault();
-        setCollapsed((current) => !current);
-        return;
-      }
-      if (key === "g" && !event.metaKey && !event.ctrlKey && !event.altKey) {
-        chord = true;
-        window.clearTimeout(timer);
-        timer = window.setTimeout(() => {
-          chord = false;
-        }, 1500);
-        return;
-      }
-
-      if (chord) {
-        chord = false;
-        const destination = {
-          d: "/",
-          i: "/inbox",
-          t: "/traces",
-          p: "/taint",
-          s: "/specs",
-          v: "/verdicts",
-        }[key];
-        if (destination) {
-          event.preventDefault();
-          void navigate({ to: destination });
-        }
-        return;
-      }
 
       if (pathname === "/inbox" && (key === "1" || key === "2" || key === "3")) {
         const view: InboxView = key === "1" ? "board" : key === "2" ? "list" : "split";
@@ -283,11 +256,12 @@ export function Shell() {
     window.addEventListener("keydown", onKey);
     return () => {
       window.removeEventListener("keydown", onKey);
-      window.clearTimeout(timer);
     };
   }, [navigate, setCollapsed, paletteOpen, pathname, router.history, selectedId, shortcutsOpen, toggleReviewed]);
 
   return (
+    <ToastProvider>
+    <ConfirmProvider>
     <ShellProvider value={value}>
       <div className="shell" data-testid="shell">
         <a className="skip-link" href="#main" onClick={focusMain}>
@@ -315,7 +289,9 @@ export function Shell() {
         </div>
       </div>
       <Palette />
-      <Shortcuts />
+      <ShortcutsHelp />
     </ShellProvider>
+    </ConfirmProvider>
+    </ToastProvider>
   );
 }
