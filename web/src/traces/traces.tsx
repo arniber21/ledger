@@ -6,7 +6,9 @@ import {
   useTable,
   type ColumnDef,
 } from "@tanstack/react-table";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useHotkeys, useToast } from "../ui";
+import { FAULTS, useFaultControl, type FaultName } from "../shell/faults";
 import { Header } from "../shell/header";
 import { TracesIcon } from "../shell/icons";
 import { useShell } from "../shell/context";
@@ -38,21 +40,66 @@ const features = tableFeatures({
 
 type Features = typeof features;
 
-const FAULTS = ["double-pay", "no-approval", "exceed-budget", "swapped-vendor", "hidden-memo"] as const;
-
-type FaultName = (typeof FAULTS)[number];
-
 type DetailTab = "spans" | "sources" | "attributes";
 
 export function TracesPage({ traceId }: { traceId?: string }) {
   const snapshot = useTraces();
-  const { registerFeed, selectedId, setSelectedId, reportFaultUnavailable } = useShell();
+  const { registerFeed, selectedId, setSelectedId } = useShell();
+  const toast = useToast();
   const navigate = useNavigate();
   const [enabled, setEnabled] = useState<Partial<Record<FaultName, boolean>>>({});
-  const [pending, setPending] = useState<FaultName | null>(null);
   const [tab, setTab] = useState<DetailTab>("spans");
 
-  const events = snapshot.events;
+  const live = snapshot.events;
+  const [paused, setPaused] = useState(false);
+  const [scrolledAway, setScrolledAway] = useState(false);
+  const frozen = useRef<Set<string> | null>(null);
+  const feedRef = useRef<HTMLUListElement>(null);
+  const [sawLive, setSawLive] = useState(false);
+  const [waited, setWaited] = useState(false);
+  const seen = useRef<Set<string> | null>(null);
+  const [fresh, setFresh] = useState<ReadonlySet<string>>(() => new Set());
+
+  // Hold the list still while the cursor is on it. New spans wait behind the pill.
+  const holding = paused || scrolledAway || (selectedId !== null && live.some((event) => event.id === selectedId));
+  if (holding && frozen.current === null) frozen.current = new Set(live.map((event) => event.id));
+  if (!holding && frozen.current !== null) frozen.current = null;
+  const events = holding && frozen.current ? live.filter((event) => frozen.current?.has(event.id)) : live;
+  const hiddenCount = live.length - events.length;
+
+  useEffect(() => {
+    if (snapshot.connection === "live") setSawLive(true);
+  }, [snapshot.connection]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setWaited(true), 3000);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  // Spans that arrive after first paint get a short highlight.
+  useEffect(() => {
+    if (seen.current === null) {
+      seen.current = new Set(live.map((event) => event.id));
+      return;
+    }
+    const added = live.filter((event) => !seen.current?.has(event.id)).map((event) => event.id);
+    if (added.length === 0) return;
+    for (const id of added) seen.current.add(id);
+    setFresh((current) => new Set([...current, ...added]));
+    const timer = window.setTimeout(
+      () => setFresh((current) => new Set([...current].filter((id) => !added.includes(id)))),
+      2400,
+    );
+    return () => window.clearTimeout(timer);
+  }, [live]);
+
+  const release = () => {
+    setPaused(false);
+    setScrolledAway(false);
+    setSelectedId(null);
+    frozen.current = null;
+    const list = feedRef.current;
+    if (list) list.scrollTop = list.scrollHeight;
+  };
   const traces = useMemo(() => groupTraces(events), [events]);
   const traceIds = useMemo(() => {
     const ids = new Map<string, string>();
@@ -101,31 +148,82 @@ export function TracesPage({ traceId }: { traceId?: string }) {
     void navigate({ to: "/traces", search: { trace: event.id } });
   };
 
-  const toggleFault = async (name: FaultName) => {
-    setPending(name);
+  const fault = useFaultControl((name, isEnabled) => setEnabled((current) => ({ ...current, [name]: isEnabled })));
+  const pending = fault.pending;
+  const toggleFault = (name: FaultName) => void fault.toggle(name);
+  const faultsRef = useRef<HTMLDivElement>(null);
+
+  // Keep the selected row visible. The rows are real buttons, so focus follows the cursor.
+  useEffect(() => {
+    if (!selectedId) return;
+    const row = feedRef.current?.querySelector<HTMLElement>(`[data-span-id="${CSS.escape(selectedId)}"]`);
+    if (!row) return;
+    row.scrollIntoView({ block: "nearest" });
+    const active = document.activeElement;
+    if (!(active instanceof HTMLElement) || active === document.body || feedRef.current?.contains(active)) row.focus({ preventScroll: true });
+  }, [selectedId]);
+
+  const copySpan = async () => {
+    const id = selectedId ?? events[events.length - 1]?.id;
+    if (!id) return;
     try {
-      const response = await fetch(`/api/faults/${name}`, { method: "POST" });
-      if (!response.ok) {
-        reportFaultUnavailable();
-        return;
-      }
-      const body: unknown = await response.json();
-      if (typeof body === "object" && body !== null && "enabled" in body && typeof body.enabled === "boolean") {
-        const isEnabled = body.enabled;
-        setEnabled((current) => ({ ...current, [name]: isEnabled }));
-      }
+      await navigator.clipboard.writeText(id);
+      toast.push({ message: "Copied", tone: "success", durationMs: 1800 });
     } catch {
-      reportFaultUnavailable();
-    } finally {
-      setPending(null);
+      toast.push({ message: "Could not copy. Select the id and copy it by hand.", tone: "error" });
     }
   };
 
+  useHotkeys(
+    {
+      f: { handler: () => faultsRef.current?.querySelector<HTMLElement>("button")?.focus(), description: "Open the fault menu" },
+      p: { handler: () => setPaused((current) => !current), description: "Pause or resume the live feed" },
+      c: { handler: () => void copySpan(), description: "Copy the span id" },
+      "!escape": {
+        handler: (event) => {
+          if (!(event.target instanceof HTMLElement) || !faultsRef.current?.contains(event.target)) return;
+          event.stopPropagation();
+          feedRef.current?.querySelector<HTMLElement>("button.is-selected, button")?.focus();
+        },
+        hidden: true,
+      },
+    },
+    { scope: "Traces" },
+  );
+
   return (
     <>
-      <Header icon={<TracesIcon />} title="Traces" meta={meta} />
+      <Header
+        icon={<TracesIcon />}
+        title="Traces"
+        meta={paused ? `${meta} · paused` : meta}
+        actions={
+          <button
+            type="button"
+            className="tool"
+            data-testid="trace-pause"
+            aria-pressed={paused}
+            onClick={() => setPaused((current) => !current)}
+          >
+            {paused ? "Resume" : "Pause"} <kbd>P</kbd>
+          </button>
+        }
+      />
       <div className="content content-fill trace-page">
-        <div className="faults" role="group" aria-label="Faults">
+        <div
+          className="faults"
+          role="group"
+          aria-label="Faults"
+          ref={faultsRef}
+          onKeyDown={(event) => {
+            if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") return;
+            const buttons = Array.from(faultsRef.current?.querySelectorAll<HTMLElement>("button") ?? []);
+            const at = buttons.indexOf(document.activeElement as HTMLElement);
+            if (at === -1) return;
+            event.preventDefault();
+            buttons[(at + (event.key === "ArrowRight" ? 1 : -1) + buttons.length) % buttons.length]?.focus();
+          }}
+        >
           <span>Faults</span>
           {FAULTS.map((name) => (
             <button
@@ -136,13 +234,24 @@ export function TracesPage({ traceId }: { traceId?: string }) {
               aria-pressed={enabled[name] === true}
               aria-busy={pending === name}
               disabled={pending !== null}
-              onClick={() => void toggleFault(name)}
+              onClick={() => toggleFault(name)}
             >
               {name}
             </button>
           ))}
         </div>
-        {events.length === 0 ? (
+        {events.length === 0 && !sawLive && !waited ? (
+          <div className="skeleton-list" data-testid="trace-loading" role="status" aria-label="Loading spans">
+            {[0, 1, 2, 3, 4].map((index) => (
+              <div key={index} className="skeleton-row" />
+            ))}
+          </div>
+        ) : events.length === 0 && !sawLive ? (
+          <div className="empty" data-testid="trace-error" role="alert">
+            <h2>Ingest is not reachable</h2>
+            <p>The trace stream has not connected. It retries on its own. Nothing is shown until spans arrive.</p>
+          </div>
+        ) : events.length === 0 ? (
           <div className="empty" data-testid="trace-empty">
             <h2>{traceId ? "Trace is not on the stream" : "No traces yet"}</h2>
             <p>
@@ -153,7 +262,22 @@ export function TracesPage({ traceId }: { traceId?: string }) {
           </div>
         ) : (
           <div className="trace-layout">
-            <ul className="feed trace-feed" data-testid="trace-feed">
+            <div className="trace-feed-wrap">
+            {hiddenCount > 0 ? (
+              <button type="button" className="new-pill" data-testid="new-spans" onClick={release}>
+                {hiddenCount} new {hiddenCount === 1 ? "span" : "spans"}
+              </button>
+            ) : null}
+            <ul
+              className="feed trace-feed"
+              data-testid="trace-feed"
+              ref={feedRef}
+              aria-label="Spans"
+              onScroll={(event) => {
+                const list = event.currentTarget;
+                setScrolledAway(list.scrollHeight - list.scrollTop - list.clientHeight > 48);
+              }}
+            >
               {rows.map((event) => {
                 const root = traceIds.get(event.id) ?? event.id;
                 const selected = trace?.id === root;
@@ -161,7 +285,9 @@ export function TracesPage({ traceId }: { traceId?: string }) {
                   <li key={`${event.id}|${event.observedAt}`}>
                     <button
                       type="button"
-                      className={selected ? "row trace-row is-selected" : "row trace-row"}
+                      data-span-id={event.id}
+                      aria-current={event.id === selectedId ? "true" : undefined}
+                      className={`row trace-row${selected ? " is-selected" : ""}${fresh.has(event.id) ? " is-fresh" : ""}`}
                       onClick={() => open(event)}
                     >
                       <span className="trace-source">{event.source}</span>
@@ -175,6 +301,7 @@ export function TracesPage({ traceId }: { traceId?: string }) {
                 );
               })}
             </ul>
+            </div>
             {trace ? (
               <TraceDetail trace={trace} tab={tab} onTab={setTab} liveId={trace.spans[trace.spans.length - 1]?.id} />
             ) : (
@@ -191,7 +318,7 @@ export function TracesPage({ traceId }: { traceId?: string }) {
         )}
       </div>
       <footer className="hintbar">
-        <span>J and K move between spans · Enter opens the trace</span>
+        <span>J and K move · Enter opens · F faults · P pause · C copy span id · Esc back to list</span>
         <span>A fault toggles the running desk</span>
       </footer>
     </>
