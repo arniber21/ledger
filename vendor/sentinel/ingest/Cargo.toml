@@ -1,0 +1,19 @@
+[package]
+name = "sentinel-ingest"
+description = "OTLP Adapter and ingest pipeline: normalise telemetry into canonical Events (ADR-0002/0015)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+publish.workspace = true
+
+[dependencies]
+sentinel-model = { path = "../model" }
+# Untrusted `capture-envelope-v1` JSON is walked as a `serde_json::Value` by hand
+# (see `capture.rs`); the `serde` derive feature is deliberately not enabled, so
+# structural validation stays explicit, reviewable code at the storage boundary.
+serde_json = { version = "=1.0.108", default-features = false, features = ["std"] }
+
+[lints]
+workspace = true

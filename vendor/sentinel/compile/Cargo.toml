@@ -1,0 +1,15 @@
+[package]
+name = "sentinel-compile"
+description = "Specification compiler: Pattern catalogue, Event Filter compiler, monitor IR (ADR-0008/0006/0020)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+publish.workspace = true
+
+[dependencies]
+sentinel-model = { path = "../model" }
+
+[lints]
+workspace = true
