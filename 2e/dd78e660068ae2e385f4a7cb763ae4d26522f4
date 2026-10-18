@@ -1,0 +1,45 @@
+Cargo.lock
+  s_350cc85e154f98::t_bad956d16167b3 2492
+README.md
+  s_0c8515992f8884::t_f8138e41612b17 46
+crates/ledger-jev/Cargo.toml
+  s_350cc85e154f98::t_35cea5b4cd2cad 9
+crates/ledger-jev/src/lib.rs
+  s_350cc85e154f98::t_474b8453a28592 1-2,8-14,28,45-49
+crates/ledger-jev/src/schedule.rs
+  s_350cc85e154f98::t_6f5968f9497700 1-1155
+crates/ledger-jev/tests/schedule.rs
+  s_350cc85e154f98::t_bf145c776ca028 1-144
+fixtures/jev/schedule/duplicate-period-request.json
+  s_350cc85e154f98::t_a52a2a5c01d383 1
+fixtures/jev/schedule/duplicate-period-response.json
+  s_350cc85e154f98::t_c1f7b7398fcb74 1
+fixtures/jev/schedule/recurring-schedule-request.json
+  s_350cc85e154f98::t_3bae34cda13df8 1
+fixtures/jev/schedule/recurring-schedule-response.json
+  s_350cc85e154f98::t_65195980a010de 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2edd78e660068ae2e385f4a7cb763ae4d26522f4",
+  "prompts": {},
+  "sessions": {
+    "s_0c8515992f8884": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "7f9840bb-b9f3-4689-ba9e-0e24b965d704",
+        "model": "grok-4.7-high-fast"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    },
+    "s_350cc85e154f98": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "da1f435a-0824-4ee1-aa32-c9191ff85a58",
+        "model": "grok-4.7-high-fast"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    }
+  }
+}
