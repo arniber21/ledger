@@ -1,5 +1,4 @@
 # Canonical tasks for building, running and demoing Ledger Sentinel. `just` lists them.
-# Recipes marked "(pending #N)" exit non-zero until that GitHub issue lands.
 
 set dotenv-load := true
 set shell := ["bash", "-euo", "pipefail", "-c"]
@@ -91,6 +90,7 @@ window-query: migrate
 
 # --- demo ---
 
-# Bring up everything for the partner demo in one command (pending #19).
+# Start TimescaleDB, the Solana validator, the API, the buying agents, and the UI.
+# Ctrl-C stops the processes this command started. See docs/demo.md.
 demo:
-    @echo "demo: pending #19" >&2; exit 1
+    bash scripts/demo.sh
