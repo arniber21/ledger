@@ -31,7 +31,10 @@ just db-up        # TimescaleDB on localhost:5433
 just migrate      # events hypertable and verdicts table
 just validator    # local Solana validator (own terminal)
 just demo         # agents, API and UI together
+just ui           # web UI alone, on port 5173
 ```
+
+The dashboard stays empty until the verdict stream is connected. Set `VITE_SENTINEL_SSE` to that stream's URL when the API is serving it.
 
 Other tasks: `just check`, `just test`, `just lint`, `just fmt`. Run `just` to list everything. `just test` includes a database round-trip and needs `just db-up` first.
 
@@ -42,6 +45,22 @@ Other tasks: `just check`, `just test`, `just lint`, `just fmt`. Run `just` to l
 3. **Specs run continuously.** Policies such as "a bill's approval comes before its payment" run as monitors, one per open bill, evaluated incrementally as events arrive. Each ends as `Satisfy`, `Violate` or `Inconclusive`. Missing evidence is never counted as a pass.
 4. **Jev handles the ambiguous parts.** When code cannot decide, such as whether two vendor names refer to the same payee or whether a memo is instructing a payment, Jev returns a typed judgment that feeds the monitor. Deterministic checks run first, and an uncertain answer yields `Inconclusive`.
 5. **People review.** Verdicts land in an inbox (board, list or split view) with the evidence, the Solana transaction, and a link to the Sentry trace.
+
+## Window query
+
+`just window-query` counts stored events per minute over the last hour:
+
+```sql
+SELECT time_bucket('1 minute', observed_at) AS bucket,
+       source,
+       kind,
+       count(*) AS events
+FROM events
+WHERE observed_at >= now() - interval '1 hour'
+  AND observed_at < now()
+GROUP BY bucket, source, kind
+ORDER BY bucket, source, kind;
+```
 
 ## Tech stack
 

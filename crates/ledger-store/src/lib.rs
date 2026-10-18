@@ -142,6 +142,28 @@ impl TryFrom<VerdictRow> for Verdict {
     }
 }
 
+/// Width passed to Timescale `time_bucket`.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum BucketWidth {
+    /// One-minute buckets. This is the demo window.
+    Minute,
+    /// One-hour buckets.
+    Hour,
+}
+
+/// One `time_bucket` count of stored events.
+#[derive(Debug, Clone, PartialEq, Eq, sqlx::FromRow)]
+pub struct WindowCount {
+    /// Start of the bucket, inclusive.
+    pub bucket: DateTime<Utc>,
+    /// Event source, such as `exchange` or `agent.{id}`.
+    pub source: String,
+    /// Event kind, such as `agent.decide` or `ledger.agent.pay_bill`.
+    pub kind: String,
+    /// Rows in this bucket for this source and kind.
+    pub events: i64,
+}
+
 /// Handle to the TimescaleDB pool.
 ///
 /// Cloning is cheap: clones share the same pool.
@@ -274,7 +296,116 @@ impl Store {
         .await?;
         row.map(Verdict::try_from).transpose()
     }
+
+    /// Counts events per [`time_bucket`](https://docs.timescale.com/api/latest/hyperfunctions/time_bucket/)
+    /// inside `[start, end)`.
+    ///
+    /// `source` limits the count to one source. `None` counts every source.
+    /// The demo query is a one-minute bucket over the last hour, grouped by
+    /// source and kind:
+    ///
+    /// ```sql
+    /// SELECT time_bucket('1 minute', observed_at) AS bucket,
+    ///        source,
+    ///        kind,
+    ///        count(*) AS events
+    /// FROM events
+    /// WHERE observed_at >= now() - interval '1 hour'
+    ///   AND observed_at < now()
+    /// GROUP BY bucket, source, kind
+    /// ORDER BY bucket, source, kind
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError::Database`] when the query fails.
+    pub async fn window_counts(
+        &self,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+        width: BucketWidth,
+        source: Option<&str>,
+    ) -> Result<Vec<WindowCount>, StoreError> {
+        let counts = match source {
+            Some(source) => {
+                sqlx::query_as::<_, WindowCount>(sql_filtered(width))
+                    .bind(start)
+                    .bind(end)
+                    .bind(source)
+                    .fetch_all(&self.pool)
+                    .await?
+            }
+            None => {
+                sqlx::query_as::<_, WindowCount>(sql_all(width))
+                    .bind(start)
+                    .bind(end)
+                    .fetch_all(&self.pool)
+                    .await?
+            }
+        };
+        Ok(counts)
+    }
 }
+
+fn sql_all(width: BucketWidth) -> &'static str {
+    match width {
+        BucketWidth::Minute => MINUTE_ALL,
+        BucketWidth::Hour => HOUR_ALL,
+    }
+}
+
+fn sql_filtered(width: BucketWidth) -> &'static str {
+    match width {
+        BucketWidth::Minute => MINUTE_SOURCE,
+        BucketWidth::Hour => HOUR_SOURCE,
+    }
+}
+
+const MINUTE_ALL: &str = "\
+SELECT time_bucket('1 minute'::interval, observed_at) AS bucket,
+       source,
+       kind,
+       count(*)::bigint AS events
+FROM events
+WHERE observed_at >= $1
+  AND observed_at < $2
+GROUP BY bucket, source, kind
+ORDER BY bucket, source, kind";
+
+const MINUTE_SOURCE: &str = "\
+SELECT time_bucket('1 minute'::interval, observed_at) AS bucket,
+       source,
+       kind,
+       count(*)::bigint AS events
+FROM events
+WHERE observed_at >= $1
+  AND observed_at < $2
+  AND source = $3
+GROUP BY bucket, source, kind
+ORDER BY bucket, source, kind";
+
+const HOUR_ALL: &str = "\
+SELECT time_bucket('1 hour'::interval, observed_at) AS bucket,
+       source,
+       kind,
+       count(*)::bigint AS events
+FROM events
+WHERE observed_at >= $1
+  AND observed_at < $2
+GROUP BY bucket, source, kind
+ORDER BY bucket, source, kind";
+
+const HOUR_SOURCE: &str = "\
+SELECT time_bucket('1 hour'::interval, observed_at) AS bucket,
+       source,
+       kind,
+       count(*)::bigint AS events
+FROM events
+WHERE observed_at >= $1
+  AND observed_at < $2
+  AND source = $3
+GROUP BY bucket, source, kind
+ORDER BY bucket, source, kind";
 
 #[cfg(test)]
 mod tests {
@@ -409,5 +540,53 @@ mod tests {
             message.contains("verdicts_outcome_known"),
             "unexpected error: {message}"
         );
+    }
+
+    #[tokio::test]
+    async fn window_counts_return_per_bucket_counts() {
+        let store = test_store().await;
+        let source = format!("window-{}", Uuid::new_v4());
+        // Aligned to a minute so the next event falls in the following bucket.
+        let first = DateTime::from_timestamp(1_900_000_080, 0).expect("aligned minute");
+        let second = first + chrono::Duration::seconds(60);
+        let outside = first - chrono::Duration::hours(2);
+
+        for (observed_at, kind) in [
+            (first, "agent.decide"),
+            (first, "agent.decide"),
+            (second, "exchange.submit_order"),
+            (outside, "agent.decide"),
+        ] {
+            store
+                .insert_event(&Event {
+                    id: Uuid::new_v4(),
+                    observed_at,
+                    source: source.clone(),
+                    kind: kind.to_owned(),
+                    data_class: "tenant".to_owned(),
+                    payload: serde_json::json!({}),
+                })
+                .await
+                .expect("insert window event");
+        }
+
+        let counts = store
+            .window_counts(
+                first,
+                second + chrono::Duration::minutes(1),
+                BucketWidth::Minute,
+                Some(&source),
+            )
+            .await
+            .expect("window query");
+
+        assert_eq!(counts.len(), 2);
+        assert_eq!(counts[0].bucket, first);
+        assert_eq!(counts[0].kind, "agent.decide");
+        assert_eq!(counts[0].events, 2);
+        assert_eq!(counts[1].bucket, second);
+        assert_eq!(counts[1].kind, "exchange.submit_order");
+        assert_eq!(counts[1].events, 1);
+        assert!(counts.iter().all(|count| count.source == source));
     }
 }

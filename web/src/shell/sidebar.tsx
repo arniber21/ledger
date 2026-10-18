@@ -1,0 +1,137 @@
+import { Link, useRouterState } from "@tanstack/react-router";
+import { useEffect, useRef, useState } from "react";
+import { attentionCount, countSavedView } from "../stream/reduce";
+import { SAVED_VIEWS, type SavedView } from "../stream/types";
+import { useShell } from "./context";
+import {
+  ChevronIcon,
+  DashboardIcon,
+  InboxIcon,
+  Mark,
+  SearchIcon,
+  SpecsIcon,
+  TracesIcon,
+  VerdictsIcon,
+} from "./icons";
+
+const NAV = [
+  { to: "/inbox", label: "Inbox", icon: InboxIcon, testId: "nav-inbox", exact: true },
+  { to: "/", label: "Dashboard", icon: DashboardIcon, testId: "nav-dashboard", exact: true },
+  { to: "/traces", label: "Traces", icon: TracesIcon, testId: "nav-traces", exact: false },
+  { to: "/specs", label: "Specs", icon: SpecsIcon, testId: "nav-specs", exact: false },
+  { to: "/verdicts", label: "Verdicts", icon: VerdictsIcon, testId: "nav-verdicts", exact: false },
+] as const;
+
+export function Sidebar() {
+  const { metrics, openPalette, reviewed, savedView } = useShell();
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const onSpecs = pathname === "/specs";
+  const attention = metrics.verdicts.filter(
+    (verdict) =>
+      (verdict.outcome === "Violate" || verdict.outcome === "Inconclusive") && !reviewed.has(verdict.id),
+  ).length;
+  const verdictCount = attentionCount(metrics.verdicts);
+  const [workspaceOpen, setWorkspaceOpen] = useState(false);
+  const workspaceRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!workspaceOpen) return;
+    const onPointer = (event: PointerEvent) => {
+      if (!workspaceRef.current?.contains(event.target as Node)) setWorkspaceOpen(false);
+    };
+    window.addEventListener("pointerdown", onPointer);
+    return () => window.removeEventListener("pointerdown", onPointer);
+  }, [workspaceOpen]);
+
+  return (
+    <aside className="sidebar">
+      <div className="workspace" ref={workspaceRef}>
+        <button
+          type="button"
+          className="workspace-button"
+          data-testid="workspace-switcher"
+          aria-expanded={workspaceOpen}
+          onClick={() => setWorkspaceOpen((open) => !open)}
+        >
+          <Mark />
+          <span>Hearthloaf</span>
+          <ChevronIcon />
+        </button>
+        {workspaceOpen ? (
+          <div className="workspace-menu" role="menu">
+            <button type="button" role="menuitem" onClick={() => setWorkspaceOpen(false)}>
+              <span>Hearthloaf Bakeries</span>
+              <span className="mono">company-001</span>
+            </button>
+          </div>
+        ) : null}
+      </div>
+
+      <button type="button" className="quick" data-testid="quick-actions" onClick={openPalette}>
+        <SearchIcon />
+        <span>Quick actions</span>
+        <kbd>⌘K</kbd>
+      </button>
+
+      <nav className="nav" aria-label="Views">
+        {NAV.map((item) => {
+          const Icon = item.icon;
+          const count = item.to === "/inbox" ? attention : item.to === "/verdicts" ? verdictCount : 0;
+          return (
+            <Link
+              key={item.to}
+              to={item.to}
+              className="nav-item"
+              activeOptions={{ exact: item.exact, includeSearch: false }}
+              data-testid={item.testId}
+            >
+              <Icon />
+              <span>{item.label}</span>
+              {count > 0 ? <span className="nav-count">{count}</span> : <span className="nav-count" />}
+            </Link>
+          );
+        })}
+      </nav>
+
+      {onSpecs ? (
+        <section className="saved" aria-label="Armed specs">
+          <h2>Armed specs</h2>
+          <p className="saved-empty">None armed</p>
+        </section>
+      ) : (
+        <section className="saved" aria-label="Saved views">
+          <h2>Saved views</h2>
+          {SAVED_VIEWS.map((view) => (
+            <SavedLink key={view.id} id={view.id} label={view.label} active={savedView === view.id} count={countSavedView(metrics.verdicts, view.id)} />
+          ))}
+        </section>
+      )}
+    </aside>
+  );
+}
+
+function SavedLink({
+  id,
+  label,
+  active,
+  count,
+}: {
+  id: SavedView;
+  label: string;
+  active: boolean;
+  count: number;
+}) {
+  return (
+    <Link
+      to="/"
+      search={{ view: active ? undefined : id, outcome: undefined }}
+      className={active ? "saved-item is-active" : "saved-item"}
+      data-testid={`saved-${id}`}
+      aria-current={active ? "page" : undefined}
+    >
+      <span className={`swatch swatch-${id}`} />
+      <span>{label}</span>
+      <span className="nav-count">{count}</span>
+    </Link>
+  );
+}
