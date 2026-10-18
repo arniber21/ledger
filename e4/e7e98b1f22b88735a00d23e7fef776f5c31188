@@ -1,0 +1,59 @@
+crates/ledger-api/src/engine.rs
+  s_724c06a5cb7ccd::t_36b5a5e01fbd13 7,11,49-67,93-95,135,145-157,167,171-198,327,335-350,354,371,390,417,460
+crates/ledger-api/src/http.rs
+  s_724c06a5cb7ccd::t_562c95cb35fa54 3,6,14-15,64-76,84,91-93,160-165,168-171,176-180
+crates/ledger-api/src/lib.rs
+  s_724c06a5cb7ccd::t_75c18a01cad4e8 34,40
+crates/ledger-api/src/main.rs
+  s_724c06a5cb7ccd::t_7f422b210eaa50 5-8,31-35,43-58
+crates/ledger-api/src/rank.rs
+  s_724c06a5cb7ccd::t_b226c845ab56ea 1-218
+crates/ledger-jev/src/client.rs
+  s_724c06a5cb7ccd::t_a2e93ed4bc46ea 12
+crates/ledger-jev/src/lib.rs
+  s_724c06a5cb7ccd::t_a665313f711ae1 2-3,28,52-55
+crates/ledger-jev/src/rank.rs
+  s_724c06a5cb7ccd::t_99dce65300f603 1-728
+crates/ledger-store/migrations/0004_verdict_rank.sql
+  s_724c06a5cb7ccd::t_ae8ff23dc66e0b 1-16
+crates/ledger-store/src/lib.rs
+  s_724c06a5cb7ccd::t_14a5509162f570 759-805,914-926,1368-1415
+fixtures/jev/rank-mapped.json
+  s_724c06a5cb7ccd::t_aae56e019904a6 1
+fixtures/jev/rank-request.json
+  s_724c06a5cb7ccd::t_b3eca473b893a7 1
+fixtures/jev/rank-response.json
+  s_724c06a5cb7ccd::t_7d0e417f08289c 1
+web/src/inbox/inbox.tsx
+  s_724c06a5cb7ccd::t_2260b2a8fc327e 30-33,38,78-80,82-83,95,140,142-143,147-156,309-311,317-318,454-456,462-463,469-471,477-478,517,520-539,905,921-986
+web/src/inbox/model.test.ts
+  s_724c06a5cb7ccd::t_810584048f2b8e 161-206
+web/src/inbox/model.ts
+  s_724c06a5cb7ccd::t_f661ad97b5253f 2,10-43,115-185,335-340,342-343,367-389,451,456
+web/src/stream/reduce.test.ts
+  s_724c06a5cb7ccd::t_33f360b6978d83 235-260
+web/src/stream/reduce.ts
+  s_724c06a5cb7ccd::t_bf1d54d56ebc9d 11,95,99-126
+web/src/stream/types.ts
+  s_724c06a5cb7ccd::t_0e9220c80e449a 42-54,70,156
+web/src/styles.css
+  s_724c06a5cb7ccd::t_d106235bfd9fee 1377-1415
+web/src/verdicts/verdicts.tsx
+  s_724c06a5cb7ccd::t_b77b05c7a01881 10,229-236,391-411
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e4e7e98b1f22b88735a00d23e7fef776f5c31188",
+  "prompts": {},
+  "sessions": {
+    "s_724c06a5cb7ccd": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "6b843061-e6c1-4a2a-b9de-31e2ebed84d8",
+        "model": "grok-4.7-high-fast"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    }
+  }
+}
