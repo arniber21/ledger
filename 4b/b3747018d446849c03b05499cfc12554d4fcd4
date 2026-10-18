@@ -1,0 +1,110 @@
+crates/ledger-api/src/engine.rs
+  s_14c6ef7bf2e2fe::t_8e977287128708 695-697
+  s_14c6ef7bf2e2fe::t_29884b66bb3087 692-694
+  s_14c6ef7bf2e2fe::t_3290a5fd23e2a7 698-700
+  s_14c6ef7bf2e2fe::t_a7e8d62eccd58b 10-14,18,96-98,106-111,140-166,198-201,227-230,407-419,426-427,476-477,496-497,531-532,537-543,585-586,591-691,701-724,769-850
+crates/ledger-jev/src/lib.rs
+  s_14c6ef7bf2e2fe::t_02789209e35494 56
+  s_14c6ef7bf2e2fe::t_3914635610d12c 1-4,9-16,29,33,57-59,66-70
+crates/ledger-core/src/live.rs
+  s_14c6ef7bf2e2fe::t_01246d671e641d 813,852
+  s_14c6ef7bf2e2fe::t_cd7e808f5a8f57 814-816,849-851
+  s_14c6ef7bf2e2fe::t_59ea35f658473c 853-855
+  s_14c6ef7bf2e2fe::t_bbe9740aca1a98 38-42,172-197,365,454,461,465-475,526,530-569,747-759,817-848,856-892
+crates/ledger-store/src/lib.rs
+  s_14c6ef7bf2e2fe::t_22ef6908eabea0 406-409,414-420,425-426,428,431-432
+crates/ledger-api/src/http.rs
+  s_14c6ef7bf2e2fe::t_a67fdac80f7c0f 200-204
+  s_14c6ef7bf2e2fe::t_353d32eca4f3fd 199
+  s_14c6ef7bf2e2fe::t_f2bfa1827e6258 211-214
+  s_14c6ef7bf2e2fe::t_56d585752749d3 221-224
+  s_14c6ef7bf2e2fe::t_ec801b72d742bc 68,124-125
+Cargo.lock
+  s_14c6ef7bf2e2fe::t_54a659eb10b0ad 2415
+README.md
+  s_14c6ef7bf2e2fe::t_9daec0ddea4705 110,118
+crates/ledger-api/Cargo.toml
+  s_14c6ef7bf2e2fe::t_16d3539663d526 29
+crates/ledger-api/src/lib.rs
+  s_14c6ef7bf2e2fe::t_ae7cc24354feb4 26,35
+crates/ledger-api/src/main.rs
+  s_14c6ef7bf2e2fe::t_12fac0fa6b5e03 40
+crates/ledger-api/src/quick.rs
+  s_14c6ef7bf2e2fe::t_bc01d503d6d37e 1-201
+crates/ledger-jev/src/memo.rs
+  s_14c6ef7bf2e2fe::t_fa98bbb242cbdc 152-199,201,204,207-210,213,216-219,222,224,227,230,233,236,243,246-249,251,254,256,261,264,266,268
+crates/ledger-jev/src/quick.rs
+  s_14c6ef7bf2e2fe::t_560cf13e571026 1-1344
+crates/ledger-jev/src/rerank.rs
+  s_14c6ef7bf2e2fe::t_7e98ed2082cd0e 1-667
+crates/ledger-jev/tests/quick.rs
+  s_14c6ef7bf2e2fe::t_7b316f27f3b494 1-133
+fixtures/jev/quick/double-pay-request.json
+  s_14c6ef7bf2e2fe::t_83f000ea2849bb 1
+fixtures/jev/quick/double-pay-response.json
+  s_14c6ef7bf2e2fe::t_d0353220744859 1
+fixtures/jev/quick/inconclusive-request.json
+  s_14c6ef7bf2e2fe::t_79a7be3c783a82 1
+fixtures/jev/quick/inconclusive-response.json
+  s_14c6ef7bf2e2fe::t_0681105abb23f1 1
+fixtures/jev/quick/satisfied-request.json
+  s_14c6ef7bf2e2fe::t_bead204baadd6b 1
+fixtures/jev/quick/satisfied-response.json
+  s_14c6ef7bf2e2fe::t_f69236d65233d4 1
+fixtures/jev/quick/unsupported-request.json
+  s_14c6ef7bf2e2fe::t_39efbff84c6b89 1
+fixtures/jev/quick/unsupported-response.json
+  s_14c6ef7bf2e2fe::t_c1cf09520b410b 1
+fixtures/jev/quick/violations-request.json
+  s_14c6ef7bf2e2fe::t_0b2313c5fca3f6 1
+fixtures/jev/quick/violations-response.json
+  s_14c6ef7bf2e2fe::t_185f7fdd07e2c2 1
+fixtures/jev/rerank-double-pay-request.json
+  s_14c6ef7bf2e2fe::t_bc8ab05d8edaca 1
+fixtures/jev/rerank-double-pay.json
+  s_14c6ef7bf2e2fe::t_0f950075694d39 1
+web/src/inbox/model.test.ts
+  s_14c6ef7bf2e2fe::t_45f118d32b5e5c 216-241
+web/src/inbox/model.ts
+  s_14c6ef7bf2e2fe::t_707beed82d1efc 52,86,226,266,282,324,586-592
+web/src/shell/context.tsx
+  s_14c6ef7bf2e2fe::t_218f276d588a11 13
+web/src/shell/palette.tsx
+  s_14c6ef7bf2e2fe::t_38dbb816b88762 3,7-14,26-35,37-41,59-119,124-129,137-142,145-162,164-167,169-170,172-219,221-232,234-253,255-256,258-259,261
+web/src/shell/quick.test.ts
+  s_14c6ef7bf2e2fe::t_186da021a06f02 1-162
+web/src/shell/quick.ts
+  s_14c6ef7bf2e2fe::t_1dd8df37716978 1-252
+web/src/shell/shell.tsx
+  s_14c6ef7bf2e2fe::t_0fa97f86d19c22 58
+web/src/stream/reduce.ts
+  s_14c6ef7bf2e2fe::t_3cedea1ad4dcec 12-14,97-98,134-162
+web/src/stream/types.ts
+  s_14c6ef7bf2e2fe::t_0ba29828b27714 26-42,86-89,91,177,179-180
+web/src/styles.css
+  s_14c6ef7bf2e2fe::t_e2510f048eb9d2 745-769,1309-1326
+web/src/verdicts/model.test.ts
+  s_14c6ef7bf2e2fe::t_e288dd3887a5b8 4,22-25,91-144
+web/src/verdicts/model.ts
+  s_14c6ef7bf2e2fe::t_5ed6ced551c929 9,36-73
+web/src/verdicts/verdicts.tsx
+  s_14c6ef7bf2e2fe::t_bc5b7b8bfc4425 21,25,27,247,281-286,294-378
+crates/ledger-api/src/rank.rs
+  s_14c6ef7bf2e2fe::t_6400d1c5742388 200-201
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4bb3747018d446849c03b05499cfc12554d4fcd4",
+  "prompts": {},
+  "sessions": {
+    "s_14c6ef7bf2e2fe": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "d7e3203c-9046-4522-aaff-1133d50f36c9",
+        "model": "grok-4.7-high-fast"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    }
+  }
+}
