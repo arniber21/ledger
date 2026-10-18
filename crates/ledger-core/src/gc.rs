@@ -155,6 +155,12 @@ impl MonitorDesk {
         self.live.len()
     }
 
+    /// How many monitors have been retired and left the live set.
+    #[must_use]
+    pub fn retired_count(&self) -> usize {
+        self.closed.len()
+    }
+
     /// Whether `key` is still watching.
     #[must_use]
     pub fn is_live(&self, key: &str) -> bool {

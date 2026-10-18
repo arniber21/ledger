@@ -1191,6 +1191,94 @@ impl Store {
         Ok(rows)
     }
 
+    /// Counters for the dashboard, as of `now`. Events dated after `now` plus
+    /// one day are not counted.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError::Database`] when the query fails.
+    pub async fn metric_totals(&self, now: DateTime<Utc>) -> Result<MetricTotals, StoreError> {
+        let ceiling = now + chrono::Duration::days(1);
+        let totals = sqlx::query_as::<_, MetricTotals>(
+            "SELECT
+                 (SELECT count(*) FROM events
+                   WHERE observed_at <= $1
+                     AND (source = 'exchange' OR source LIKE 'agent%'))::bigint AS events,
+                 (SELECT count(*) FROM events
+                   WHERE observed_at > $2 AND observed_at <= $3
+                     AND (source = 'exchange' OR source LIKE 'agent%'))::bigint AS events_last_minute,
+                 (SELECT count(*) FROM events
+                   WHERE observed_at <= $1
+                     AND payload->'attributes' ? 'tx.signature')::bigint AS settled_on_chain,
+                 (SELECT count(*) FROM verdict_rank)::bigint AS jev_judgments,
+                 (SELECT count(*) FROM verdict_rank
+                   WHERE money IS NULL AND evidence IS NULL
+                     AND ambiguity IS NULL AND intent IS NULL)::bigint AS jev_unknown",
+        )
+        .bind(ceiling)
+        .bind(now - chrono::Duration::minutes(1))
+        .bind(now + chrono::Duration::seconds(5))
+        .fetch_one(&self.pool)
+        .await?;
+        Ok(totals)
+    }
+
+    /// Events per `seconds`-wide bucket in `[start, end)`, by source class.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError::Database`] when the query fails.
+    pub async fn rate_buckets(
+        &self,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+        seconds: i32,
+    ) -> Result<Vec<RateBucket>, StoreError> {
+        let rows = sqlx::query_as::<_, RateBucket>(
+            "SELECT time_bucket(make_interval(secs => $3), observed_at) AS bucket,
+                    (count(*) FILTER (WHERE source LIKE 'agent%'))::bigint AS agent,
+                    (count(*) FILTER (WHERE source = 'exchange'))::bigint AS exchange,
+                    (count(*) FILTER (WHERE payload->'attributes' ? 'tx.signature'))::bigint AS solana
+             FROM events
+             WHERE observed_at >= $1 AND observed_at < $2
+               AND (source = 'exchange' OR source LIKE 'agent%')
+             GROUP BY bucket
+             ORDER BY bucket",
+        )
+        .bind(start)
+        .bind(end)
+        .bind(f64::from(seconds))
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows)
+    }
+
+    /// Needs-review and inconclusive verdicts recorded per minute in `[start, end)`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError::Database`] when the query fails.
+    pub async fn attention_buckets(
+        &self,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+    ) -> Result<Vec<AttentionBucket>, StoreError> {
+        let rows = sqlx::query_as::<_, AttentionBucket>(
+            "SELECT date_trunc('minute', recorded_at) AS bucket,
+                    (count(*) FILTER (WHERE outcome = 'Violate'))::bigint AS violate,
+                    (count(*) FILTER (WHERE outcome = 'Inconclusive'))::bigint AS inconclusive
+             FROM verdicts
+             WHERE recorded_at >= $1 AND recorded_at < $2
+             GROUP BY bucket
+             ORDER BY bucket",
+        )
+        .bind(start)
+        .bind(end)
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows)
+    }
+
     /// Rows of [`Self::calibration`] for one question id.
     ///
     /// An empty vec means this question has no reviewed judgment. That is not
@@ -1232,6 +1320,46 @@ pub struct VerdictRank {
     pub evidence: Option<f64>,
     pub ambiguity: Option<f64>,
     pub intent: Option<f64>,
+}
+
+/// Totals behind the dashboard counters. Rows dated past the ceiling are
+/// ignored so a bad clock cannot inflate them.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, sqlx::FromRow)]
+pub struct MetricTotals {
+    /// Trace events from agents and the exchange.
+    pub events: i64,
+    /// Trace events observed in the last minute.
+    pub events_last_minute: i64,
+    /// Events that carry a Solana transaction signature.
+    pub settled_on_chain: i64,
+    /// Stored Jev scoring calls.
+    pub jev_judgments: i64,
+    /// Jev calls where no dimension came back as a number.
+    pub jev_unknown: i64,
+}
+
+/// Events in one time bucket, by source class.
+#[derive(Debug, Clone, PartialEq, Eq, sqlx::FromRow)]
+pub struct RateBucket {
+    /// Bucket start.
+    pub bucket: DateTime<Utc>,
+    /// Events from `agent*` sources.
+    pub agent: i64,
+    /// Events from the exchange.
+    pub exchange: i64,
+    /// Events with a Solana transaction signature.
+    pub solana: i64,
+}
+
+/// Verdicts recorded in one bucket.
+#[derive(Debug, Clone, PartialEq, Eq, sqlx::FromRow)]
+pub struct AttentionBucket {
+    /// Bucket start.
+    pub bucket: DateTime<Utc>,
+    /// Needs-review verdicts.
+    pub violate: i64,
+    /// Inconclusive verdicts.
+    pub inconclusive: i64,
 }
 
 /// Last hypertable row already delivered to a reader.

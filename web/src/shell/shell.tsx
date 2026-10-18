@@ -101,6 +101,12 @@ export function Shell() {
           setShortcutsOpen(false);
           return;
         }
+        // Enter opens a verdict on its own route. Esc returns to the inbox.
+        // Clearing the selection first left the verdict page in place.
+        if (pathname === "/verdicts") {
+          router.history.back();
+          return;
+        }
         if (selectedId) {
           setSelectedId(null);
           return;

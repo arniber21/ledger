@@ -113,8 +113,9 @@ up:
     bash scripts/demo.sh
 
 # Playwright against the local stack. Headless. LEDGER_JEV=replay and LEDGER_TEST=1.
-e2e: web-deps
-    bash scripts/e2e.sh
+# Extra words are Playwright args (`just e2e inbox.spec.ts`). LEDGER_E2E_SLOT isolates ports.
+e2e *args: web-deps
+    bash scripts/e2e.sh {{args}}
 
 # The same harness in the Playwright UI.
 e2e-ui: web-deps

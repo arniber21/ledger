@@ -13,6 +13,7 @@ import { isOutcome, outcomeLabel } from "../stream/reduce";
 import type { SavedView, VerdictItem, VerdictOutcome } from "../stream/types";
 import { Calibration } from "./calibration-panel";
 import { AttentionChart, EventsChart, MonitorsChart } from "./charts";
+import { ageLabel, amountLabel, bindingLabel, cardTitle, shortId, sourceLabel } from "../inbox/model";
 import { useShell } from "../shell/context";
 import { DashboardIcon } from "../shell/icons";
 import { Header } from "../shell/header";
@@ -309,11 +310,16 @@ function Column({
                     aria-pressed={selected}
                     onClick={() => onOpen(verdict.id)}
                   >
-                    <span className="mono card-id">{verdict.id}</span>
-                    <span className="card-title">{verdict.title}</span>
-                    <span className="card-evidence">
-                      {verdict.evidence || outcomeLabel(verdict.outcome)}
-                      {reviewed.has(verdict.id) ? " · Reviewed" : ""}
+                    <span className="mono card-id" title={verdict.id}>
+                      {shortId(verdict.id)}
+                      {bindingLabel(verdict) ? ` · ${bindingLabel(verdict)}` : ""}
+                    </span>
+                    <span className="card-title">{cardTitle(verdict)}</span>
+                    <span className="card-facts">
+                      <span>{sourceLabel(verdict)}</span>
+                      <span>{amountLabel(verdict.amountCents)}</span>
+                      <span>{ageLabel(verdict.recordedAt, Date.now())}</span>
+                      {reviewed.has(verdict.id) ? <span>Reviewed</span> : null}
                     </span>
                   </button>
                 </div>

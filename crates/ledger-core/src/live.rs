@@ -110,6 +110,12 @@ impl Session {
         self.desk.live_count()
     }
 
+    /// How many per-bill monitors have been retired by garbage collection.
+    #[must_use]
+    pub fn retired_monitor_count(&self) -> usize {
+        self.desk.retired_count()
+    }
+
     /// The retirement desk for this session.
     #[must_use]
     pub fn monitors(&mut self) -> &mut MonitorDesk {

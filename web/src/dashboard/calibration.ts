@@ -30,6 +30,55 @@ export function bandLabel(band: string): string {
   return `${match[1]}–${match[2]}`;
 }
 
+const QUESTION_NAMES: Record<string, string> = {
+  same_obligation: "Same obligation",
+  memo_instructs_payment: "Memo instructs payment",
+  draft_matches_policy: "Draft matches policy",
+};
+
+const OPAQUE_ID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+
+/**
+ * Test and seed rows use ids such as `cal-<uuid>` and `cal-other-<uuid>`.
+ * They are not Jev questions a person asked, so the table leaves them out.
+ */
+export function isSeedQuestion(question: string): boolean {
+  return question.startsWith("cal-") || OPAQUE_ID.test(question);
+}
+
+/** A readable name for a stored question id. Unknown ids become sentence case. */
+export function questionLabel(question: string): string {
+  const known = QUESTION_NAMES[question];
+  if (known) return known;
+  const words = question.replace(/[_.-]+/g, " ").trim();
+  return words.length === 0 ? question : `${words.charAt(0).toUpperCase()}${words.slice(1)}`;
+}
+
+export type CalibrationGroup = {
+  question: string;
+  label: string;
+  reviewed: number;
+  rows: CalibrationRow[];
+};
+
+/** Rows grouped by question, in the order the API sent them, seeds removed. */
+export function groupCalibration(rows: readonly CalibrationRow[]): CalibrationGroup[] {
+  const groups = new Map<string, CalibrationGroup>();
+  for (const row of rows) {
+    if (isSeedQuestion(row.question)) continue;
+    const group = groups.get(row.question) ?? {
+      question: row.question,
+      label: questionLabel(row.question),
+      reviewed: 0,
+      rows: [],
+    };
+    group.rows.push(row);
+    group.reviewed += row.reviewed;
+    groups.set(row.question, group);
+  }
+  return [...groups.values()];
+}
+
 export function reviewedLabel(reviewed: number): string {
   const count = countLabel(reviewed);
   if (reviewed < SMALL_SAMPLE) return `${count} · small sample`;

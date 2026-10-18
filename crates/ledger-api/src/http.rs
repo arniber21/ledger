@@ -81,6 +81,8 @@ pub async fn serve_with_ranker(
     let (shutdown, mut watch_rx) = watch::channel(false);
     let engine_store = store.clone();
     let engine_tx = tx.clone();
+    let monitor_stats = crate::metrics::MonitorStats::default();
+    let engine_stats = monitor_stats.clone();
     let engine = tokio::spawn(async move {
         let mut engine = match Engine::with_ranker(engine_store, engine_tx, ranker) {
             Ok(engine) => engine,
@@ -89,6 +91,7 @@ pub async fn serve_with_ranker(
                 return;
             }
         };
+        engine.report_monitors(engine_stats);
         if let Err(error) = engine.score_unranked().await {
             tracing::warn!(error = %error, "could not score stored verdicts");
         }
@@ -98,6 +101,11 @@ pub async fn serve_with_ranker(
             }
             if let Err(error) = engine.poll_once().await {
                 tracing::warn!(error = %error, "verdict poll failed");
+            }
+            // Scenes store verdicts on their own. Score those rows after startup
+            // so the inbox can reorder from stored scores without another call.
+            if let Err(error) = engine.score_unranked().await {
+                tracing::warn!(error = %error, "could not score stored verdicts");
             }
             tokio::select! {
                 changed = watch_rx.changed() => {
@@ -119,6 +127,9 @@ pub async fn serve_with_ranker(
     let mut app = verdicts
         .merge(crate::inbox::router(store.clone()))
         .merge(crate::calibration::router(store.clone()))
+        .merge(crate::metrics::router(store.clone(), monitor_stats))
+        .merge(crate::specs::router())
+        .merge(crate::author::router())
         .merge(crate::traces::router(crate::traces::AppState {
             store: Some(store.clone()),
         }))
