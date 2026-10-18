@@ -164,6 +164,8 @@ export function Shell() {
       if (isTyping(event) || paletteOpen) return;
 
       if (event.key === "Escape") {
+        // The fault menu on Traces handles its own Esc (back to the list).
+        if (event.target instanceof HTMLElement && event.target.closest(".faults")) return;
         if (shortcutsOpen) {
           setShortcutsOpen(false);
           return;
