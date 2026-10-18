@@ -1,17 +1,36 @@
 //! Jev (TypeSafe System One) client: binding judgments and the memo predicate.
 //!
-//! A Choice maps onto [`BindingVerdict`]. The memo Noul maps onto
-//! [`PredicateVerdict`]. This crate does not ask for or keep explanation text.
-
-mod memo;
+//! Deterministic guards on amount, bill id, vendor id, and currency run first
+//! and skip Jev when they decide. Otherwise the model returns a typed Choice.
+//! This crate maps that Choice onto [`BindingVerdict`] with the fixed 0.80
+//! thresholds. The memo Noul maps onto [`PredicateVerdict`]. This crate does
+//! not ask for or keep explanation text. [`BindingVerdict::Same`] merges
+//! monitor keys. [`BindingVerdict::Different`] keeps them apart.
+//! [`BindingVerdict::Unknown`] is inconclusive and does not merge.
 
 use serde_json::Value;
 use thiserror::Error;
 
+mod baseline;
+mod client;
+mod guard;
+mod matchers;
+mod memo;
+mod obligation;
+mod request;
+mod resolve;
+
+pub use baseline::{baseline_cases, baseline_report, BaselineCase, BaselineReport, CaseComparison};
+pub use client::{SystemOne, SystemOneClient, SYSTEM_ONE_URL};
+pub use guard::{guard, GuardDecision};
+pub use matchers::{exact_match, fuzzy_match, FUZZY_NAME_THRESHOLD};
 pub use memo::{
     map_memo_body, map_memo_exchange, memo_request, PredicateVerdict, BENIGN_MEMO,
     INSTRUCTION_MEMO, MEMO_INSTRUCTS_QUESTION,
 };
+pub use obligation::ObligationRef;
+pub use request::binding_request;
+pub use resolve::{resolve, BindingEffect, CallFault, Resolution};
 
 /// Question id for the binding smoke call.
 ///
@@ -45,7 +64,7 @@ pub const DIFFERENT_PROBABILITY_THRESHOLD: f64 = 0.80;
 pub(crate) const PROBABILITY_SUM_TOLERANCE: f64 = 1e-3;
 
 /// Whether two records are the same obligation.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[must_use]
 pub enum BindingVerdict {
     /// The records are one obligation.
