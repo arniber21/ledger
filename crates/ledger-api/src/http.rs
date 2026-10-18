@@ -1,7 +1,9 @@
 //! SSE server. Each `data` line is one JSON object the UI already parses.
 
+use std::collections::HashMap;
 use std::convert::Infallible;
 use std::net::SocketAddr;
+use std::sync::Arc;
 use std::time::Duration;
 
 use axum::extract::State;
@@ -9,7 +11,8 @@ use axum::response::sse::{Event, KeepAlive, Sse};
 use axum::routing::get;
 use axum::Router;
 use futures::stream::{self, Stream};
-use ledger_store::Store;
+use ledger_jev::SystemOne;
+use ledger_store::{Store, Uuid, VerdictRank};
 use tokio::net::TcpListener;
 use tokio::sync::{broadcast, watch};
 use tokio::task::JoinHandle;
@@ -58,6 +61,19 @@ impl Drop for Server {
 ///
 /// Returns an error when the address cannot be bound or the session cannot start.
 pub async fn serve(store: Store, addr: &str) -> Result<Server, ApiError> {
+    serve_with_ranker(store, addr, None).await
+}
+
+/// Binds `addr` and, when `ranker` is set, scores verdicts that have no raw scores yet.
+///
+/// # Errors
+///
+/// Returns an error when the address cannot be bound or the session cannot start.
+pub async fn serve_with_ranker(
+    store: Store,
+    addr: &str,
+    ranker: Option<Arc<dyn SystemOne>>,
+) -> Result<Server, ApiError> {
     let listener = TcpListener::bind(addr).await?;
     let bound = listener.local_addr()?;
     let (tx, _) = broadcast::channel(1024);
@@ -65,13 +81,16 @@ pub async fn serve(store: Store, addr: &str) -> Result<Server, ApiError> {
     let engine_store = store.clone();
     let engine_tx = tx.clone();
     let engine = tokio::spawn(async move {
-        let mut engine = match Engine::new(engine_store, engine_tx) {
+        let mut engine = match Engine::with_ranker(engine_store, engine_tx, ranker) {
             Ok(engine) => engine,
             Err(error) => {
                 tracing::error!(error = %error, "verdict engine failed to start");
                 return;
             }
         };
+        if let Err(error) = engine.score_unranked().await {
+            tracing::warn!(error = %error, "could not score stored verdicts");
+        }
         loop {
             if *watch_rx.borrow() {
                 break;
@@ -139,14 +158,27 @@ async fn stream(
         tracing::warn!(error = %error, "could not replay verdicts");
         axum::http::StatusCode::INTERNAL_SERVER_ERROR
     })?;
+    let ranks = app.store.list_ranks().await.map_err(|error| {
+        tracing::warn!(error = %error, "could not replay ranks");
+        axum::http::StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+    let ranks: HashMap<Uuid, VerdictRank> =
+        ranks.into_iter().map(|row| (row.verdict_id, row)).collect();
     let mut initial = Vec::new();
     for verdict in past.into_iter().rev() {
-        if let Some(frame) = verdict_from_stored(&verdict) {
+        if let Some(mut frame) = verdict_from_stored(&verdict) {
+            if let Some(row) = ranks.get(&verdict.id) {
+                frame.rank = Some(crate::rank::stream_rank_from_row(row));
+            }
             initial.push(frame);
         }
     }
     while let Ok(frame) = rx.try_recv() {
-        if initial.iter().all(|existing| existing.id != frame.id) {
+        if let Some(existing) = initial.iter_mut().find(|existing| existing.id == frame.id) {
+            if existing.rank.is_none() && frame.rank.is_some() {
+                *existing = frame;
+            }
+        } else {
             initial.push(frame);
         }
     }

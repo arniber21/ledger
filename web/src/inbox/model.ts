@@ -1,5 +1,5 @@
 import { outcomeLabel } from "../stream/reduce";
-import type { SavedView, VerdictItem, VerdictOutcome } from "../stream/types";
+import type { RankScores, SavedView, VerdictItem, VerdictOutcome } from "../stream/types";
 
 export type InboxView = "board" | "list" | "split";
 
@@ -7,7 +7,40 @@ export type TriageStatus = "New" | "Reviewing" | "Confirmed" | "Dismissed";
 
 export type InboxGroupBy = "status" | "verdict" | "agent" | "spec";
 
-export type InboxSort = "newest" | "oldest" | "amount" | "id";
+export type InboxSort = "newest" | "oldest" | "amount" | "id" | "priority";
+
+/** Slider positions, 0 to 100. Divided by 100 before they weight a score. */
+export type RankSliders = {
+  money: number;
+  evidence: number;
+  ambiguity: number;
+  intent: number;
+};
+
+export type RankWeights = {
+  money: number;
+  evidence: number;
+  ambiguity: number;
+  intent: number;
+};
+
+export const RANK_TOP_LEVEL = 4;
+
+export const DEFAULT_RANK_SLIDERS: RankSliders = {
+  money: 25,
+  evidence: 25,
+  ambiguity: 25,
+  intent: 25,
+};
+
+export const DEFAULT_RANK_WEIGHTS: RankWeights = {
+  money: 0.25,
+  evidence: 0.25,
+  ambiguity: 0.25,
+  intent: 0.25,
+};
+
+const WEIGHTS_KEY = "ledger.inbox.rank-weights";
 
 export type InboxSearch = {
   view?: InboxView;
@@ -81,7 +114,77 @@ export function isInboxGroup(value: unknown): value is InboxGroupBy {
 }
 
 export function isInboxSort(value: unknown): value is InboxSort {
-  return value === "newest" || value === "oldest" || value === "amount" || value === "id";
+  return value === "newest" || value === "oldest" || value === "amount" || value === "id" || value === "priority";
+}
+
+function sliderValue(value: unknown): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) return 25;
+  return Math.min(100, Math.max(0, Math.round(value)));
+}
+
+export function storedRankSliders(): RankSliders {
+  try {
+    const raw = localStorage.getItem(WEIGHTS_KEY);
+    if (!raw) return DEFAULT_RANK_SLIDERS;
+    const value = JSON.parse(raw) as Record<string, unknown>;
+    return {
+      money: sliderValue(value.money),
+      evidence: sliderValue(value.evidence),
+      ambiguity: sliderValue(value.ambiguity),
+      intent: sliderValue(value.intent),
+    };
+  } catch {
+    return DEFAULT_RANK_SLIDERS;
+  }
+}
+
+export function rememberRankSliders(sliders: RankSliders): void {
+  try {
+    localStorage.setItem(WEIGHTS_KEY, JSON.stringify(sliders));
+  } catch {
+    // The sliders still apply for this visit when storage is blocked.
+  }
+}
+
+export function weightsFromSliders(sliders: RankSliders): RankWeights {
+  return {
+    money: sliders.money / 100,
+    evidence: sliders.evidence / 100,
+    ambiguity: sliders.ambiguity / 100,
+    intent: sliders.intent / 100,
+  };
+}
+
+/**
+ * Weighted sum of raw scores divided by 4.
+ * Any Unknown dimension, or weights that are not a positive finite set, yields null.
+ * Null is not a priority of zero.
+ */
+export function priorityOf(rank: RankScores | undefined, weights: RankWeights): number | null {
+  if (!rank) return null;
+  const factors = [rank.money, rank.evidence, rank.ambiguity, rank.intent];
+  if (factors.some((value) => value == null || !Number.isFinite(value))) return null;
+  const parts = [weights.money, weights.evidence, weights.ambiguity, weights.intent];
+  if (parts.some((value) => !Number.isFinite(value) || value < 0)) return null;
+  if (parts.reduce((sum, value) => sum + value, 0) === 0) return null;
+  return factors.reduce<number>((sum, raw, index) => sum + parts[index] * ((raw as number) / RANK_TOP_LEVEL), 0);
+}
+
+export function severityRank(outcome: VerdictOutcome): number {
+  switch (outcome) {
+    case "Violate":
+      return 0;
+    case "Inconclusive":
+      return 1;
+    case "Satisfy":
+      return 2;
+  }
+}
+
+export function scoreLabel(rank: RankScores | undefined, value: number | null | undefined): string {
+  if (!rank) return "Not stored";
+  if (value == null || !Number.isFinite(value)) return "Unknown";
+  return value.toFixed(2);
 }
 
 export function isUuid(value: string): boolean {
@@ -235,8 +338,15 @@ function timeValue(recordedAt: string): number | null {
   return Number.isFinite(value) ? value : null;
 }
 
-export function compareItems(sort: InboxSort, left: InboxItem, right: InboxItem): number {
+export function compareItems(
+  sort: InboxSort,
+  left: InboxItem,
+  right: InboxItem,
+  weights: RankWeights = DEFAULT_RANK_WEIGHTS,
+): number {
   switch (sort) {
+    case "priority":
+      return comparePriority(left, right, weights);
     case "id":
       return left.verdict.id.localeCompare(right.verdict.id);
     case "amount": {
@@ -260,8 +370,29 @@ export function compareItems(sort: InboxSort, left: InboxItem, right: InboxItem)
   }
 }
 
-export function sortItems(items: readonly InboxItem[], sort: InboxSort): InboxItem[] {
-  return [...items].sort((left, right) => compareItems(sort, left, right));
+function comparePriority(left: InboxItem, right: InboxItem, weights: RankWeights): number {
+  const leftScore = priorityOf(left.verdict.rank, weights);
+  const rightScore = priorityOf(right.verdict.rank, weights);
+  if (leftScore != null && rightScore != null) {
+    if (leftScore !== rightScore) return rightScore - leftScore;
+    const severity = severityRank(left.verdict.outcome) - severityRank(right.verdict.outcome);
+    if (severity !== 0) return severity;
+    return left.verdict.id.localeCompare(right.verdict.id);
+  }
+  if (leftScore == null && rightScore == null) {
+    const severity = severityRank(left.verdict.outcome) - severityRank(right.verdict.outcome);
+    if (severity !== 0) return severity;
+    return left.verdict.id.localeCompare(right.verdict.id);
+  }
+  return leftScore == null ? 1 : -1;
+}
+
+export function sortItems(
+  items: readonly InboxItem[],
+  sort: InboxSort,
+  weights: RankWeights = DEFAULT_RANK_WEIGHTS,
+): InboxItem[] {
+  return [...items].sort((left, right) => compareItems(sort, left, right, weights));
 }
 
 export function needsReview(item: InboxItem): boolean {
@@ -323,10 +454,12 @@ export function prepareInbox(
   verdicts: readonly VerdictItem[],
   triage: readonly Triage[],
   query: InboxQuery,
+  weights: RankWeights = DEFAULT_RANK_WEIGHTS,
 ): { items: InboxItem[]; groups: ItemGroup[]; attention: number } {
   const items = sortItems(
     verdicts.map((verdict) => toInboxItem(verdict, triage)).filter((item) => matchesQuery(item, query)),
     query.sort,
+    weights,
   );
   return {
     items,
