@@ -1,5 +1,7 @@
 //! Ledger events the adapter turns into Sentinel events.
 
+use std::collections::BTreeMap;
+
 use crate::error::AdapterError;
 
 /// Company-scoped bill identity. The absence monitor binds one slice per bill.
@@ -115,6 +117,10 @@ pub enum LedgerKind {
     ///
     /// This opens the per-bill absence interval.
     AgentPayBill,
+    /// A bill memo was read. The semantic panel is stored on this event.
+    BillMemo,
+    /// The agent recorded a decision rationale. Its panel is stored here.
+    AgentDecision,
     /// The exchange settled the bill with its first payment.
     ///
     /// Not a second payment, so it is not the veto.
@@ -146,8 +152,10 @@ pub enum LedgerKind {
 
 impl LedgerKind {
     /// Every kind, in documentation order.
-    pub const ALL: [Self; 9] = [
+    pub const ALL: [Self; 11] = [
         Self::AgentPayBill,
+        Self::BillMemo,
+        Self::AgentDecision,
         Self::ObligationSettled,
         Self::ExtraPayment,
         Self::Credit,
@@ -163,6 +171,8 @@ impl LedgerKind {
     pub const fn event_kind(self) -> &'static str {
         match self {
             Self::AgentPayBill => "ledger.agent.pay_bill",
+            Self::BillMemo => "ledger.agent.memo",
+            Self::AgentDecision => "ledger.agent.decision",
             Self::ObligationSettled => "ledger.exchange.settled",
             Self::ExtraPayment => "ledger.exchange.payment",
             Self::Credit => "ledger.exchange.credit",
@@ -178,7 +188,7 @@ impl LedgerKind {
     #[must_use]
     pub const fn is_exchange(self) -> bool {
         match self {
-            Self::AgentPayBill => false,
+            Self::AgentPayBill | Self::BillMemo | Self::AgentDecision => false,
             Self::ObligationSettled
             | Self::ExtraPayment
             | Self::Credit
@@ -195,6 +205,8 @@ impl LedgerKind {
     pub const fn carries_bill(self) -> bool {
         match self {
             Self::AgentPayBill
+            | Self::BillMemo
+            | Self::AgentDecision
             | Self::ObligationSettled
             | Self::ExtraPayment
             | Self::Credit
@@ -209,6 +221,8 @@ impl LedgerKind {
         match self {
             Self::OrderSubmit | Self::OrderResolved | Self::OrderDeadline => true,
             Self::AgentPayBill
+            | Self::BillMemo
+            | Self::AgentDecision
             | Self::ObligationSettled
             | Self::ExtraPayment
             | Self::Credit
@@ -222,6 +236,8 @@ impl LedgerKind {
     pub const fn role(self) -> &'static str {
         match self {
             Self::AgentPayBill => "payment",
+            Self::BillMemo => "memo",
+            Self::AgentDecision => "decision",
             Self::ObligationSettled => "settlement",
             Self::ExtraPayment => "second-payment",
             Self::Credit => "credit",
@@ -241,6 +257,8 @@ impl LedgerKind {
         }
         match name {
             "agent.pay_bill" => Some(Self::AgentPayBill),
+            "agent.memo" => Some(Self::BillMemo),
+            "agent.decision" => Some(Self::AgentDecision),
             "agent.approve" => Some(Self::Approval),
             "exchange.submit_order" => Some(Self::OrderSubmit),
             "exchange.fill" => Some(Self::OrderResolved),
@@ -263,6 +281,8 @@ pub struct LedgerEvent {
     times: Times,
     predecessors: Vec<String>,
     derived: bool,
+    /// Typed attributes. Panel probabilities and the threshold flag live here.
+    attributes: BTreeMap<String, String>,
 }
 
 impl LedgerEvent {
@@ -386,7 +406,31 @@ impl LedgerEvent {
             times,
             predecessors: causal,
             derived: false,
+            attributes: BTreeMap::new(),
         })
+    }
+
+    /// Stores `value` under `key` when both are non-blank.
+    #[must_use]
+    pub fn with_attribute(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
+        let key = key.into();
+        let value = value.into();
+        if !key.trim().is_empty() && !value.trim().is_empty() {
+            self.attributes.insert(key, value);
+        }
+        self
+    }
+
+    /// Returns a stored attribute.
+    #[must_use]
+    pub fn attribute(&self, key: &str) -> Option<&str> {
+        self.attributes.get(key).map(String::as_str)
+    }
+
+    /// Returns every stored attribute, in key order.
+    #[must_use]
+    pub fn attributes(&self) -> &BTreeMap<String, String> {
+        &self.attributes
     }
 
     /// Changes the kind. The bill or order subject stays.

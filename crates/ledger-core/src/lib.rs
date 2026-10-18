@@ -27,7 +27,8 @@ pub use sentinel_model::{
     VerdictOutcome,
 };
 pub use source::{
-    agent_source, capabilities, event_kind, exchange_source, schema_version, tier_of,
-    AGENT_ATTRIBUTE, BILL_ATTRIBUTE, ORDER_ATTRIBUTE,
+    agent_source, capabilities, event_kind, exchange_source, schema_version, taint_probability_key,
+    tier_of, AGENT_ATTRIBUTE, BILL_ATTRIBUTE, ORDER_ATTRIBUTE, TAINT_INSTRUCTS_ATTRIBUTE, TAINT_NO,
+    TAINT_UNKNOWN, TAINT_YES,
 };
-pub use specs::{SPEC_ABSENCE, SPEC_PRECEDENCE, SPEC_RESPONSE};
+pub use specs::{SPEC_ABSENCE, SPEC_PRECEDENCE, SPEC_RESPONSE, SPEC_TAINT};

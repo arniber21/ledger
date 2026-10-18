@@ -12,6 +12,7 @@ import {
   InboxIcon,
   Mark,
   SearchIcon,
+  SemanticIcon,
   SpecsIcon,
   TracesIcon,
   VerdictsIcon,
@@ -21,6 +22,7 @@ const NAV = [
   { to: "/inbox", label: "Inbox", icon: InboxIcon, testId: "nav-inbox", exact: true },
   { to: "/", label: "Dashboard", icon: DashboardIcon, testId: "nav-dashboard", exact: true },
   { to: "/traces", label: "Traces", icon: TracesIcon, testId: "nav-traces", exact: false },
+  { to: "/taint", label: "Semantic", icon: SemanticIcon, testId: "nav-taint", exact: true },
   { to: "/specs", label: "Specs", icon: SpecsIcon, testId: "nav-specs", exact: false },
   { to: "/verdicts", label: "Verdicts", icon: VerdictsIcon, testId: "nav-verdicts", exact: false },
 ] as const;

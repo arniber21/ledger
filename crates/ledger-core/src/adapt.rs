@@ -245,6 +245,12 @@ fn sentinel_event(
             AttributeValue::String(order.as_str().to_owned()),
         );
     }
+    for (key, value) in event.attributes() {
+        let Ok(attribute) = AttributeKey::new(key.clone()) else {
+            continue;
+        };
+        attributes.insert(attribute, AttributeValue::String(value.clone()));
+    }
     let producer = ProducerEvent::new(
         EventId::new(event.id())?,
         sequence_epoch(),

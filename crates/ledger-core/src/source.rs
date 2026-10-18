@@ -34,6 +34,23 @@ pub const BILL_ATTRIBUTE: &str = "ledger.bill.id";
 pub const ORDER_ATTRIBUTE: &str = "ledger.order.id";
 /// Attribute whose value is the acting agent.
 pub const AGENT_ATTRIBUTE: &str = "ledger.agent.id";
+/// Attribute set in code from the memo panel's payment question.
+///
+/// `yes` means `P(yes)` cleared 0.80. `no` means `P(no)` cleared 0.80.
+/// `unknown` is a timeout, error, contradiction, or a score under both.
+pub const TAINT_INSTRUCTS_ATTRIBUTE: &str = "ledger.taint.instructs_payment";
+/// The memo panel said the text instructs a payment.
+pub const TAINT_YES: &str = "yes";
+/// The memo panel said the text does not instruct a payment.
+pub const TAINT_NO: &str = "no";
+/// The memo panel did not decide. Not a pass.
+pub const TAINT_UNKNOWN: &str = "unknown";
+
+/// Jsonb attribute key for one panel probability.
+#[must_use]
+pub fn taint_probability_key(question_id: &str) -> String {
+    format!("ledger.taint.p.{question_id}")
+}
 /// Sequence epoch for a trace that does not restart numbering.
 pub(crate) const SEQUENCE_EPOCH: u64 = 1;
 /// Filter epoch acknowledged by every adapted event.

@@ -8,6 +8,7 @@ publish.workspace = true
 ledger-agents.workspace = true
 ledger-core.workspace = true
 ledger-ingest.workspace = true
+ledger-jev.workspace = true
 ledger-store.workspace = true
 anyhow.workspace = true
 axum = "0.8"

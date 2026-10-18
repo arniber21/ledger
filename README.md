@@ -38,7 +38,7 @@ Individual tasks, if you want one process in its own terminal:
 ```sh
 just data         # download company-001 into data/
 just db-up        # TimescaleDB on localhost:5433
-just migrate      # events hypertable and verdicts table
+just migrate      # events hypertable, verdicts, inbox, and calibration view
 just validator    # local Solana validator
 just api          # HTTP and SSE on 127.0.0.1:8080
 just agents       # buying desk; optional fault names
@@ -54,7 +54,7 @@ just fault double-pay
 2. **Everything emits a span.** Agents and the exchange are instrumented with OpenTelemetry. The same spans go to Sentry and to our ingest, which normalizes them into events with source and causal links, and stores them in TimescaleDB.
 3. **Specs run continuously.** Policies such as "a bill's approval comes before its payment" run as monitors, one per open bill, evaluated incrementally as events arrive. Each ends as `Satisfy`, `Violate` or `Inconclusive`. Missing evidence is never counted as a pass.
 4. **Jev handles the ambiguous parts.** When code cannot decide, such as whether two bill or vendor references are the same obligation, whether a payment fits a recurring schedule, or whether a memo is instructing a payment, Jev returns a typed judgment that feeds the monitor. Amount, id, and currency checks decide a binding first and skip Jev when they decide. Same bill id and same period decide a duplicate payment before Jev. Weekly rent is not a duplicate. A second payment of the same bill needs review. Only a `Same` judgment merges monitor keys. An uncertain answer yields `Inconclusive` and leaves the keys apart. Exact-match and fuzzy baselines are stored with each Jev call for the verdict detail.
-5. **People review.** Verdicts land in an inbox (board, list or split view) with the evidence, the Solana transaction, and a link to the Sentry trace when `SENTRY_DSN` is set.
+5. **People review.** Verdicts land in an inbox (board, list or split view) with the evidence, the Solana transaction, and a link to the Sentry trace when `SENTRY_DSN` is set. Confirmations and dismissals are counted by Jev score band on the dashboard. Those counts do not move the fixed thresholds. A violate is needs review.
 
 ## Sentinel
 
@@ -104,7 +104,7 @@ ORDER BY bucket, source, kind;
   - Jev (TypeSafe System One): vendor and bill identity, memo predicates, spec-versus-sentence checks, monitor retirement
   - Gemini: drafts specs from plain-English policies
 - **Storage** (`ledger-store`)
-  - TimescaleDB (Postgres 16): events hypertable, `time_bucket` queries
+  - TimescaleDB (Postgres 16): events hypertable, `time_bucket` queries, calibration view over stored review events
   - `sqlx`
 - **API** (`ledger-api`)
   - HTTP and Server-Sent Events at `GET /v1/verdicts/stream`

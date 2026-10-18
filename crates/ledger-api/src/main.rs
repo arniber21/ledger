@@ -28,6 +28,7 @@ async fn run() -> Result<(), ledger_api::ApiError> {
     let server = serve(store, &bind).await?;
     println!("verdicts at http://{}/v1/verdicts/stream", server.addr);
     println!("inbox at http://{}/api/inbox/triage", server.addr);
+    println!("calibration at http://{}/api/calibration", server.addr);
     println!("traces at http://{}/api/traces", server.addr);
     server.wait().await;
     Ok(())
