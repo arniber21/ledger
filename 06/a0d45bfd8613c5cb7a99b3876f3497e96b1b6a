@@ -1,0 +1,38 @@
+crates/ledger-agents/src/cycle.rs
+  s_1233023ebeb990::t_65561da01a950b 25,29-33
+  s_1233023ebeb990::t_446b78aa42c04f 115
+  s_8f90f78730a133::t_216ef51957eedc 87,90,104
+  s_1233023ebeb990::t_78dec87e8f44de 160-202,208-209
+crates/ledger-agents/src/replay.rs
+  s_8f90f78730a133::t_d197822718b54c 41-47,49-53,55-56
+crates/ledger-agents/fixtures/gemini/approve-settled-call.json
+  s_8f90f78730a133::t_82e289ddbdf95d 1-39
+crates/ledger-agents/fixtures/gemini/pay-settled-call.json
+  s_8f90f78730a133::t_34181b7219cb4d 1-39
+crates/ledger-agents/src/control.rs
+  s_8f90f78730a133::t_3a94133cb1e2ea 189,196-202,205-216,220-230
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "06a0d45bfd8613c5cb7a99b3876f3497e96b1b6a",
+  "prompts": {},
+  "sessions": {
+    "s_1233023ebeb990": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "5dd01c3c-7623-4fc3-a1fa-1fd3c8600cbf",
+        "model": "grok-4.7-high-fast"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    },
+    "s_8f90f78730a133": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "fb62e4ca-b46b-4090-b664-f681cecc1aa4",
+        "model": "grok-4.7-high-fast"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    }
+  }
+}
