@@ -1,7 +1,9 @@
 import { createRootRoute, createRoute, createRouter, RouterProvider } from "@tanstack/react-router";
 import { isSavedView } from "./stream/reduce";
 import { Dashboard, parseOutcomeSearch } from "./dashboard/dashboard";
-import { InboxPage, VerdictsPage } from "./pages/places";
+import { InboxPage } from "./inbox/inbox";
+import { parseInboxSearch } from "./inbox/model";
+import { VerdictsPage } from "./pages/places";
 import { SpecsPage } from "./specs/specs";
 import { TracesPage } from "./traces/traces";
 import { Shell } from "./shell/shell";
@@ -26,7 +28,11 @@ const dashboardRoute = createRoute({
 const inboxRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/inbox",
-  component: InboxPage,
+  validateSearch: (search: Record<string, unknown>) => parseInboxSearch(search),
+  component: function InboxRoute() {
+    const search = inboxRoute.useSearch();
+    return <InboxPage search={search} />;
+  },
 });
 
 const tracesRoute = createRoute({

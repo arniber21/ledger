@@ -47,6 +47,10 @@ pub enum StoreError {
     /// A stored outcome was not `Satisfy`, `Violate`, or `Inconclusive`.
     #[error("invalid verdict outcome: {0}")]
     InvalidOutcome(String),
+
+    /// A stored triage status was not New, Reviewing, Confirmed, or Dismissed.
+    #[error("invalid triage status: {0}")]
+    InvalidStatus(String),
 }
 
 /// `Satisfy`, `Violate`, or `Inconclusive`.
@@ -138,6 +142,95 @@ impl TryFrom<VerdictRow> for Verdict {
             spec_id: row.spec_id,
             reason_code: row.reason_code,
             evidence: row.evidence,
+        })
+    }
+}
+
+/// Desk status for one verdict. A missing row means [`TriageStatus::New`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TriageStatus {
+    /// The verdict is waiting for a person.
+    New,
+    /// Someone is looking at the verdict.
+    Reviewing,
+    /// Marked reviewed. This is needs-review work that a person closed.
+    Confirmed,
+    /// Removed from the queue.
+    Dismissed,
+}
+
+impl TriageStatus {
+    /// Returns the label stored in `verdict_triage.status`.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::New => "New",
+            Self::Reviewing => "Reviewing",
+            Self::Confirmed => "Confirmed",
+            Self::Dismissed => "Dismissed",
+        }
+    }
+
+    /// Parses a stored label. `fraud` and `pass` are not statuses.
+    #[must_use]
+    pub fn parse(value: &str) -> Option<Self> {
+        match value {
+            "New" => Some(Self::New),
+            "Reviewing" => Some(Self::Reviewing),
+            "Confirmed" => Some(Self::Confirmed),
+            "Dismissed" => Some(Self::Dismissed),
+            _ => None,
+        }
+    }
+}
+
+/// One stored triage row.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Triage {
+    pub verdict_id: Uuid,
+    pub status: TriageStatus,
+    pub assignee: Option<String>,
+    pub updated_at: DateTime<Utc>,
+    pub updated_by: String,
+}
+
+/// A triage write plus the audit event id.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TriageChange {
+    pub triage: Triage,
+    pub event_id: Uuid,
+}
+
+/// Result of asking the store to record triage.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TriageWrite {
+    /// The verdict exists and the status was written.
+    Stored(TriageChange),
+    /// No verdict has this id, so nothing was written.
+    UnknownVerdict,
+}
+
+#[derive(sqlx::FromRow)]
+struct TriageRow {
+    verdict_id: Uuid,
+    status: String,
+    assignee: Option<String>,
+    updated_at: DateTime<Utc>,
+    updated_by: String,
+}
+
+impl TryFrom<TriageRow> for Triage {
+    type Error = StoreError;
+
+    fn try_from(row: TriageRow) -> Result<Self, Self::Error> {
+        let status = TriageStatus::parse(&row.status)
+            .ok_or_else(|| StoreError::InvalidStatus(row.status))?;
+        Ok(Self {
+            verdict_id: row.verdict_id,
+            status,
+            assignee: row.assignee,
+            updated_at: row.updated_at,
+            updated_by: row.updated_by,
         })
     }
 }
@@ -523,6 +616,103 @@ impl Store {
         .await?;
         rows.into_iter().map(Verdict::try_from).collect()
     }
+
+    /// Writes triage status for a stored verdict and appends a review event.
+    ///
+    /// `UnknownVerdict` means `verdict_id` is not in `verdicts`. No event is
+    /// written in that case. A later call for the same verdict replaces the
+    /// status. The event source is `inbox` and the kind is `verdict.review`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError::Database`] when a query fails.
+    pub async fn record_triage(
+        &self,
+        verdict_id: Uuid,
+        status: TriageStatus,
+        assignee: Option<&str>,
+        actor: &str,
+    ) -> Result<TriageWrite, StoreError> {
+        if self.fetch_verdict(verdict_id).await?.is_none() {
+            return Ok(TriageWrite::UnknownVerdict);
+        }
+        let updated_at = Utc::now();
+        let event_id = Uuid::new_v4();
+        let actor = {
+            let trimmed = actor.trim();
+            if trimmed.is_empty() {
+                "me"
+            } else {
+                trimmed
+            }
+        };
+        let assignee = assignee
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(str::to_owned);
+        let mut tx = self.pool.begin().await?;
+        sqlx::query(
+            "INSERT INTO verdict_triage
+                (verdict_id, status, assignee, updated_at, updated_by)
+             VALUES ($1, $2, $3, $4, $5)
+             ON CONFLICT (verdict_id) DO UPDATE
+             SET status = EXCLUDED.status,
+                 assignee = EXCLUDED.assignee,
+                 updated_at = EXCLUDED.updated_at,
+                 updated_by = EXCLUDED.updated_by",
+        )
+        .bind(verdict_id)
+        .bind(status.as_str())
+        .bind(assignee.as_deref())
+        .bind(updated_at)
+        .bind(actor)
+        .execute(&mut *tx)
+        .await?;
+        let payload = serde_json::json!({
+            "verdict_id": verdict_id.to_string(),
+            "status": status.as_str(),
+            "assignee": assignee,
+            "actor": actor,
+        });
+        sqlx::query(
+            "INSERT INTO events (id, observed_at, source, kind, data_class, payload)
+             VALUES ($1, $2, 'inbox', 'verdict.review', 'tenant', $3)",
+        )
+        .bind(event_id)
+        .bind(updated_at)
+        .bind(&payload)
+        .execute(&mut *tx)
+        .await?;
+        tx.commit().await?;
+        Ok(TriageWrite::Stored(TriageChange {
+            triage: Triage {
+                verdict_id,
+                status,
+                assignee,
+                updated_at,
+                updated_by: actor.to_owned(),
+            },
+            event_id,
+        }))
+    }
+
+    /// Reads triage rows, newest update first.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError::Database`] when the query fails, or
+    /// [`StoreError::InvalidStatus`] when a stored label is not a known status.
+    pub async fn list_triage(&self) -> Result<Vec<Triage>, StoreError> {
+        let rows = sqlx::query_as::<_, TriageRow>(
+            "SELECT verdict_id, status, assignee, updated_at, updated_by
+             FROM verdict_triage
+             ORDER BY updated_at DESC, verdict_id ASC
+             LIMIT 1000",
+        )
+        .fetch_all(&self.pool)
+        .await?;
+        rows.into_iter().map(Triage::try_from).collect()
+    }
 }
 
 /// Last hypertable row already delivered to a reader.
@@ -833,7 +1023,9 @@ mod tests {
     #[tokio::test]
     async fn recent_events_and_events_after_follow_the_primary_key() {
         let store = test_store().await;
-        let base = DateTime::from_timestamp(4_100_000_000, 0).expect("future timestamp");
+        // Repeated runs share one database. A fixed future timestamp fills the
+        // newest page, so this run sits ahead of rows already stored.
+        let base = Utc::now() + chrono::Duration::days(80_000);
         let mut inserted = Vec::new();
         for offset in 0..3 {
             let event = Event {
@@ -877,5 +1069,90 @@ mod tests {
             .find(|event| event.id == inserted[1].id)
             .expect("second event");
         assert_eq!(second.payload["span"], "exchange.settle");
+    }
+
+    #[test]
+    fn triage_status_rejects_labels_outside_the_desk() {
+        assert!(TriageStatus::parse("fraud").is_none());
+        assert!(TriageStatus::parse("Fraud").is_none());
+        assert!(TriageStatus::parse("pass").is_none());
+        assert_eq!(TriageStatus::parse("New"), Some(TriageStatus::New));
+        assert_eq!(
+            TriageStatus::parse("Reviewing"),
+            Some(TriageStatus::Reviewing)
+        );
+        assert_eq!(
+            TriageStatus::parse("Confirmed"),
+            Some(TriageStatus::Confirmed)
+        );
+        assert_eq!(
+            TriageStatus::parse("Dismissed"),
+            Some(TriageStatus::Dismissed)
+        );
+        assert_eq!(TriageStatus::Confirmed.as_str(), "Confirmed");
+    }
+
+    #[tokio::test]
+    async fn triage_status_is_stored_and_emits_a_review_event() {
+        let store = test_store().await;
+        let verdict = Verdict {
+            id: Uuid::new_v4(),
+            recorded_at: timestamp(),
+            outcome: VerdictOutcome::Violate,
+            spec_id: "no-second-payment".to_owned(),
+            reason_code: Some("second-payment".to_owned()),
+            evidence: serde_json::json!([{"role": "second-payment"}]),
+        };
+        store
+            .insert_verdict(&verdict)
+            .await
+            .expect("insert verdict");
+
+        let unknown = store
+            .record_triage(Uuid::new_v4(), TriageStatus::Dismissed, None, "me")
+            .await
+            .expect("unknown verdict");
+        assert!(matches!(unknown, TriageWrite::UnknownVerdict));
+
+        let stored = store
+            .record_triage(verdict.id, TriageStatus::Confirmed, Some("me"), "me")
+            .await
+            .expect("record triage");
+        let TriageWrite::Stored(change) = stored else {
+            panic!("verdict should be stored");
+        };
+        assert_eq!(change.triage.status, TriageStatus::Confirmed);
+        assert_eq!(change.triage.assignee.as_deref(), Some("me"));
+        assert_eq!(change.triage.updated_by, "me");
+
+        let event = store
+            .fetch_event(change.event_id)
+            .await
+            .expect("fetch review event")
+            .expect("review event");
+        assert_eq!(event.source, "inbox");
+        assert_eq!(event.kind, "verdict.review");
+        assert_eq!(event.data_class, "tenant");
+        assert_eq!(event.payload["verdict_id"], verdict.id.to_string());
+        assert_eq!(event.payload["status"], "Confirmed");
+        assert_eq!(event.payload["actor"], "me");
+        assert_eq!(event.payload["assignee"], "me");
+
+        let again = store
+            .record_triage(verdict.id, TriageStatus::Dismissed, None, "me")
+            .await
+            .expect("replace triage");
+        let TriageWrite::Stored(replaced) = again else {
+            panic!("replacement should be stored");
+        };
+        assert_eq!(replaced.triage.status, TriageStatus::Dismissed);
+        assert!(replaced.triage.assignee.is_none());
+
+        let listed = store.list_triage().await.expect("list triage");
+        let row = listed
+            .iter()
+            .find(|item| item.verdict_id == verdict.id)
+            .expect("listed row");
+        assert_eq!(row.status, TriageStatus::Dismissed);
     }
 }

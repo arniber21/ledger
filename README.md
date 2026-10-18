@@ -34,7 +34,7 @@ just demo         # agents, API and UI together
 just ui           # web UI alone, on port 5173
 ```
 
-The dashboard stays empty until the verdict stream is connected. Set `VITE_SENTINEL_SSE` to that stream's URL when the API is serving it.
+The dev server proxies `GET /v1/verdicts/stream`. Metrics and the inbox stay empty until that stream sends verdicts. Set `VITE_SENTINEL_SSE` to use a different stream URL.
 
 Other tasks: `just check`, `just test`, `just lint`, `just fmt`. Run `just` to list everything. `just test` includes a database round-trip and needs `just db-up` first.
 

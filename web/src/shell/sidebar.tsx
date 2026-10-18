@@ -1,5 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
+import { countNeedsReview, countSavedInbox, savedInboxSearch } from "../inbox/model";
+import { useTriage } from "../inbox/use-triage";
 import { useSpecRuns } from "../specs/runs";
 import { attentionCount, countSavedView } from "../stream/reduce";
 import { SAVED_VIEWS, type SavedView } from "../stream/types";
@@ -27,13 +29,12 @@ export function Sidebar() {
   const { metrics, openPalette, reviewed, savedView } = useShell();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const search = useRouterState({ select: (state) => state.location.search });
+  const triage = useTriage();
   const onSpecs = pathname === "/specs";
+  const onInbox = pathname === "/inbox";
   const armed = useSpecRuns().filter((run) => run.status === "armed");
   const specParam = specFromSearch(search);
-  const attention = metrics.verdicts.filter(
-    (verdict) =>
-      (verdict.outcome === "Violate" || verdict.outcome === "Inconclusive") && !reviewed.has(verdict.id),
-  ).length;
+  const attention = countNeedsReview(metrics.verdicts, triage, reviewed);
   const verdictCount = attentionCount(metrics.verdicts);
   const [workspaceOpen, setWorkspaceOpen] = useState(false);
   const workspaceRef = useRef<HTMLDivElement>(null);
@@ -125,19 +126,68 @@ export function Sidebar() {
       ) : (
         <section className="saved" aria-label="Saved views">
           <h2>Saved views</h2>
-          {SAVED_VIEWS.map((view) => (
-            <SavedLink key={view.id} id={view.id} label={view.label} active={savedView === view.id} count={countSavedView(metrics.verdicts, view.id)} />
-          ))}
+          {SAVED_VIEWS.map((view) =>
+            onInbox ? (
+              <InboxSavedLink
+                key={view.id}
+                id={view.id}
+                label={view.label}
+                active={savedFromSearch(search) === view.id}
+                count={countSavedInbox(metrics.verdicts, triage, view.id)}
+              />
+            ) : (
+              <SavedLink
+                key={view.id}
+                id={view.id}
+                label={view.label}
+                active={savedView === view.id}
+                count={countSavedView(metrics.verdicts, view.id)}
+              />
+            ),
+          )}
         </section>
       )}
     </aside>
   );
 }
 
+function savedFromSearch(search: object): SavedView | undefined {
+  if (!("saved" in search)) return undefined;
+  const value = (search as { saved: unknown }).saved;
+  if (value === "assigned" || value === "violations" || value === "unknowns" || value === "over-1000") return value;
+  return undefined;
+}
+
 function specFromSearch(search: object): string | undefined {
   if (!("spec" in search)) return undefined;
   const value = (search as { spec: unknown }).spec;
   return typeof value === "string" ? value : undefined;
+}
+
+function InboxSavedLink({
+  id,
+  label,
+  active,
+  count,
+}: {
+  id: SavedView;
+  label: string;
+  active: boolean;
+  count: number;
+}) {
+  return (
+    <Link
+      to="/inbox"
+      search={active ? {} : savedInboxSearch(id)}
+      className={active ? "saved-item is-active" : "saved-item"}
+      data-testid={`saved-${id}`}
+      aria-current={active ? "page" : undefined}
+    >
+      <span className={`swatch swatch-${id}`} />
+      <span>{label}</span>
+      <span className="nav-count">{count}</span>
+    </Link>
+  );
 }
 
 function SavedLink({
