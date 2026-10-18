@@ -1,0 +1,102 @@
+web/src/styles.css
+  s_ed426367f311a9::t_90c9db637f5c5a 1310-1450,1458-1520
+  s_ed426367f311a9::t_3e0492c6eea419 1451-1457
+  s_ed426367f311a9::t_4185b6286bb6f0 1031
+web/src/inbox/use-triage.ts
+  s_ed426367f311a9::t_69de50e5f3c3ea 1-75
+crates/ledger-api/src/http.rs
+  s_ed426367f311a9::t_fc53a826856b07 99-103
+crates/ledger-store/migrations/0002_inbox_triage.sql
+  s_ed426367f311a9::t_f158ae827e14c2 1-14
+web/src/inbox/model.ts
+  s_ed426367f311a9::t_b8b1e8683a23ee 1-130,133-150,155-267,277-469
+  s_ed426367f311a9::t_06a102689be181 151-154
+  s_ed426367f311a9::t_09cdb8ec200ba6 131-132
+  s_ed426367f311a9::t_948e6138b13fdc 268-276
+web/src/stream/types.ts
+  s_ed426367f311a9::t_d6407c2accc513 17-25,38-39
+  s_ed426367f311a9::t_5f4e7ea00580fe 122-123
+web/src/inbox/inbox.tsx
+  s_ed426367f311a9::t_b412b223c039da 34
+  s_ed426367f311a9::t_45b1abfce5d27e 711
+  s_ed426367f311a9::t_a145440815e066 438-439
+  s_ed426367f311a9::t_6d81b38a79c52d 140
+  s_ed426367f311a9::t_b85a18f614605c 107-111
+  s_ed426367f311a9::t_649467d98362bd 30
+  s_ed426367f311a9::t_4aafca3c6596e8 665,674,689-690
+  s_ed426367f311a9::t_55813c1015604d 1-9,11-29,31-33,35-106,112-139,141-327,329-437,440-664,666-673,675-688,691-699,701-710,712-765,767-892
+  s_ed426367f311a9::t_0b5ac4a7d01b5e 328
+  s_ed426367f311a9::t_ee4fc6d29306ea 10
+  s_ed426367f311a9::t_36cd15032f5f55 700
+  s_ed426367f311a9::t_b3d9948de82d2f 766
+web/src/router.tsx
+  s_ed426367f311a9::t_a5f305dfdb0e90 31-35
+  s_ed426367f311a9::t_87fff34330ae7e 4-6
+web/src/stream/reduce.ts
+  s_ed426367f311a9::t_6f72a5ec965e73 8
+  s_ed426367f311a9::t_4783c2228d07e7 87-88,92-107
+  s_ed426367f311a9::t_90af4b3c8d8b85 230,232-235,237-240
+  s_ed426367f311a9::t_7bba2dfb84d21f 108-109
+web/src/inbox/bridge.ts
+  s_ed426367f311a9::t_f94f3d6de0cd7b 1-10
+web/src/inbox/model.test.ts
+  s_ed426367f311a9::t_b5054600550f15 1-170
+crates/ledger-api/src/inbox.rs
+  s_ed426367f311a9::t_5fcf49e5e1b578 1-6,8-65
+  s_ed426367f311a9::t_9cb43b1d273293 7
+web/src/stream/use-metrics.ts
+  s_ed426367f311a9::t_eb91c6dfb5d586 25
+web/src/shell/shell.tsx
+  s_ed426367f311a9::t_6b1de7eef90622 4
+  s_ed426367f311a9::t_9731b46029b625 3
+  s_ed426367f311a9::t_8820af04613553 85-95
+  s_ed426367f311a9::t_469107a7a8320d 141-142,145-146,148-168,172-174
+  s_ed426367f311a9::t_a913368cc98d1a 144
+  s_ed426367f311a9::t_b7b63355caca78 131
+  s_ed426367f311a9::t_ffb42818e4f1f5 179
+  s_ed426367f311a9::t_3afc75b5694bee 147
+crates/ledger-api/src/main.rs
+  s_ed426367f311a9::t_92f280bbe35b3b 30
+README.md
+  s_ed426367f311a9::t_1d85b916b8a69c 37
+crates/ledger-store/src/lib.rs
+  s_ed426367f311a9::t_0baf3c401879d5 50-53
+  s_ed426367f311a9::t_9b5cf36bcea674 149-237
+  s_ed426367f311a9::t_de887ed7a7de76 1026-1028
+  s_ed426367f311a9::t_28155cacabf575 1073-1157
+  s_ed426367f311a9::t_7837120f4e987c 619-715
+web/src/stream/reduce.test.ts
+  s_ed426367f311a9::t_f48d125d246437 141-165
+web/src/pages/places.tsx
+  s_ed426367f311a9::t_287f00dc141bd3 4
+web/src/shell/shortcuts.tsx
+  s_ed426367f311a9::t_c04788e157e0a4 13-15
+  s_ed426367f311a9::t_bee210890ba1ae 6
+web/vite.config.ts
+  s_ed426367f311a9::t_d0267e02312792 10
+crates/ledger-api/src/lib.rs
+  s_ed426367f311a9::t_3ceed982040063 25,31
+web/src/shell/sidebar.tsx
+  s_ed426367f311a9::t_4364f0d3e648b8 32,34
+  s_ed426367f311a9::t_b5ca2cab5b2703 167-192
+  s_ed426367f311a9::t_a30c923f92d268 129-147
+  s_ed426367f311a9::t_5b4c746a27b65d 154-160
+  s_ed426367f311a9::t_c0b5d3cc4d35c3 3-4
+  s_ed426367f311a9::t_11af56a5f694b0 37
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "353a20232302130aba1ce5f94322caed1717544c",
+  "prompts": {},
+  "sessions": {
+    "s_ed426367f311a9": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "87a683b4-2590-4932-a549-a9f26ba4a6d1",
+        "model": "grok-4.7-high-fast"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    }
+  }
+}
