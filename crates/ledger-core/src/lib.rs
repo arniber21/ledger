@@ -21,3 +21,7 @@ pub use sentinel_model::{
     DataClass, InconclusiveReason, Integrity, SourceCapability, SourceTier, VerdictAuthority,
     VerdictOutcome,
 };
+pub use source::{
+    agent_source, capabilities, event_kind, exchange_source, schema_version, tier_of,
+    AGENT_ATTRIBUTE, BILL_ATTRIBUTE,
+};

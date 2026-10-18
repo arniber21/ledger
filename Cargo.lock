@@ -748,6 +748,11 @@ version = "0.1.0"
 dependencies = [
  "ledger-core",
  "ledger-jev",
+ "sentinel-compile",
+ "sentinel-core",
+ "sentinel-model",
+ "serde_json",
+ "thiserror",
 ]
 
 [[package]]
