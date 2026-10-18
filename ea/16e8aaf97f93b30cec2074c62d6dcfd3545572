@@ -1,0 +1,80 @@
+web/src/specs/reduce.ts
+  s_6169b3fefd8472::t_85ff3ef1639dbd 387-390
+  s_6169b3fefd8472::t_a4e3b12e822612 6
+  s_6169b3fefd8472::t_4d7395c79dc762 61-63
+  s_6169b3fefd8472::t_eb355c3ce94d75 55
+  s_6169b3fefd8472::t_c111ed34bae004 117-136,139-140
+  s_6169b3fefd8472::t_c7cb7b0e374b69 92-93,95-97
+  s_6169b3fefd8472::t_7f638059fef195 205-206,208-210
+  s_6169b3fefd8472::t_2c14ebf3e5628f 239-257,269
+  s_6169b3fefd8472::t_18e847fa6d486e 320-324,327-332,334-335
+  s_6169b3fefd8472::t_28e82ec5d3ad59 137-138
+  s_6169b3fefd8472::t_3bf158ad2ce8f3 12-16
+  s_6169b3fefd8472::t_557d32e44fa42e 373-378
+web/src/specs/types.ts
+  s_6169b3fefd8472::t_fe1a58c34168e3 63-65
+  s_6169b3fefd8472::t_2611fb53dc0f38 5-8
+  s_6169b3fefd8472::t_ef75740f272f22 18-20,26-27
+  s_6169b3fefd8472::t_7c265e8a534941 35-37
+web/src/specs/stream.ts
+  s_6169b3fefd8472::t_8f065892d44565 7-9
+  s_6169b3fefd8472::t_b03c1b8c579f32 23
+  s_6169b3fefd8472::t_2c9060bf4252ed 38
+crates/ledger-spec/src/lib.rs
+  s_6169b3fefd8472::t_00714e29108350 6-10,14,21-24
+web/src/styles.css
+  s_6169b3fefd8472::t_549bb8f7fc7233 879,886
+web/src/specs/specs.tsx
+  s_6169b3fefd8472::t_9116af593c73dc 456-457
+  s_6169b3fefd8472::t_aa2a098835c2ba 116
+  s_6169b3fefd8472::t_eb1b21c8cfe80c 14-15
+  s_6169b3fefd8472::t_52ad2defe8eafc 128-141
+  s_6169b3fefd8472::t_a72b4ce60994bf 183-192
+  s_6169b3fefd8472::t_835db20953eaff 210
+  s_6169b3fefd8472::t_0ec93087ae5c86 278-288,291-292
+  s_6169b3fefd8472::t_f6a018331b3567 432-437
+  s_6169b3fefd8472::t_da101d6b3d529f 117-119,125-127
+  s_6169b3fefd8472::t_c356522cc25ded 120-124
+web/src/specs/reduce.test.ts
+  s_6169b3fefd8472::t_241b566fd1bc35 144-241
+  s_6169b3fefd8472::t_194d60903d4502 7,14
+crates/ledger-spec/src/author.rs
+  s_6169b3fefd8472::t_d37913568bcd89 81,86-91,95-101
+  s_6169b3fefd8472::t_3194f729794be7 4-6,16-19
+  s_6169b3fefd8472::t_a658439a4ccf52 174-180,182-186
+  s_6169b3fefd8472::t_5d3f96f91a9675 218-237,240-247,252,279-283,285-296,298,304-317
+  s_6169b3fefd8472::t_5bf06863462001 67,71-72
+  s_6169b3fefd8472::t_dcf0821b032051 156-162
+  s_6169b3fefd8472::t_8fc21f3f270db0 51,53-60
+  s_6169b3fefd8472::t_5b0a8cf398104d 139
+  s_6169b3fefd8472::t_6f464c9d244d76 188,318-320
+crates/ledger-spec/src/clause.rs
+  s_6169b3fefd8472::t_16f1ce6d2c3e9e 1-294
+crates/ledger-spec/tests/authoring.rs
+  s_6169b3fefd8472::t_4bc3a8d58f2ce0 122-123,127-163
+  s_6169b3fefd8472::t_5e94529e4b162a 191
+  s_6169b3fefd8472::t_0b6280a381a7bc 434-435
+  s_6169b3fefd8472::t_754b314b3887ed 8-10
+  s_6169b3fefd8472::t_9bba9cb09bed76 164,193-195,436-437,447-601
+  s_6169b3fefd8472::t_63c2844ab3632e 202-203,205
+  s_6169b3fefd8472::t_04f21e258dd7c9 333-334
+  s_6169b3fefd8472::t_afe7afe936c11e 318-319
+  s_6169b3fefd8472::t_56b11977242f80 352-353
+  s_6169b3fefd8472::t_68ced6162cd06e 165,192,438,602-606
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ea16e8aaf97f93b30cec2074c62d6dcfd3545572",
+  "prompts": {},
+  "sessions": {
+    "s_6169b3fefd8472": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "76f203fc-4d2a-4ac1-8f74-580796f9dcc0",
+        "model": "grok-4.7-high-fast"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    }
+  }
+}
