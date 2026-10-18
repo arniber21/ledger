@@ -12,6 +12,7 @@ use serde_json::Value;
 
 use crate::desk::{ApproveOutcome, Desk, PayOutcome};
 use crate::error::AgentError;
+use crate::predicate::fetch_memo_predicate;
 
 const BILL_PARAMETERS: &str = r#"{
   "type": "object",
@@ -120,7 +121,7 @@ impl Tool for PayBill {
     type Error = AgentError;
 
     fn description(&self) -> String {
-        "Pay one bill. A fault that changes the payment returns status \"needs review\". An unreadable memo returns status \"inconclusive\" and does not pay.".to_owned()
+        "Pay one bill. A fault that changes the payment returns status \"needs review\". An unreadable memo, or a memo predicate that is unknown, returns status \"inconclusive\" and does not pay.".to_owned()
     }
 
     fn parameters(&self) -> Value {
@@ -133,7 +134,13 @@ impl Tool for PayBill {
         args: Self::Args,
     ) -> impl Future<Output = Result<Self::Output, Self::Error>> + Send {
         let desk = self.desk.clone();
-        async move { Ok(reply_payment(desk.pay_bill(&args.bill_id))) }
+        async move {
+            if let Some(memo) = desk.memo_awaiting_predicate(&args.bill_id) {
+                let exchange = fetch_memo_predicate(&memo).await;
+                desk.store_memo_predicate(memo, exchange);
+            }
+            Ok(reply_payment(desk.pay_bill(&args.bill_id)))
+        }
     }
 }
 

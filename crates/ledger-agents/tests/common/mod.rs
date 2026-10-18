@@ -222,6 +222,13 @@ pub fn load_fixture(name: &str) -> CompanyBooks {
     load_company(&path).unwrap_or_else(|err| panic!("fixture {name}: {err}"))
 }
 
+pub fn memo_fixture(name: &str) -> String {
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../fixtures/jev")
+        .join(name);
+    std::fs::read_to_string(&path).unwrap_or_else(|err| panic!("{}: {err}", path.display()))
+}
+
 pub fn fixture_desk(faults: FaultConfig) -> Desk {
     Desk::new(load_fixture("company-fixture"), money("150.00"), faults).expect("desk")
 }

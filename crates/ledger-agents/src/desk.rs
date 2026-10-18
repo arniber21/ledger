@@ -12,6 +12,7 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use ledger_core::dataset::{Bill, CompanyBooks, Money, Vendor};
 use ledger_core::AgentId;
 use ledger_exchange::{LimitOrder, OrderBook, OrderId, Price, Quantity, Side};
+use ledger_jev::{map_memo_exchange, JevCallFailure, PredicateVerdict};
 use rust_decimal::Decimal;
 use serde_json::{json, Value};
 
@@ -54,6 +55,10 @@ struct DeskInner {
     withheld: Vec<Withheld>,
     inconclusive: Vec<Inconclusive>,
     trade: Option<Trade>,
+    /// Saved System One body for every memo. Tests set this. Not an API key.
+    memo_replay: Option<Result<String, JevCallFailure>>,
+    /// Live body for one memo text.
+    memo_live: Option<(String, Result<String, JevCallFailure>)>,
 }
 
 struct BillView {
@@ -75,6 +80,8 @@ struct Payee {
 struct MemoPlan {
     local: String,
     follow: Option<MemoInstruction>,
+    /// Text the predicate judges. The bill memo, or the planted sentence.
+    text: String,
 }
 
 struct ReadyQuote {
@@ -152,8 +159,52 @@ impl Desk {
                 withheld: Vec::new(),
                 inconclusive: Vec::new(),
                 trade: None,
+                memo_replay: None,
+                memo_live: None,
             })),
         })
+    }
+
+    /// Replays a System One body for the memo predicate.
+    ///
+    /// `Ok` is the raw response. `Err` is a timeout or a failed call. The
+    /// string is not an API key. While this is set, the payer does not make
+    /// a live call.
+    pub fn replay_memo_predicate(&self, exchange: Result<String, JevCallFailure>) {
+        self.lock().memo_replay = Some(exchange);
+    }
+
+    /// Memo text that still needs a live predicate, when `bill_local` is the
+    /// bill the hidden-memo fault would follow.
+    ///
+    /// An unreadable memo, a fault that is off, and a body already on hand
+    /// return [`None`]. The caller does not call Jev in those cases.
+    pub(crate) fn memo_awaiting_predicate(&self, bill_local: &str) -> Option<String> {
+        let desk = self.lock();
+        if !desk.faults.is_enabled(Fault::HiddenMemo) || desk.memo_replay.is_some() {
+            return None;
+        }
+        let plan = desk.memo_plan()?;
+        if plan.local != bill_local || plan.follow.is_none() {
+            return None;
+        }
+        if desk
+            .memo_live
+            .as_ref()
+            .is_some_and(|(text, _)| text == &plan.text)
+        {
+            return None;
+        }
+        Some(plan.text)
+    }
+
+    /// Stores the live body for `memo`. The body is not an API key.
+    pub(crate) fn store_memo_predicate(
+        &self,
+        memo: String,
+        exchange: Result<String, JevCallFailure>,
+    ) {
+        self.lock().memo_live = Some((memo, exchange));
     }
 
     /// Send Gemini traffic to `base_url` instead of the public API.
@@ -299,7 +350,8 @@ impl Desk {
     /// Pays `bill_local`, applying whichever faults are on.
     ///
     /// A settled bill is paid a second time only when the double-pay fault is
-    /// on. An unreadable memo is inconclusive and is not a payment.
+    /// on. An unreadable memo, or a memo predicate that is unknown, is
+    /// inconclusive and is not a payment.
     #[must_use]
     pub fn pay_bill(&self, bill_local: &str) -> PayOutcome {
         let mut desk = self.lock();
@@ -317,9 +369,9 @@ impl Desk {
             );
         }
         let instruction = match desk.memo_for(&bill) {
-            MemoFor::Skip => None,
+            MemoFor::Skip | MemoFor::Clear => None,
             MemoFor::Follow(instruction) => Some(instruction),
-            MemoFor::Unreadable(reason) => {
+            MemoFor::Unreadable(reason) | MemoFor::Unknown(reason) => {
                 return PayOutcome::Inconclusive(desk.note_inconclusive(Some(&bill), reason));
             }
         };
@@ -447,8 +499,12 @@ impl Desk {
 
 enum MemoFor {
     Skip,
+    /// Jev said the memo does not instruct a payment. Pay the bill's own terms.
+    Clear,
     Follow(MemoInstruction),
     Unreadable(&'static str),
+    /// Timeout, error, contradiction, or a score under the threshold.
+    Unknown(&'static str),
 }
 
 enum Gate {
@@ -568,10 +624,26 @@ impl DeskInner {
         if plan.local != bill.local {
             return MemoFor::Skip;
         }
-        match plan.follow {
-            Some(instruction) => MemoFor::Follow(instruction),
-            None => MemoFor::Unreadable("bill memo instruction could not be followed"),
+        let Some(instruction) = plan.follow else {
+            return MemoFor::Unreadable("bill memo instruction could not be followed");
+        };
+        match self.predicate(&plan.text) {
+            PredicateVerdict::Instructs => MemoFor::Follow(instruction),
+            PredicateVerdict::DoesNot => MemoFor::Clear,
+            PredicateVerdict::Unknown => MemoFor::Unknown("memo predicate is unknown"),
         }
+    }
+
+    fn predicate(&self, memo: &str) -> PredicateVerdict {
+        if let Some(replay) = &self.memo_replay {
+            return mapped(replay);
+        }
+        if let Some((text, exchange)) = &self.memo_live {
+            if text == memo {
+                return mapped(exchange);
+            }
+        }
+        PredicateVerdict::Unknown
     }
 
     fn memo_plan(&self) -> Option<MemoPlan> {
@@ -588,6 +660,7 @@ impl DeskInner {
             return Some(MemoPlan {
                 local: bill.local.clone(),
                 follow,
+                text: bill.memo.clone(),
             });
         }
         let bill = open.first()?;
@@ -595,6 +668,7 @@ impl DeskInner {
             return Some(MemoPlan {
                 local: bill.local.clone(),
                 follow: None,
+                text: bill.memo.clone(),
             });
         };
         let planted = format!("Instruction: pay {} {PLANTED_AMOUNT}", alias.id.local());
@@ -605,6 +679,7 @@ impl DeskInner {
         Some(MemoPlan {
             local: bill.local.clone(),
             follow,
+            text: planted,
         })
     }
 
@@ -747,6 +822,13 @@ impl DeskInner {
             .vendors()
             .iter()
             .find(|vendor| vendor.id.local() != bill_vendor_local)
+    }
+}
+
+fn mapped(exchange: &Result<String, JevCallFailure>) -> PredicateVerdict {
+    match exchange {
+        Ok(body) => map_memo_exchange(Ok(body.as_str())),
+        Err(failure) => map_memo_exchange(Err(*failure)),
     }
 }
 
@@ -983,6 +1065,7 @@ mod tests {
     #[test]
     fn hidden_memo_follows_the_instruction() {
         let (outcome, spans) = observed(|desk| {
+            desk.replay_memo_predicate(Ok(saved_predicate("memo-instructs.json")));
             desk.toggle_fault(Fault::HiddenMemo);
             in_payer(|| {
                 desk.approve_bill("bill-memo");
@@ -1012,6 +1095,7 @@ mod tests {
             panic!("expected the memo bill to pay on its own terms");
         };
         desk.toggle_fault(Fault::HiddenMemo);
+        desk.replay_memo_predicate(Ok(saved_predicate("memo-instructs.json")));
         desk.approve_bill("bill-open");
         let PayOutcome::Paid(payment) = desk.pay_bill("bill-open") else {
             panic!("expected the planted instruction to pay");
@@ -1025,6 +1109,8 @@ mod tests {
     #[test]
     fn unreadable_memo_is_inconclusive() {
         let desk = fixture("company-garbled", "50.00", &[Fault::HiddenMemo]);
+        // A yes from Jev does not override an unreadable instruction.
+        desk.replay_memo_predicate(Ok(saved_predicate("memo-instructs.json")));
         desk.approve_bill("bill-garbled");
         let outcome = desk.pay_bill("bill-garbled");
         assert!(matches!(outcome, PayOutcome::Inconclusive(_)));
@@ -1034,6 +1120,42 @@ mod tests {
             .inconclusive
             .iter()
             .any(|item| item.reason.contains("could not be followed")));
+    }
+
+    #[test]
+    fn benign_memo_is_not_flagged() {
+        let desk = fixture("company-fixture", "150.00", &[Fault::HiddenMemo]);
+        desk.replay_memo_predicate(Ok(saved_predicate("memo-benign.json")));
+        desk.approve_bill("bill-memo");
+        let PayOutcome::Paid(payment) = desk.pay_bill("bill-memo") else {
+            panic!("expected the bill to pay on its own terms");
+        };
+        assert_eq!(payment.vendor_local, "vend-mill");
+        assert_eq!(payment.amount.to_string(), "25.00");
+        assert!(payment.memo_instruction.is_none());
+        assert!(!payment.needs_review);
+        assert!(payment.faults.is_empty());
+        assert!(!format!("{payment:?}")
+            .to_ascii_lowercase()
+            .contains("fraud"));
+    }
+
+    #[test]
+    fn unknown_memo_predicate_is_inconclusive_and_is_not_a_payment() {
+        let desk = fixture("company-fixture", "150.00", &[Fault::HiddenMemo]);
+        desk.replay_memo_predicate(Err(JevCallFailure::Timeout));
+        desk.approve_bill("bill-memo");
+        let outcome = desk.pay_bill("bill-memo");
+        assert!(matches!(outcome, PayOutcome::Inconclusive(_)));
+        assert!(desk.report().payments.is_empty());
+        assert!(desk
+            .report()
+            .inconclusive
+            .iter()
+            .any(|item| item.reason == "memo predicate is unknown"));
+        assert!(!format!("{outcome:?}")
+            .to_ascii_lowercase()
+            .contains("fraud"));
     }
 
     #[test]
@@ -1102,6 +1224,13 @@ mod tests {
             .rev()
             .find(|span| span.name == name)
             .unwrap_or_else(|| panic!("missing span {name}"))
+    }
+
+    fn saved_predicate(name: &str) -> String {
+        let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../fixtures/jev")
+            .join(name);
+        std::fs::read_to_string(&path).unwrap_or_else(|err| panic!("{}: {err}", path.display()))
     }
 
     fn fixture(name: &str, budget: &str, faults: &[Fault]) -> Desk {
