@@ -7,6 +7,7 @@
 mod adapt;
 mod error;
 mod event;
+mod gc;
 mod judge;
 mod live;
 mod source;
@@ -17,6 +18,7 @@ pub mod dataset;
 pub use adapt::{adapt_trace, AdaptedTrace, TraceCursor, WithheldSource};
 pub use error::AdapterError;
 pub use event::{AgentId, BillId, LedgerEvent, LedgerKind, OrderEnd, OrderId, Times};
+pub use gc::{CloseJudgment, Decision, MonitorDesk, OpenBill};
 pub use judge::judge_bill_absence;
 pub use live::{Judged, Session, TimelineEntry, RESPONSE_DEADLINE_TICKS};
 pub use sentinel_core::verdict::BindingVerdict;
