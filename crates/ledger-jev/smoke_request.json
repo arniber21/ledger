@@ -1,0 +1,37 @@
+{
+  "state": {
+    "left": {
+      "vendor_name": "Acme Industrial Supply",
+      "invoice_number": "INV-1044",
+      "amount": "1250.00",
+      "currency": "USD",
+      "memo": "Net-30 parts order for the March plant shutdown"
+    },
+    "right": {
+      "vendor_name": "Acme Ind. Supply",
+      "invoice_number": "1044",
+      "amount": "1250.00",
+      "currency": "USD",
+      "memo": "Parts for March shutdown, terms net 30"
+    }
+  },
+  "model": "jev-latest",
+  "questions": {
+    "same_obligation": {
+      "type": "choice",
+      "instructions": "Are `left` and `right` the same obligation (one bill the company owes), or two different obligations?",
+      "criteria": {
+        "same": {
+          "what": "Both records refer to one obligation.",
+          "still_same": "Abbreviation, invoice punctuation, or memo wording can differ when vendor, amount, currency, and invoice identity still match.",
+          "not_for": "Do not pick this when vendor, amount, currency, or invoice identity disagrees."
+        },
+        "different": {
+          "what": "The records are two obligations.",
+          "still_different": "A different vendor, amount, currency, or invoice identity means they are not the same bill.",
+          "not_for": "Do not pick this for abbreviation or memo wording alone."
+        }
+      }
+    }
+  }
+}
