@@ -124,6 +124,11 @@ fn kind_gloss(kind: LedgerKind) -> &'static str {
             "the exchange records another payment on an already settled bill"
         }
         LedgerKind::Credit => "the exchange records a credit that closes the bill",
+        LedgerKind::Approval => "an approver records an approval for the bill",
+        LedgerKind::OrderSubmit => "the exchange accepts an order",
+        LedgerKind::OrderResolved => "the exchange fills or cancels an order",
+        LedgerKind::OrderDeadline => "the response window for an order closes",
+        LedgerKind::Tick => "the exchange records one tick",
     }
 }
 

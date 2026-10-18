@@ -18,7 +18,7 @@ use crate::event::{AgentId, LedgerEvent};
 use crate::source::{
     agent_source, assurance, capabilities, clock_domain, data_class, event_kind, exchange_source,
     filter_epoch, schema_version, sensitivity, sentinel_clock, sequence_epoch, tier_of,
-    AGENT_ATTRIBUTE, BILL_ATTRIBUTE,
+    AGENT_ATTRIBUTE, BILL_ATTRIBUTE, ORDER_ATTRIBUTE,
 };
 
 /// Which required source declared no completeness signal.
@@ -58,6 +58,7 @@ impl AdaptedTrace {
     }
 }
 
+#[derive(Debug)]
 struct Rollup {
     tier: SourceTier,
     count: u64,
@@ -65,6 +66,64 @@ struct Rollup {
     earliest_occurred: i128,
     latest_occurred: i128,
     latest_observed: i128,
+}
+
+/// Incremental adapter. Each [`TraceCursor::push`] assigns the next per-source
+/// sequence. [`TraceCursor::evidence`] closes those sequences for a seal clone.
+/// The live cursor itself stays open so later events can still arrive.
+#[derive(Debug, Default)]
+pub struct TraceCursor {
+    seen: BTreeSet<String>,
+    rollups: BTreeMap<SourceIdentity, Rollup>,
+}
+
+impl TraceCursor {
+    /// Creates an empty cursor.
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Adapts one ledger event.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when an id is blank, a predecessor is unknown, a source
+    /// sequence overflows, or a Sentinel constructor rejects the event.
+    pub fn push(&mut self, event: &LedgerEvent) -> Result<Event, AdapterError> {
+        let (source, tier) = source_of(event)?;
+        let sequence = next_sequence(self.rollups.get(&source).map(|rollup| rollup.count))?;
+        let clock = clock_domain(event.kind(), event.agent_id())?;
+        let predecessors = predecessor_ids(event, &self.seen)?;
+        if !self.seen.insert(event.id().to_owned()) {
+            return Err(AdapterError::DuplicateEvent(event.id().to_owned()));
+        }
+        let adapted = sentinel_event(event, &source, tier, sequence, &clock, &predecessors)?;
+        note_rollup(
+            &mut self.rollups,
+            source,
+            tier,
+            sequence,
+            clock.as_str(),
+            event,
+        );
+        Ok(adapted)
+    }
+
+    /// Completeness signals for every source this cursor has seen.
+    ///
+    /// Applying these to a clone seals that clone. The cursor stays open.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when a completeness signal is rejected.
+    pub fn evidence(&self) -> Result<Vec<SourceEvidence>, AdapterError> {
+        let mut evidence = Vec::with_capacity(self.rollups.len());
+        for (source, rollup) in &self.rollups {
+            evidence.push(completeness(source, rollup)?);
+        }
+        Ok(evidence)
+    }
 }
 
 /// Adapts `events` for the monitor that watches `agent`'s tool-call log.
@@ -82,37 +141,18 @@ pub fn adapt_trace(
     events: &[LedgerEvent],
     withheld: Option<WithheldSource>,
 ) -> Result<AdaptedTrace, AdapterError> {
-    let mut seen = BTreeSet::new();
-    let mut rollups: BTreeMap<SourceIdentity, Rollup> = BTreeMap::new();
+    let mut cursor = TraceCursor::new();
     let mut adapted = Vec::with_capacity(events.len());
-
     for event in events {
-        let (source, tier) = source_of(event)?;
-        let sequence = next_sequence(rollups.get(&source).map(|rollup| rollup.count))?;
-        let clock = clock_domain(event.kind(), event.agent_id())?;
-        let predecessors = predecessor_ids(event, &seen)?;
-        if !seen.insert(event.id().to_owned()) {
-            return Err(AdapterError::DuplicateEvent(event.id().to_owned()));
-        }
-        adapted.push(sentinel_event(
-            event,
-            &source,
-            tier,
-            sequence,
-            &clock,
-            &predecessors,
-        )?);
-        note_rollup(&mut rollups, source, tier, sequence, clock.as_str(), event);
+        adapted.push(cursor.push(event)?);
     }
-
-    let mut evidence = Vec::with_capacity(rollups.len());
-    for (source, rollup) in rollups {
-        if is_withheld(&source, agent, withheld)? {
+    let mut evidence = Vec::new();
+    for item in cursor.evidence()? {
+        if is_withheld(item.source(), agent, withheld)? {
             continue;
         }
-        evidence.push(completeness(&source, &rollup)?);
+        evidence.push(item);
     }
-
     Ok(AdaptedTrace {
         events: adapted,
         evidence,
@@ -189,16 +229,22 @@ fn sentinel_event(
     clock: &ClockDomainId,
     predecessors: &BTreeSet<EventId>,
 ) -> Result<Event, AdapterError> {
-    let attributes = BTreeMap::from([
-        (
+    let mut attributes = BTreeMap::from([(
+        attribute_key(AGENT_ATTRIBUTE),
+        AttributeValue::String(event.agent_id().as_str().to_owned()),
+    )]);
+    if let Some(bill) = event.bill_id() {
+        attributes.insert(
             attribute_key(BILL_ATTRIBUTE),
-            AttributeValue::String(event.bill_id().as_str().to_owned()),
-        ),
-        (
-            attribute_key(AGENT_ATTRIBUTE),
-            AttributeValue::String(event.agent_id().as_str().to_owned()),
-        ),
-    ]);
+            AttributeValue::String(bill.as_str().to_owned()),
+        );
+    }
+    if let Some(order) = event.order_id() {
+        attributes.insert(
+            attribute_key(ORDER_ATTRIBUTE),
+            AttributeValue::String(order.as_str().to_owned()),
+        );
+    }
     let producer = ProducerEvent::new(
         EventId::new(event.id())?,
         sequence_epoch(),

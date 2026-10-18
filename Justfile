@@ -66,8 +66,9 @@ validator:
 
 # --- run ---
 
-# HTTP API. Live traces are GET /api/traces and GET /api/traces/stream.
-# Verdict SSE remains pending #9.
+# HTTP/SSE API.
+# Verdicts stream at GET /v1/verdicts/stream.
+# Live traces are GET /api/traces and GET /api/traces/stream.
 api:
     cargo run -p ledger-api
 
@@ -80,8 +81,7 @@ agents *faults:
 fault name:
     cargo run -p ledger-agents --bin ledger-agents -- --toggle {{name}}
 
-# Web UI dev server. Vite on port 5173, proxying /api to 127.0.0.1:8080.
-# The dashboard stays empty until VITE_SENTINEL_SSE is set.
+# Web UI dev server. Vite on port 5173. The dashboard stays empty until VITE_SENTINEL_SSE is set.
 ui:
     cd web && bun run dev
 
