@@ -25,6 +25,9 @@
 //! `GET` and `POST /api/inbox/triage` read and write inbox status.
 //! `POST /api/quick-actions` routes a phrase. It does not create a verdict.
 //! `GET /api/calibration` counts stored inbox reviews by Jev score band.
+//!
+//! When `LEDGER_TEST=1`, `POST /api/test/reset`, `POST /api/test/scenes/{name}`,
+//! and `POST /api/test/jev` are mounted. They are absent otherwise.
 
 mod calibration;
 mod decode;
@@ -35,6 +38,7 @@ mod inbox;
 mod quick;
 mod rank;
 mod stream;
+mod test_api;
 mod traces;
 
 pub use engine::{

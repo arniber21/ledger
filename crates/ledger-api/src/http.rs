@@ -116,13 +116,16 @@ pub async fn serve_with_ranker(
             store: store.clone(),
             tx,
         });
-    let app = verdicts
+    let mut app = verdicts
         .merge(crate::inbox::router(store.clone()))
         .merge(crate::calibration::router(store.clone()))
         .merge(crate::traces::router(crate::traces::AppState {
-            store: Some(store),
+            store: Some(store.clone()),
         }))
         .merge(crate::quick::router_from_env());
+    if crate::test_api::enabled(&std::env::var("LEDGER_TEST").unwrap_or_default()) {
+        app = app.merge(crate::test_api::router(Some(store)));
+    }
     let mut stop = shutdown.subscribe();
     let join = tokio::spawn(async move {
         let server = axum::serve(listener, app).with_graceful_shutdown(async move {

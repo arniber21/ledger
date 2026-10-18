@@ -34,6 +34,8 @@ just reset
 
 `just up` downloads company-001 if `data/` does not already have it, starts TimescaleDB, applies migrations, starts the local Solana validator, the API, the buying agents, and the web UI, then waits. Ctrl-C stops the processes that command started. A validator answering RPC on port 8899, an API answering `GET /health` on port 8080, or a UI answering on port 5173 is left running. If one of those ports is taken and does not answer, the command stops. The script is `scripts/demo.sh`. The presenter notes are `docs/demo.md`.
 
+`just e2e` runs the Playwright harness in `web/e2e/` headless. `just e2e-ui` opens the Playwright UI. The harness starts or reuses TimescaleDB, the validator, the API, the agents, and the UI, with `LEDGER_JEV=replay`. `LEDGER_TEST=1` mounts reset, scene, and Jev-outcome routes; those routes are absent otherwise. Traces and video are kept when a spec fails. The HTML report is `web/e2e/report`. Docker must be running.
+
 `just reset` stops the agents, truncates the Timescale tables, removes `.ledger/validator`, and clears generated state under `.ledger/`. `just demo` runs that reset, then the scenes in order: `clean`, `double-pay`, `hidden-memo`, `vendor-alias`, `recurring`, `gc-soak`, `spec-live`. Each scene prints one line of the verdicts it expects. `LEDGER_JEV=replay` (the default) reads `fixtures/jev/` and does not call out. `LEDGER_JEV=live` uses System One. A missing replay fixture fails.
 
 The UI is at http://127.0.0.1:5173. Vite proxies `/api` and `/v1` to the API on port 8080. Set `VITE_SENTINEL_SSE` only when the verdict stream is somewhere else.

@@ -7,3 +7,6 @@ dist/
 data/
 worktrees/
 /ledger/
+web/e2e/report/
+web/e2e/test-results/
+web/e2e/blob-report/

@@ -271,7 +271,7 @@ export function InboxPage({ search }: { search: InboxSearch }) {
               <FilterIcon />
               Filter
             </button>
-            <div className="views" role="group" aria-label="Inbox view">
+            <div className="views" role="group" aria-label="Inbox view" data-testid="view-switcher">
               {(["board", "list", "split"] as const).map((id) => (
                 <button
                   key={id}

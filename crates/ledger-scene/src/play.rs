@@ -8,7 +8,7 @@ use ledger_core::dataset::Money;
 use ledger_core::{AgentId, Decision, MonitorDesk, OpenBill};
 use ledger_jev::{
     binding_request, exact_match, fuzzy_match, map_binding_body, map_panel_body, panel_request,
-    BindingVerdict, JevCallFailure, ObligationRef, PredicateVerdict, ReplayCatalog,
+    BindingVerdict, ForcedOutcome, JevCallFailure, ObligationRef, PredicateVerdict, ReplayCatalog,
     ScheduleFinding, ScheduleRecord, SystemOne, SystemOneClient, BILL_MEMO_SOURCE,
     INSTRUCTION_MEMO,
 };
@@ -76,10 +76,32 @@ pub struct SceneReport {
 enum JevMode {
     Replay(ReplayCatalog),
     Live(SystemOneClient),
+    Forced(ForcedOutcome),
+}
+
+/// `LEDGER_TEST=1` plus `LEDGER_JEV_FORCE` selects a forced outcome.
+///
+/// Any other process keeps replay or live. A forced timeout is a call
+/// failure, not a fabricated body.
+fn take_force(test_mode: bool, force: Option<&str>) -> Result<Option<ForcedOutcome>, SceneError> {
+    if !test_mode {
+        return Ok(None);
+    }
+    let Some(force) = force.map(str::trim).filter(|value| !value.is_empty()) else {
+        return Ok(None);
+    };
+    ForcedOutcome::parse(force)
+        .map(Some)
+        .ok_or(SceneError::Force)
 }
 
 impl JevMode {
     fn from_env() -> Result<Self, SceneError> {
+        let test_mode = std::env::var("LEDGER_TEST").ok().as_deref() == Some("1");
+        let force = std::env::var("LEDGER_JEV_FORCE").ok();
+        if let Some(outcome) = take_force(test_mode, force.as_deref())? {
+            return Ok(Self::Forced(outcome));
+        }
         let mode = std::env::var("LEDGER_JEV").unwrap_or_else(|_| "replay".to_owned());
         match mode.trim() {
             "" | "replay" => Ok(Self::Replay(ReplayCatalog::load_default()?)),
@@ -97,6 +119,7 @@ impl JevMode {
 
     fn respond(&self, request: &str) -> Result<String, SceneError> {
         match self {
+            Self::Forced(outcome) => outcome.apply(request).map_err(SceneError::from),
             Self::Replay(catalog) => Ok(catalog.require(request)?.to_owned()),
             Self::Live(client) => Ok(client.evaluate(request)?),
         }
@@ -1017,4 +1040,20 @@ fn verdict_id(spec: &str, binding: &str, outcome: &str, reason: Option<&str>) ->
     let namespace = Uuid::from_u128(0x6c65_6467_6572_5f76_6572_6469_6374_0001);
     let key = format!("{spec}|{binding}|{outcome}|{}", reason.unwrap_or(""));
     Uuid::new_v5(&namespace, key.as_bytes())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn force_is_ignored_unless_the_test_api_is_on() {
+        let forced = take_force(false, Some("timeout")).expect("ignored");
+        assert!(forced.is_none());
+        let armed = take_force(true, Some("timeout")).expect("timeout");
+        assert_eq!(armed, Some(ForcedOutcome::Timeout));
+        let err = take_force(true, Some("pass")).expect_err("rejected");
+        assert!(err.to_string().contains("LEDGER_JEV_FORCE"));
+        assert!(!err.to_string().contains("fraud"));
+    }
 }
