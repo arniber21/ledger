@@ -1,0 +1,35 @@
+scripts/demo.sh
+  s_4a66c751aa539c::t_ef90050ac562a2 176
+  s_4a66c751aa539c::t_8bf760c23560a3 100-103
+  s_4a66c751aa539c::t_84b00bdb0f632e 1-99,104-175,177-217
+Justfile
+  s_4a66c751aa539c::t_c3ccb787fd9e55 93-94,96
+docs/devpost.md
+  s_4a66c751aa539c::t_0cc6b7b8d9038a 1-45
+docs/demo.md
+  s_4a66c751aa539c::t_f9d7d282e16b73 1-40
+SPEC.md
+  s_4a66c751aa539c::t_090131dd35558d 138
+  s_4a66c751aa539c::t_f275a15cca731a 156
+README.md
+  s_4a66c751aa539c::t_0acb908778bd85 123-127
+  s_4a66c751aa539c::t_c7d8841cc3de8f 29-31,33-39,42-46,49
+  s_4a66c751aa539c::t_a81861f7ee9be6 57-65
+  s_4a66c751aa539c::t_cfd46a18b35755 32
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "de00a813d462d11c8ee6d4e2e13ac2fb48460ba6",
+  "prompts": {},
+  "sessions": {
+    "s_4a66c751aa539c": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "6d31c976-ddbd-498d-b2d9-d15b370fa8e9",
+        "model": "grok-4.7-high-fast"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    }
+  }
+}
