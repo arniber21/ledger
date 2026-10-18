@@ -1,0 +1,28 @@
+[package]
+name = "ledger-scene"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+ledger-api.workspace = true
+ledger-core.workspace = true
+ledger-ingest.workspace = true
+ledger-jev.workspace = true
+ledger-spec.workspace = true
+ledger-store.workspace = true
+chrono = { workspace = true, features = ["clock"] }
+serde.workspace = true
+serde_json.workspace = true
+solana-keypair = "3.0"
+solana-signer = "3.0"
+thiserror.workspace = true
+tokio.workspace = true
+uuid = { version = "1", features = ["serde", "v5"] }
+
+[dev-dependencies]
+sqlx = { version = "0.8", default-features = false, features = ["postgres", "runtime-tokio-rustls"] }
+
+[[bin]]
+name = "ledger-scene"
+path = "src/bin/ledger-scene.rs"

@@ -195,6 +195,8 @@ mod tests {
                 kind: "ledger.exchange.payment".to_owned(),
                 role: "second-payment".to_owned(),
             }],
+            comparison: None,
+            signatures: Vec::new(),
             rest: Vec::new(),
             rerank: None,
             rank: None,

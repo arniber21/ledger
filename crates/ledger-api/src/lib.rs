@@ -37,7 +37,10 @@ mod rank;
 mod stream;
 mod traces;
 
-pub use engine::{ApiError, Engine, StreamEntry, StreamMessage, StreamVerdict};
+pub use engine::{
+    ApiError, Engine, StreamBindingLine, StreamComparison, StreamEntry, StreamMessage,
+    StreamVerdict,
+};
 pub use http::serve;
 pub use http::serve_with_ranker;
 pub use http::Server;

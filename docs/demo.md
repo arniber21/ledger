@@ -1,6 +1,10 @@
 # Demo script
 
-Run this from the repo root. `just demo` starts TimescaleDB, the local Solana validator, the API, the buying agents, and the web UI. Ctrl-C stops the processes that command started.
+Run this from the repo root.
+
+`just demo` resets the stack, then runs the scenes in order: `clean`, `double-pay`, `hidden-memo`, `vendor-alias`, `recurring`, `gc-soak`, `spec-live`. Each scene prints one line of the verdicts it expects. `just scene <name>` runs one. `just reset` stops agents, truncates the Timescale tables, removes the validator ledger, and clears generated state under `.ledger/`. `LEDGER_JEV=replay` is the default and does not call out. `LEDGER_JEV=live` uses System One.
+
+`just up` starts TimescaleDB, the local Solana validator, the API, the buying agents, and the web UI. Ctrl-C stops the processes that command started.
 
 A real Sentry incident is not part of this script. Do not invent one, and do not describe a fabricated incident as something this run produced.
 
@@ -12,7 +16,7 @@ Docker (OrbStack) must be running. `solana-test-validator`, `bun`, Rust, and `ju
 
 ## Run of show
 
-1. `just demo`
+1. `just up`
    - If `data/hackathon-100/company-001` is missing, the command downloads company-001 first. It does not extract or read `hidden/`.
    - When the command is ready it prints the UI URL, `http://127.0.0.1:5173`.
    - Leave this terminal running.

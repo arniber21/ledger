@@ -28,6 +28,7 @@ mod obligation;
 mod panel;
 mod quick;
 mod rank;
+mod replay;
 mod request;
 mod rerank;
 mod resolve;
@@ -60,6 +61,7 @@ pub use rank::{
     map_ranking_body, map_ranking_exchange, no_second_payment_subject, priority, ranking_request,
     DimensionScore, RankScore, RankStep, RankSubject, RankWeights, RANK_TOP_LEVEL,
 };
+pub use replay::{ReplayCatalog, ReplayError};
 pub use request::binding_request;
 pub use rerank::{
     double_pay_candidates, double_pay_matched, double_pay_spec, rank_body, rank_exchange,

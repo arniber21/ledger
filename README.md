@@ -26,10 +26,15 @@ SENTRY_DSN=...          # traces, logs, errors
 **Run**
 
 ```sh
-just demo
+just up      # Timescale, validator, API, agents, and the UI
+just demo    # reset, then the scripted scenes in order
+just scene clean
+just reset
 ```
 
-`just demo` downloads company-001 if `data/` does not already have it, starts TimescaleDB, applies migrations, starts the local Solana validator, the API, the buying agents, and the web UI, then waits. Ctrl-C stops the processes that command started. A validator answering RPC on port 8899, an API answering `GET /health` on port 8080, or a UI answering on port 5173 is left running. If one of those ports is taken and does not answer, the command stops. The script is `scripts/demo.sh`. The presenter script is `docs/demo.md`.
+`just up` downloads company-001 if `data/` does not already have it, starts TimescaleDB, applies migrations, starts the local Solana validator, the API, the buying agents, and the web UI, then waits. Ctrl-C stops the processes that command started. A validator answering RPC on port 8899, an API answering `GET /health` on port 8080, or a UI answering on port 5173 is left running. If one of those ports is taken and does not answer, the command stops. The script is `scripts/demo.sh`. The presenter notes are `docs/demo.md`.
+
+`just reset` stops the agents, truncates the Timescale tables, removes `.ledger/validator`, and clears generated state under `.ledger/`. `just demo` runs that reset, then the scenes in order: `clean`, `double-pay`, `hidden-memo`, `vendor-alias`, `recurring`, `gc-soak`, `spec-live`. Each scene prints one line of the verdicts it expects. `LEDGER_JEV=replay` (the default) reads `fixtures/jev/` and does not call out. `LEDGER_JEV=live` uses System One. A missing replay fixture fails.
 
 The UI is at http://127.0.0.1:5173. Vite proxies `/api` and `/v1` to the API on port 8080. Set `VITE_SENTINEL_SSE` only when the verdict stream is somewhere else.
 
@@ -44,6 +49,7 @@ just api          # HTTP and SSE on 127.0.0.1:8080
 just agents       # buying desk; optional fault names
 just ui           # web UI on port 5173
 just fault double-pay
+just scene double-pay
 ```
 
 `just check`, `just test`, `just lint`, and `just fmt` are the build tasks. Run `just` to list everything. `just test` includes a database round-trip and needs `just db-up` first.
@@ -125,4 +131,4 @@ ORDER BY bucket, source, kind;
 
 ## Status
 
-`just demo` starts the local stack. Findings are labeled "needs review". `just demo` does not find or record a Sentry incident. Submission notes are in `docs/devpost.md`.
+`just up` starts the local stack. `just demo` resets that stack and runs the scripted scenes. Findings are labeled "needs review". Neither command finds or records a Sentry incident. Submission notes are in `docs/devpost.md`.

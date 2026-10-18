@@ -608,6 +608,17 @@ fn on_timeline(spec_id: &str, binding: &str, event: &LedgerEvent, history: &[Led
                 LedgerKind::AgentPayBill | LedgerKind::Approval
             );
     }
+    // The absence counterexample is the payment chain. An approval stays on
+    // the precedence timeline and is not a third payment event.
+    if spec_id == SPEC_ABSENCE {
+        return matches!(
+            event.kind(),
+            LedgerKind::AgentPayBill
+                | LedgerKind::ObligationSettled
+                | LedgerKind::ExtraPayment
+                | LedgerKind::Credit
+        );
+    }
     !panel_kind
 }
 
@@ -747,6 +758,56 @@ mod tests {
             );
         }
         assert!(!format!("{verdict:?}").to_lowercase().contains("fraud"));
+    }
+
+    #[test]
+    fn approved_double_pay_counterexample_is_three_payment_events() {
+        let mut session = Session::new().expect("session");
+        let approval = LedgerEvent::new(
+            "approval",
+            LedgerKind::Approval,
+            bill("BILL-4417"),
+            AgentId::new("approver").expect("approver"),
+            Times::at(5),
+            std::iter::empty::<&str>(),
+        )
+        .expect("approval");
+        let payer = agent();
+        let pay = |id: &str, kind: LedgerKind, at: i128, predecessors: &[&str]| {
+            LedgerEvent::new(
+                id,
+                kind,
+                bill("BILL-4417"),
+                payer.clone(),
+                Times::at(at),
+                predecessors.iter().copied(),
+            )
+            .expect("event")
+        };
+        push_all(
+            &mut session,
+            &[
+                approval,
+                pay("pay", LedgerKind::AgentPayBill, 10, &["approval"]),
+                pay("settled", LedgerKind::ObligationSettled, 20, &["pay"]),
+                pay("pay-again", LedgerKind::AgentPayBill, 30, &["settled"]),
+            ],
+        );
+        let verdicts = session.verdicts().expect("verdicts");
+        let verdict = verdicts
+            .iter()
+            .find(|item| item.spec_id == SPEC_ABSENCE && item.binding == "BILL-4417")
+            .expect("absence");
+        assert_eq!(verdict.outcome, VerdictOutcome::Violate);
+        assert_eq!(verdict.timeline.len(), 3, "{:?}", verdict.timeline);
+        assert_eq!(
+            verdict
+                .timeline
+                .iter()
+                .map(|entry| entry.role.as_str())
+                .collect::<Vec<_>>(),
+            vec!["payment", "settlement", "second-payment"]
+        );
     }
 
     #[test]
