@@ -41,8 +41,13 @@ TYPESAFE_API_KEY=   # Jev
 SENTRY_DSN=
 ```
 
+Tasks run through [`just`](https://github.com/casey/just); `just` lists them. Recipes whose issue hasn't landed exit with "pending #N".
+
 ```
-cargo check
+just check
+just db-up        # TimescaleDB
+just validator    # local Solana validator (own terminal)
+just demo         # everything, once #19 lands
 ```
 
 ## Disclosure
