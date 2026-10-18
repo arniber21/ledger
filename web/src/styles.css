@@ -1299,7 +1299,11 @@ kbd {
   border-left: 1px solid var(--rule);
 }
 
-.timeline-event { position: relative; padding: 0 0 1.125rem 0.5rem; }
+.timeline-event { position: relative; display: block; padding: 0 0 1.125rem 0.5rem; }
+
+.timeline-copy { min-width: 0; overflow-wrap: anywhere; }
+
+.timeline-copy a { color: var(--accent); text-underline-offset: 0.2em; }
 
 .timeline-event .dot {
   position: absolute;
