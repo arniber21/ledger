@@ -7,13 +7,14 @@ import type { AuthorEvent } from "./types";
  * `overrideCoverage` asks the pipeline to arm a Same match that left a clause
  * uncovered or unknown. It does not invent a verdict.
  *
- * `VITE_SPEC_AUTHOR_URL` is that stream. When it is unset, or the request
- * fails, the caller surfaces the failure. This module does not call Gemini
- * or Jev and does not fill in a draft, a verdict, or a score.
+ * The stream is `POST /api/specs/author` on ledger-api, or
+ * `VITE_SPEC_AUTHOR_URL` when that is set. When the request fails, the caller
+ * surfaces the failure. This module does not call Gemini or Jev and does not
+ * fill in a draft, a verdict, or a score.
  */
 export function authorUrl(): string | undefined {
   const url = import.meta.env.VITE_SPEC_AUTHOR_URL;
-  return url && url.length > 0 ? url : undefined;
+  return url && url.length > 0 ? url : "/api/specs/author";
 }
 
 export async function streamAuthoring(

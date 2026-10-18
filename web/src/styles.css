@@ -1072,9 +1072,24 @@ kbd {
   padding-right: 0;
 }
 
-.calibration-table td.question {
-  font-family: var(--mono);
-  font-size: 12px;
+.calibration .chart-copy h2 {
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.calibration-table tr.calibration-group th {
+  padding: 18px 0 8px;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.calibration-table tr.calibration-group th span {
+  margin-left: 10px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 400;
 }
 
 @media (max-width: 1180px) {
@@ -1732,3 +1747,38 @@ a.tool { text-decoration: none; }
 .tool:disabled { opacity: 0.55; cursor: default; }
 
 .spec-tile .dot { width: 10px; height: 10px; }
+
+.card-facts {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+  color: var(--muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.card-facts span { white-space: nowrap; }
+
+.jev-chip {
+  padding: 1px 8px;
+  border-radius: var(--radius-control);
+  color: var(--accent-text);
+  background: var(--accent-tint);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.armed-list { padding-top: 18px; }
+.armed-list h2 { color: var(--ink); font-size: 15px; font-weight: 500; }
+.armed-note { margin-top: 2px; color: var(--muted); font-size: 13px; }
+
+.link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent-text);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}

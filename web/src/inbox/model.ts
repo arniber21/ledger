@@ -494,8 +494,22 @@ export function countSavedInbox(
   return prepareInbox(verdicts, triage, query).items.length;
 }
 
-export function ageLabel(recordedAt: string, now: number): string {
+const DAY_MS = 86_400_000;
+
+/**
+ * A time the screen can show as an age. Rows stored with a bad clock (years
+ * old, or in the future) have no honest age, so they read as unknown.
+ */
+export function plausibleTime(recordedAt: string, now: number): number | null {
   const value = timeValue(recordedAt);
+  if (value == null) return null;
+  if (value > now + DAY_MS) return null;
+  if (value < now - 366 * DAY_MS) return null;
+  return value;
+}
+
+export function ageLabel(recordedAt: string, now: number): string {
+  const value = plausibleTime(recordedAt, now);
   if (value == null) return "—";
   const seconds = Math.max(0, Math.round((now - value) / 1000));
   if (seconds < 60) return `${seconds}s`;
@@ -504,6 +518,71 @@ export function ageLabel(recordedAt: string, now: number): string {
   const hours = Math.round(minutes / 60);
   if (hours < 48) return `${hours}h`;
   return `${Math.round(hours / 24)}d`;
+}
+
+const SPEC_NAMES: Record<string, string> = {
+  "ledger.bill.approval-before-payment": "Payment without approval",
+  "ledger.bill.no-second-payment": "Second payment on a bill",
+  "ledger.order.fill-or-cancel": "Order not filled or cancelled",
+  "ledger.bill.tainted-memo-needs-approval": "Memo instructed a payment",
+  "ledger.evidence": "Evidence could not be read",
+  "no-second-payment": "Second payment on a bill",
+};
+
+/** Where a monitor listens, for verdicts that stored no evidence steps. */
+const SPEC_SOURCES: Record<string, string> = {
+  "ledger.bill.approval-before-payment": "Bill payments",
+  "ledger.bill.no-second-payment": "Bill payments",
+  "ledger.bill.tainted-memo-needs-approval": "Bill payments",
+  "no-second-payment": "Bill payments",
+  "ledger.order.fill-or-cancel": "Exchange orders",
+};
+
+/** A short name for the spec behind a verdict. Unknown ids read as they are stored. */
+export function specName(specId: string): string {
+  const known = SPEC_NAMES[specId];
+  if (known) return known;
+  const tail = specId.split(".").at(-1) ?? specId;
+  const words = tail.replace(/[-_]+/g, " ").trim();
+  return words.length === 0 ? "Verdict" : `${words.charAt(0).toUpperCase()}${words.slice(1)}`;
+}
+
+/** What the verdict is about, such as `bill-1`. A generic "bill" or "order" is left out. */
+export function bindingLabel(verdict: VerdictItem): string | null {
+  const binding = verdict.binding?.trim() ?? "";
+  if (binding.length === 0 || binding === "bill" || binding === "order") return null;
+  return binding.replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, (id) => id.slice(0, 8));
+}
+
+/**
+ * Card title: what happened. Vendor is not on the verdict, so it is not
+ * shown. The bill or order is on its own line, see [`bindingLabel`].
+ */
+export function cardTitle(verdict: VerdictItem): string {
+  return specName(verdict.specId);
+}
+
+/** Friendly source: `agent.payer-<uuid>` is "payer", `exchange` is "Exchange". */
+export function sourceLabel(verdict: VerdictItem): string {
+  const steps = verdict.timeline ?? [];
+  const raw = steps.find((step) => step.source.length > 0)?.source;
+  if (raw) {
+    if (raw.startsWith("agent.")) {
+      const name = raw.slice("agent.".length).replace(/-[0-9a-f]{8}-[0-9a-f-]{27}$/i, "");
+      return name.length > 0 ? `Agent ${name}` : "Agent";
+    }
+    if (raw === "exchange") return "Exchange";
+    return raw;
+  }
+  return SPEC_SOURCES[verdict.specId] ?? "No evidence steps";
+}
+
+/** One chip for the Jev scores. Null is Unknown, not a low score. */
+export function jevChip(verdict: VerdictItem, weights: RankWeights): string | null {
+  if (!verdict.rank) return null;
+  const priority = priorityOf(verdict.rank, weights);
+  if (priority == null) return "Jev unknown";
+  return `Jev ${priority.toFixed(2)}`;
 }
 
 export function amountLabel(cents: number | null): string {

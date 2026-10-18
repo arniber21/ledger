@@ -1,8 +1,10 @@
 import { tableFeatures, useTable, type ColumnDef } from "@tanstack/react-table";
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   bandLabel,
   countLabel,
+  groupCalibration,
   parseCalibration,
   reviewedLabel,
   SMALL_SAMPLE,
@@ -14,7 +16,6 @@ const features = tableFeatures({});
 type Features = typeof features;
 
 const columns: ColumnDef<Features, CalibrationRow>[] = [
-  { accessorKey: "question", header: "Question" },
   { accessorKey: "band", header: "Score band" },
   { accessorKey: "confirmed", header: "Confirmed" },
   { accessorKey: "dismissed", header: "Dismissed" },
@@ -65,7 +66,7 @@ function CalibrationBody({
       </p>
     );
   }
-  if (query.data.rows.length === 0) {
+  if (groupCalibration(query.data.rows).length === 0) {
     return (
       <p className="column-empty" data-testid="calibration-empty">
         No reviews yet.
@@ -76,12 +77,15 @@ function CalibrationBody({
 }
 
 function CalibrationGrid({ rows }: { rows: CalibrationRow[] }) {
+  const groups = useMemo(() => groupCalibration(rows), [rows]);
+  const visible = useMemo(() => groups.flatMap((group) => group.rows), [groups]);
   const table = useTable({
     features,
-    data: rows,
+    data: visible,
     columns,
     getRowId: (row) => `${row.question}|${row.band}`,
   });
+  const byId = new Map(table.getRowModel().rows.map((row) => [row.id, row]));
 
   return (
     <table className="spec-table calibration-table" data-testid="calibration-table">
@@ -96,17 +100,30 @@ function CalibrationGrid({ rows }: { rows: CalibrationRow[] }) {
           </tr>
         ))}
       </thead>
-      <tbody>
-        {table.getRowModel().rows.map((row) => (
-          <tr key={row.id} data-testid="calibration-row">
-            <td className="question">{row.original.question}</td>
-            <td>{bandLabel(row.original.band)}</td>
-            <td className="num">{countLabel(row.original.confirmed)}</td>
-            <td className="num">{countLabel(row.original.dismissed)}</td>
-            <td className="num">{reviewedLabel(row.original.reviewed)}</td>
+      {groups.map((group) => (
+        <tbody key={group.question} data-testid="calibration-group">
+          <tr className="calibration-group">
+            <th scope="rowgroup" colSpan={4} title={group.question}>
+              {group.label}
+              <span>
+                {countLabel(group.reviewed)} reviewed{group.reviewed < SMALL_SAMPLE ? " · small sample" : ""}
+              </span>
+            </th>
           </tr>
-        ))}
-      </tbody>
+          {group.rows.map((item) => {
+            const row = byId.get(`${item.question}|${item.band}`);
+            if (!row) return null;
+            return (
+              <tr key={row.id} data-testid="calibration-row">
+                <td>{bandLabel(row.original.band)}</td>
+                <td className="num">{countLabel(row.original.confirmed)}</td>
+                <td className="num">{countLabel(row.original.dismissed)}</td>
+                <td className="num">{reviewedLabel(row.original.reviewed)}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      ))}
     </table>
   );
 }

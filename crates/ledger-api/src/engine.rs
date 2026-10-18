@@ -212,6 +212,7 @@ pub struct Engine {
     amounts: HashMap<String, i64>,
     emitted: HashSet<Uuid>,
     ranker: Option<Arc<dyn SystemOne>>,
+    monitors: Option<crate::metrics::MonitorStats>,
 }
 
 impl Engine {
@@ -247,7 +248,13 @@ impl Engine {
             amounts: HashMap::new(),
             emitted: HashSet::new(),
             ranker,
+            monitors: None,
         })
+    }
+
+    /// Reports live and retired monitor counts to `stats` after each poll.
+    pub(crate) fn report_monitors(&mut self, stats: crate::metrics::MonitorStats) {
+        self.monitors = Some(stats);
     }
 
     /// Scores stored verdicts that have no rank row yet.
@@ -289,8 +296,17 @@ impl Engine {
     /// than missing evidence.
     pub async fn poll_once(&mut self) -> Result<Vec<StreamVerdict>, ApiError> {
         let now = Utc::now();
-        self.poll_window(now - Duration::hours(6), now + Duration::minutes(1))
-            .await
+        let published = self
+            .poll_window(now - Duration::hours(6), now + Duration::minutes(1))
+            .await;
+        if let Some(stats) = &self.monitors {
+            stats.record(
+                now,
+                self.session.live_monitor_count(),
+                self.session.retired_monitor_count(),
+            );
+        }
+        published
     }
 
     /// Steps events in `[start, end)`, in `observed_at` order.

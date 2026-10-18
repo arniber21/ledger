@@ -24,19 +24,25 @@
 //! `POST /api/faults/{name}` toggles a fault on the running desk.
 //! `GET` and `POST /api/inbox/triage` read and write inbox status.
 //! `POST /api/quick-actions` routes a phrase. It does not create a verdict.
+//! `GET /api/metrics` returns dashboard counters and 10-minute series.
+//! `GET /api/specs` lists the armed built-in specs.
+//! `POST /api/specs/author` runs Gemini drafting and Jev checks for a policy sentence.
 //! `GET /api/calibration` counts stored inbox reviews by Jev score band.
 //!
 //! When `LEDGER_TEST=1`, `POST /api/test/reset`, `POST /api/test/scenes/{name}`,
 //! and `POST /api/test/jev` are mounted. They are absent otherwise.
 
+mod author;
 mod calibration;
 mod decode;
 mod engine;
 mod fault;
 mod http;
 mod inbox;
+mod metrics;
 mod quick;
 mod rank;
+mod specs;
 mod stream;
 mod test_api;
 mod traces;

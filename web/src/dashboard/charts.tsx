@@ -37,8 +37,8 @@ export function EventsChart({ points }: { points: RatePoint[] }) {
           <p>Last 10 minutes, by source</p>
         </div>
       </div>
-      {points.length === 0 ? (
-        <ChartEmpty />
+      {points.length === 0 || max === 1 && [...agent, ...exchange, ...solana].every((value) => value === 0) ? (
+        <ChartEmpty message={points.length === 0 ? undefined : "No events in this window"} />
       ) : (
         <div className="plot">
           <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} role="img" aria-label="Events per second by source">
@@ -85,8 +85,8 @@ export function AttentionChart({ points }: { points: AttentionPoint[] }) {
           </span>
         </div>
       </div>
-      {points.length === 0 ? (
-        <ChartEmpty />
+      {points.length === 0 || points.every((point) => point.violate + point.inconclusive === 0) ? (
+        <ChartEmpty message={points.length === 0 ? undefined : "No verdicts in this window"} />
       ) : (
         <div className="plot plot-bars">
           <div className="bars" aria-label="Violate and inconclusive counts">
@@ -132,9 +132,11 @@ export function MonitorsChart({ points }: { points: MonitorPoint[] }) {
           </svg>
           {last ? (
             <>
-              <span className="end-label end-grey" style={{ top: lastY(last.withoutGc, max) }}>
-                Without GC {formatTick(last.withoutGc)}
-              </span>
+              {last.withoutGc !== last.withGc ? (
+                <span className="end-label end-grey" style={{ top: lastY(last.withoutGc, max) }}>
+                  Without GC {formatTick(last.withoutGc)}
+                </span>
+              ) : null}
               <span className="end-label end-accent" style={{ top: lastY(last.withGc, max) }}>
                 With GC {formatTick(last.withGc)}
               </span>
@@ -147,10 +149,10 @@ export function MonitorsChart({ points }: { points: MonitorPoint[] }) {
   );
 }
 
-function ChartEmpty() {
+function ChartEmpty({ message = "No samples yet" }: { message?: string }) {
   return (
     <div className="plot plot-empty">
-      <p>No samples yet</p>
+      <p>{message}</p>
       <AxisLabels />
     </div>
   );
