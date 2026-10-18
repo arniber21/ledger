@@ -3,16 +3,18 @@
 //! Deterministic guards on amount, bill id, vendor id, and currency run first
 //! and skip Jev when they decide. Otherwise the model returns a typed Choice.
 //! This crate maps that Choice onto [`BindingVerdict`] with the fixed 0.80
-//! thresholds. The memo Noul maps onto [`PredicateVerdict`]. This crate does
-//! not ask for or keep explanation text. [`BindingVerdict::Same`] merges
-//! monitor keys. [`BindingVerdict::Different`] keeps them apart.
-//! [`BindingVerdict::Unknown`] is inconclusive and does not merge.
+//! thresholds. The memo Noul maps onto [`PredicateVerdict`]. The same
+//! thresholds map a credit or cancellation memo onto [`CloseVerdict`]. This
+//! crate does not ask for or keep explanation text. [`BindingVerdict::Same`]
+//! merges monitor keys. [`BindingVerdict::Different`] keeps them apart.
+//! [`BindingVerdict::Unknown`] is inconclusive and does not merge or retire.
 
 use serde_json::Value;
 use thiserror::Error;
 
 mod baseline;
 mod client;
+mod close;
 mod guard;
 mod matchers;
 mod memo;
@@ -22,6 +24,10 @@ mod resolve;
 
 pub use baseline::{baseline_cases, baseline_report, BaselineCase, BaselineReport, CaseComparison};
 pub use client::{SystemOne, SystemOneClient, SYSTEM_ONE_URL};
+pub use close::{
+    close_memo_request, consider_alias, consider_close_memo, map_close_memo_body,
+    map_close_memo_exchange, CloseVerdict, MEMO_CLOSES_QUESTION,
+};
 pub use guard::{guard, GuardDecision};
 pub use matchers::{exact_match, fuzzy_match, FUZZY_NAME_THRESHOLD};
 pub use memo::{
