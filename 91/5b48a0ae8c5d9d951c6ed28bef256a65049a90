@@ -1,0 +1,99 @@
+crates/ledger-core/src/judge.rs
+  s_18a32a5c95eee7::t_415da6504b4071 15-16,34
+crates/ledger-api/src/lib.rs
+  s_18a32a5c95eee7::t_69ce9dfb619bd7 1-29
+crates/ledger-store/src/lib.rs
+  s_18a32a5c95eee7::t_25cb3731a29be5 744-790
+  s_18a32a5c95eee7::t_61633ead977dad 481
+  s_18a32a5c95eee7::t_306552b2056701 492
+  s_18a32a5c95eee7::t_3b56840b02373a 348-380,416-480,482-491,493-499
+  s_18a32a5c95eee7::t_522f27889ac84c 381-415
+crates/ledger-api/src/http.rs
+  s_18a32a5c95eee7::t_0191b75b4ab1b6 19
+  s_18a32a5c95eee7::t_a96ca331b8f009 116
+  s_18a32a5c95eee7::t_c0a6ba5fc3e683 1-18,20-31,33-36,38-39,43-48,52-115,117-132,134-154
+  s_18a32a5c95eee7::t_54e9b3be6c58b1 32,37,40-42,49-51
+  s_18a32a5c95eee7::t_e15d9a2eeb688a 133
+crates/ledger-api/src/main.rs
+  s_18a32a5c95eee7::t_6d4adc49d480d7 3-10,12-30
+  s_18a32a5c95eee7::t_b48b4051b4cb7d 11
+README.md
+  s_18a32a5c95eee7::t_449a837a4750f3 92
+crates/ledger-api/Cargo.toml
+  s_18a32a5c95eee7::t_c576be3e767fec 23
+  s_18a32a5c95eee7::t_5f98fe2bfbdebf 12-22,24-27
+crates/ledger-api/src/engine.rs
+  s_18a32a5c95eee7::t_642712aba64fc0 297
+  s_18a32a5c95eee7::t_ec544830682e18 369
+  s_18a32a5c95eee7::t_dd1325bed98f55 327
+  s_18a32a5c95eee7::t_2b6564834db7c9 277
+  s_18a32a5c95eee7::t_0121dbdd6962e1 94
+  s_18a32a5c95eee7::t_6ea74f4f34dc19 1-60,63-93,95-132,134,138-142,146,157-158,160-161,163-251,253-276,278-285,287-296,298-326,328-368,370-428
+  s_18a32a5c95eee7::t_fd1949a8383b18 252
+  s_18a32a5c95eee7::t_58aaef7050c7f5 61-62
+  s_18a32a5c95eee7::t_0ecffbf3e3b122 162
+  s_18a32a5c95eee7::t_1fa09329d04d5b 286
+  s_18a32a5c95eee7::t_47eb07a721d80e 133,135-137,143-145,147-156,159
+crates/ledger-core/src/lib.rs
+  s_18a32a5c95eee7::t_869ed46541773c 3-4,11,13,17,19,21,29,31
+crates/ledger-core/src/error.rs
+  s_18a32a5c95eee7::t_651d170e4541c8 39-52
+crates/ledger-spec/src/draft.rs
+  s_18a32a5c95eee7::t_a2355823aa738e 127-131
+crates/ledger-core/src/specs.rs
+  s_18a32a5c95eee7::t_4b5f4ee71ee72a 1-224
+crates/ledger-core/src/event.rs
+  s_18a32a5c95eee7::t_6df15837dadbab 148-160,170-173,182-184,186-249
+  s_18a32a5c95eee7::t_d0115166d968dd 26-55
+  s_18a32a5c95eee7::t_0272075329df78 269,274-275,283-368,383-384,388,392-446,461-468,488-507
+  s_18a32a5c95eee7::t_a2c8efed25d7ab 131,133-135
+  s_18a32a5c95eee7::t_638026b2f83a57 185
+  s_18a32a5c95eee7::t_03f64aeaea0a25 259-261,265
+  s_18a32a5c95eee7::t_8702973c0a799c 169
+  s_18a32a5c95eee7::t_e8b4bbd459d8b6 132,136-144
+crates/ledger-core/src/live.rs
+  s_18a32a5c95eee7::t_cb3ba0c3c9aed4 324
+  s_18a32a5c95eee7::t_54c41cbc1dc7a7 466
+  s_18a32a5c95eee7::t_223ba2a445f0de 362
+  s_18a32a5c95eee7::t_1ba2281494274b 1-323,325-361,363-366,369-465,467-721
+  s_18a32a5c95eee7::t_1dc08d5f8de01c 367-368
+  s_18a32a5c95eee7::t_df30e1c238f811 722-738
+crates/ledger-api/tests/stream.rs
+  s_18a32a5c95eee7::t_83b304bc30cb91 85,88-93,103
+  s_18a32a5c95eee7::t_92bc85f2edec65 171
+  s_18a32a5c95eee7::t_39777aa5714219 1-84,86-87,94-102,104-153,155-156,159-170,172-208
+  s_18a32a5c95eee7::t_df41c311622930 154,157-158
+  s_18a32a5c95eee7::t_995ef54cd31c0c 209-211
+crates/ledger-core/src/source.rs
+  s_18a32a5c95eee7::t_b39e27f1cecf88 33-34
+crates/ledger-core/src/adapt.rs
+  s_18a32a5c95eee7::t_ad8340bcfc3cdb 71-128,244
+  s_18a32a5c95eee7::t_b60f4667f3c2c9 144,147,150
+  s_18a32a5c95eee7::t_11264920a61b35 21
+  s_18a32a5c95eee7::t_95b7f7c2cfbe8f 149,151,154
+  s_18a32a5c95eee7::t_bbb2aa57a9e57c 61
+  s_18a32a5c95eee7::t_caa2dfd8bc8759 232-237,239-243
+  s_18a32a5c95eee7::t_9f602033477644 245-247
+Justfile
+  s_18a32a5c95eee7::t_3de80eee772ef1 69
+crates/ledger-api/src/decode.rs
+  s_18a32a5c95eee7::t_69935f511fa7c0 1-175
+Cargo.lock
+  s_18a32a5c95eee7::t_62ec410e7b32a4 505-556,825,2025,2411-2413,2417-2420,2422-2425,2615-2620,4429-4439,4498-4503,6973,7066,7404
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "915b48a0ae8c5d9d951c6ed28bef256a65049a90",
+  "prompts": {},
+  "sessions": {
+    "s_18a32a5c95eee7": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "bad77824-f23c-4c20-aba9-a92bd2e5ec13",
+        "model": "grok-4.7-high-fast"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    }
+  }
+}
