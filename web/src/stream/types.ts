@@ -131,6 +131,19 @@ export type MetricsSnapshot = {
   attention: AttentionPoint[];
   monitors: MonitorPoint[];
   verdicts: VerdictItem[];
+  /**
+   * True once the stream has sent counters or series (a recorded scene).
+   * Polled live samples then stay out of the way.
+   */
+  sceneMetrics?: boolean;
+};
+
+/** Body of `GET /api/metrics`: counters and 10-minute series read from the store. */
+export type MetricsSamples = {
+  counters: CounterPatch;
+  rates: RatePoint[];
+  attention: AttentionPoint[];
+  monitors: MonitorPoint[];
 };
 
 export type CounterPatch = {

@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
-import { applyStreamEvent, parseStreamData } from "./reduce";
+import { applySamples, applyStreamEvent, parseStreamData } from "./reduce";
 import { emptySnapshot, type MetricsSnapshot } from "./types";
 
 export const metricsKey = ["sentinel", "metrics"] as const;
@@ -46,7 +46,25 @@ export function useMetrics(): MetricsSnapshot {
       write(applyStreamEvent(current, event));
     };
 
+    // The stream carries verdicts. Counters and series come from the store.
+    let stopped = false;
+    const poll = async () => {
+      try {
+        const response = await fetch("/api/metrics");
+        if (!response.ok || stopped) return;
+        const body: unknown = await response.json();
+        const current = queryClient.getQueryData<MetricsSnapshot>(metricsKey) ?? emptySnapshot();
+        write(applySamples(current, body));
+      } catch {
+        // The counters keep their last value. Nothing is invented.
+      }
+    };
+    void poll();
+    const timer = window.setInterval(() => void poll(), 5_000);
+
     return () => {
+      stopped = true;
+      window.clearInterval(timer);
       source.close();
     };
   }, [queryClient]);

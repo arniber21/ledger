@@ -1071,9 +1071,24 @@ kbd {
   padding-right: 0;
 }
 
-.calibration-table td.question {
-  font-family: var(--mono);
-  font-size: 0.75rem;
+.calibration .chart-copy h2 {
+  color: var(--ink);
+  font-size: 0.9375rem;
+  font-weight: 500;
+}
+
+.calibration-table tr.calibration-group th {
+  padding: 1.125rem 0 0.5rem;
+  color: var(--ink);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.calibration-table tr.calibration-group th span {
+  margin-left: 0.625rem;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  font-weight: 400;
 }
 
 @media (max-width: 73.75em) {
@@ -1731,3 +1746,38 @@ a.tool { text-decoration: none; }
 .tool:disabled { opacity: 0.55; cursor: default; }
 
 .spec-tile .dot { width: 0.625rem; height: 0.625rem; }
+
+.card-facts {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.125rem 0.75rem;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.card-facts span { white-space: nowrap; }
+
+.jev-chip {
+  padding: 0.0625rem 0.5rem;
+  border-radius: var(--radius-control);
+  color: var(--accent-text);
+  background: var(--accent-tint);
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.armed-list { padding-top: 1.125rem; }
+.armed-list h2 { color: var(--ink); font-size: 0.9375rem; font-weight: 500; }
+.armed-note { margin-top: 0.125rem; color: var(--muted); font-size: 0.8125rem; }
+
+.link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent-text);
+  font-size: 0.8125rem;
+  text-align: left;
+  cursor: pointer;
+}

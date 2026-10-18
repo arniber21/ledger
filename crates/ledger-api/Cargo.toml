@@ -9,11 +9,13 @@ ledger-agents.workspace = true
 ledger-core.workspace = true
 ledger-ingest.workspace = true
 ledger-jev.workspace = true
+ledger-spec.workspace = true
 ledger-store.workspace = true
 anyhow.workspace = true
 axum = "0.8"
 chrono = { workspace = true, features = ["clock", "serde"] }
 futures = "0.3"
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "rustls-tls"] }
 rust_decimal.workspace = true
 serde.workspace = true
 serde_json.workspace = true

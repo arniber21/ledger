@@ -64,6 +64,41 @@ export function SpecsPage({ spec }: { spec?: string }) {
       />
       {selected ? (
         <SpecDetail key={selected.key} run={selected} runs={runs} verdicts={metrics.verdicts} />
+      ) : armed.length > 0 ? (
+        <div className="content">
+          <section className="armed-list" aria-label="Armed specs" data-testid="armed-list">
+            <h2>Armed specs</h2>
+            <p className="armed-note">These monitors are running on the live stream now.</p>
+            <table className="spec-table">
+              <thead>
+                <tr>
+                  <th>Spec</th>
+                  <th>Policy</th>
+                  <th>Pattern</th>
+                  <th>Scope</th>
+                </tr>
+              </thead>
+              <tbody>
+                {armed.map((run) => (
+                  <tr key={run.key} data-testid="armed-row">
+                    <td>
+                      <button
+                        type="button"
+                        className="link-button mono"
+                        onClick={() => void navigate({ to: "/specs", search: { spec: run.specId ?? run.key } })}
+                      >
+                        {run.specId ?? run.key}
+                      </button>
+                    </td>
+                    <td>{run.sentence}</td>
+                    <td>{run.steps.find((step) => step.kind === "monitor")?.patternId ?? "—"}</td>
+                    <td>{scopeOf(run.parameters) ?? "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </section>
+        </div>
       ) : (
         <div className="content content-fill">
           <div className="empty">
@@ -332,7 +367,7 @@ function MonitorTable({ run, scope }: { run: SpecRun; scope: string | null }) {
 
 function HistoryTable({ runs, currentKey }: { runs: SpecRun[]; currentKey: string }) {
   const rows: TableRow[] = runs
-    .filter((run) => run.key !== currentKey && run.status !== "composing")
+    .filter((run) => run.key !== currentKey && run.status !== "composing" && run.draftedBy !== "Built in")
     .map((run) => ({
       id: run.key,
       pattern: run.patternId ?? "—",

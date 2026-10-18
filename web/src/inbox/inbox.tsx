@@ -7,7 +7,7 @@ import {
 } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode, type RefObject } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode, type RefObject } from "react";
 import { outcomeLabel } from "../stream/reduce";
 import type { BindingLine } from "../stream/types";
 import { useShell } from "../shell/context";
@@ -19,6 +19,11 @@ import {
   ageLabel,
   agentOf,
   amountLabel,
+  bindingLabel,
+  cardTitle,
+  DEFAULT_RANK_WEIGHTS,
+  jevChip,
+  sourceLabel,
   filterChips,
   groupItems,
   hasInboxFilters,
@@ -56,7 +61,7 @@ type Features = typeof features;
 const columns: ColumnDef<Features, InboxItem>[] = [
   { id: "severity", accessorFn: (row) => row.verdict.outcome, header: "Severity" },
   { id: "id", accessorFn: (row) => row.verdict.id, header: "Id" },
-  { id: "title", accessorFn: (row) => row.verdict.title, header: "Title" },
+  { id: "title", accessorFn: (row) => cardTitle(row.verdict), header: "Title" },
   { id: "spec", accessorFn: (row) => row.verdict.specId, header: "Spec" },
   { id: "agent", accessorFn: (row) => row.agent, header: "Agent" },
   { id: "amount", accessorFn: (row) => row.verdict.amountCents, header: "Amount" },
@@ -69,6 +74,8 @@ const VIEW_ICONS: Record<InboxView, ReactNode> = {
   list: <ListIcon />,
   split: <SplitIcon />,
 };
+
+const WeightsContext = createContext(DEFAULT_RANK_WEIGHTS);
 
 export function InboxPage({ search }: { search: InboxSearch }) {
   const navigate = useNavigate();
@@ -260,7 +267,7 @@ export function InboxPage({ search }: { search: InboxSearch }) {
   const showMe = assignQuery.trim().length === 0 || "me".includes(assignQuery.trim().toLowerCase());
 
   return (
-    <>
+    <WeightsContext.Provider value={weights}>
       <Header
         icon={<InboxIcon />}
         title="Inbox"
@@ -414,7 +421,7 @@ export function InboxPage({ search }: { search: InboxSearch }) {
           )}
         </div>
       ) : null}
-    </>
+    </WeightsContext.Provider>
   );
 }
 
@@ -673,6 +680,7 @@ function Card({
   onSelect: () => void;
   onOpenAssign: (item: InboxItem, node: HTMLElement) => void;
 }) {
+  const chip = jevChip(item.verdict, useContext(WeightsContext));
   return (
     <div
       role="button"
@@ -692,13 +700,20 @@ function Card({
     >
       <span className="mono card-id" title={item.verdict.id}>
         {shortId(item.verdict.id)}
+        {bindingLabel(item.verdict) ? ` · ${bindingLabel(item.verdict)}` : ""}
       </span>
-      <span className="card-title">{item.verdict.title}</span>
+      <span className="card-title">{cardTitle(item.verdict)}</span>
+      <span className="card-facts">
+        <span>{sourceLabel(item.verdict)}</span>
+        <span>{amountLabel(item.verdict.amountCents)}</span>
+        <span title="Age from the stored time. A dash means the stored time is not usable.">
+          {ageLabel(item.verdict.recordedAt, now)}
+        </span>
+      </span>
       <span className="card-foot">
         <span className={`dot dot-${item.verdict.outcome}`} />
-        <span className="card-evidence">{item.agent || "No source"}</span>
-        <span className="card-evidence">{amountLabel(item.verdict.amountCents)}</span>
-        <span className="card-evidence">{ageLabel(item.verdict.recordedAt, now)}</span>
+        <span className="card-evidence">{outcomeLabel(item.verdict.outcome)}</span>
+        {chip ? <span className="jev-chip">{chip}</span> : null}
         <button
           type="button"
           className="avatar avatar-button"
@@ -759,7 +774,7 @@ function InboxList({
         <span>Id</span>
         <span>Title</span>
         <span>Spec</span>
-        <span>Agent</span>
+        <span>Source</span>
         <span>Amount</span>
         <span>Age</span>
         <span>Assignee</span>
@@ -797,9 +812,9 @@ function InboxList({
               >
                 <span className={`dot dot-${item.verdict.outcome}`} title={outcomeLabel(item.verdict.outcome)} />
                 <span className="mono" title={item.verdict.id}>{shortId(item.verdict.id)}</span>
-                <span className="row-title">{item.verdict.title}</span>
+                <span className="row-title">{cardTitle(item.verdict)}</span>
                 <span className="card-evidence">{item.verdict.specId || "—"}</span>
-                <span className="card-evidence">{item.agent || "No source"}</span>
+                <span className="card-evidence">{sourceLabel(item.verdict)}</span>
                 <span className="card-evidence">{amountLabel(item.verdict.amountCents)}</span>
                 <span className="card-evidence">{ageLabel(item.verdict.recordedAt, now)}</span>
                 <button
@@ -866,7 +881,7 @@ function Split({
             >
               <span className={`dot dot-${item.verdict.outcome}`} />
               <span className="mono">{shortId(item.verdict.id)}</span>
-              <span className="row-title">{item.verdict.title}</span>
+              <span className="row-title">{cardTitle(item.verdict)}</span>
               <span className="row-meta">{item.status}</span>
             </button>
           </li>
@@ -875,7 +890,7 @@ function Split({
       {preview ? (
         <article className="split-detail" data-testid="split-detail">
           <p className="mono">{preview.verdict.id}</p>
-          <h2 className="title-case">{preview.verdict.title}</h2>
+          <h2 className="title-case">{cardTitle(preview.verdict)}</h2>
           <p className={`outcome outcome-${preview.verdict.outcome}`}>{outcomeLabel(preview.verdict.outcome)}</p>
           <div className="inbox-actions">
             <button type="button" className="primary" onClick={onReview}>
@@ -898,7 +913,7 @@ function Split({
             <Prop label="Status" value={preview.status} />
             <Prop label="Spec" value={preview.verdict.specId || "—"} />
             <Prop label="Reason" value={preview.verdict.reasonCode || "—"} />
-            <Prop label="Agent" value={preview.agent || "No source"} />
+            <Prop label="Source" value={sourceLabel(preview.verdict)} />
             <Prop label="Amount" value={amountLabel(preview.verdict.amountCents)} />
             <Prop label="Age" value={ageLabel(preview.verdict.recordedAt, now)} />
             <Prop label="Binding" value={preview.verdict.binding || "No binding id was stored."} />
