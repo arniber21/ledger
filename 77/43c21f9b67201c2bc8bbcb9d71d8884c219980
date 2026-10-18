@@ -1,0 +1,27 @@
+web/src/inbox/inbox.tsx
+  s_61e0b0c14d18f7::t_a35030c7440d77 52-53,84-85,87-94,99,103-114,133-158,184-191,193,195-201,232-254,257-281,283,287,291,295,298-334,356-365,369-370,372-373,375-376,378-382,387-398,400-435,439,469-477,480-493,537-538,547,556-557,585-586,588,597,602-605,607,609-628,819-820,830-831,864,870-871,877,888-889,896-897,905-908,910,958-959,969-970,992-997,1012,1032-1035,1099,1104-1105
+web/src/inbox/use-triage.ts
+  s_61e0b0c14d18f7::t_6d6a89341d4e98 1-2,31-32,38-41,45-48
+web/src/shell/shell.tsx
+  s_61e0b0c14d18f7::t_a281501a8fd439 89
+web/src/styles.css
+  s_61e0b0c14d18f7::t_d7bd6cea8f2b9c 1816-1840
+web/src/ui/hotkeys.ts
+  s_61e0b0c14d18f7::t_3d0d1009286b39 8-11,88-100
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7743c21f9b67201c2bc8bbcb9d71d8884c219980",
+  "prompts": {},
+  "sessions": {
+    "s_61e0b0c14d18f7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c168cc53-67a2-4357-967a-c871924e2eec",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    }
+  }
+}
