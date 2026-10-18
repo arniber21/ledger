@@ -80,7 +80,6 @@ pub struct IngestLayer {
 
 impl IngestLayer {
     /// Wraps `sink`. Every closed span is passed to [`SpanSink::on_span`].
-    #[must_use]
     pub fn from_sink(sink: impl SpanSink) -> Self {
         Self {
             sink: Arc::new(sink),
@@ -88,7 +87,6 @@ impl IngestLayer {
     }
 
     /// Layer plus the channel that receives every closed span.
-    #[must_use]
     pub fn pair() -> (Self, mpsc::Receiver<CapturedSpan>) {
         let (sender, receiver) = mpsc::channel();
         (Self::from_sink(sender), receiver)
