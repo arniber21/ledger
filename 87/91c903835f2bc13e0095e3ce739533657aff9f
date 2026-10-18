@@ -1,0 +1,45 @@
+Justfile
+  s_0c8515992f8884::t_ccadf00426d93b 56
+README.md
+  s_0c8515992f8884::t_106f76a86ae557 47,89
+crates/ledger-api/Cargo.toml
+  s_0c8515992f8884::t_95b84132cecb2b 12
+crates/ledger-api/src/calibration.rs
+  s_0c8515992f8884::t_bf1a309a358968 1-86
+crates/ledger-api/src/http.rs
+  s_0c8515992f8884::t_9cd3e2ea44b890 101
+crates/ledger-api/src/lib.rs
+  s_0c8515992f8884::t_fb91bfdd41c603 27,29
+crates/ledger-api/src/main.rs
+  s_0c8515992f8884::t_1b3ca196676b2e 31
+crates/ledger-store/migrations/0003_jev_calibration.sql
+  s_0c8515992f8884::t_8eddcad6476d9b 1-77
+crates/ledger-store/src/lib.rs
+  s_0c8515992f8884::t_bc2ac37f2179f2 5,55-58,61-66,224-254,719,721-722,758-864,1283,1307-1547
+web/src/dashboard/calibration-panel.tsx
+  s_0c8515992f8884::t_7e642e8b6992d8 1-116
+web/src/dashboard/calibration.test.ts
+  s_0c8515992f8884::t_01c69bdcb53620 1-56
+web/src/dashboard/calibration.ts
+  s_0c8515992f8884::t_9f30c135640cc5 1-71
+web/src/dashboard/dashboard.tsx
+  s_0c8515992f8884::t_a9870849808616 14,161-162
+web/src/styles.css
+  s_0c8515992f8884::t_bf0fdb5f1e0a96 1054-1079
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8791c903835f2bc13e0095e3ce739533657aff9f",
+  "prompts": {},
+  "sessions": {
+    "s_0c8515992f8884": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "7f9840bb-b9f3-4689-ba9e-0e24b965d704",
+        "model": "grok-4.7-high-fast"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    }
+  }
+}
