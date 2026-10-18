@@ -5,8 +5,9 @@ use ledger_core::{
 };
 use ledger_jev::{BindingVerdict, JevCallFailure};
 use ledger_spec::{
-    author, draft_from_interaction, draft_request, match_request, AuthoringInput, AuthoringStep,
-    CatalogueCode, DraftFailure, RejectReason, DRAFT_MATCH_QUESTION, FIXTURE_POLICY, GEMINI_MODEL,
+    author, clause_question_id, coverage_request, draft_from_interaction, draft_request,
+    match_request, split_clauses, AuthoringInput, AuthoringStep, CatalogueCode, ClauseCoverage,
+    DraftFailure, HoldReason, RejectReason, DRAFT_MATCH_QUESTION, FIXTURE_POLICY, GEMINI_MODEL,
 };
 use serde_json::Value;
 
@@ -118,7 +119,48 @@ fn run(
         agent: &agent,
         gemini,
         jev,
+        coverage: Err(JevCallFailure::Timeout),
+        override_coverage: false,
     })
+}
+
+const TWO_CLAUSES: &str = "Pay the bill. Keep a credit.";
+
+fn author_policy(
+    sentence: &str,
+    jev: Result<&str, JevCallFailure>,
+    coverage: Result<&str, JevCallFailure>,
+    override_coverage: bool,
+) -> ledger_spec::AuthoringOutcome {
+    let agent = agent();
+    let gemini = interaction(&absence_text());
+    author(AuthoringInput {
+        sentence,
+        agent: &agent,
+        gemini: Ok(&gemini),
+        jev,
+        coverage,
+        override_coverage,
+    })
+}
+
+fn coverage_choice(parts: &[(&str, f64, f64)]) -> String {
+    let mut answers = serde_json::Map::new();
+    for (index, (label, p_same, p_different)) in parts.iter().enumerate() {
+        answers.insert(
+            clause_question_id(index),
+            serde_json::json!({
+                "type": "choice",
+                "choice": label,
+                "probabilities": { "same": p_same, "different": p_different }
+            }),
+        );
+    }
+    serde_json::json!({
+        "model": "jev-test",
+        "answers": answers
+    })
+    .to_string()
 }
 
 #[test]
@@ -146,14 +188,21 @@ fn accepted_run_streams_sentence_draft_check_and_accepted() {
             AuthoringStep::Check {
                 verdict: BindingVerdict::Same
             },
-            AuthoringStep::Accepted { .. },
+            AuthoringStep::Coverage { .. },
+            AuthoringStep::Accepted {
+                overridden: false,
+                ..
+            },
         ]
     ));
     let sse = outcome.encode_sse();
     assert!(sse.contains("event: sentence\n"));
     assert!(sse.contains("event: draft\n"));
     assert!(sse.contains("event: check\n"));
+    assert!(sse.contains("event: coverage\n"));
+    assert!(sse.contains("\"coverage\":\"covered\""));
     assert!(sse.contains("event: accepted\n"));
+    assert!(sse.contains("\"override\":false"));
     assert!(sse.contains("\"monitor\":\"running\""));
     assert!(!sse.contains("prose that must not be used"));
     assert!(!sse.contains("fraud"));
@@ -266,6 +315,8 @@ fn gemini_failure_and_unreadable_body_do_not_accept() {
         agent: &agent,
         gemini: Err(DraftFailure::Timeout),
         jev: Ok(&jev_choice("same", 0.99, 0.01)),
+        coverage: Err(JevCallFailure::Timeout),
+        override_coverage: false,
     });
     assert!(matches!(
         failed.steps().last(),
@@ -279,6 +330,8 @@ fn gemini_failure_and_unreadable_body_do_not_accept() {
         agent: &agent,
         gemini: Ok("not json"),
         jev: Ok(&jev_choice("same", 0.99, 0.01)),
+        coverage: Err(JevCallFailure::Timeout),
+        override_coverage: false,
     });
     assert!(matches!(
         unreadable.steps().last(),
@@ -296,6 +349,8 @@ fn empty_policy_is_rejected_before_either_model() {
         agent: &agent,
         gemini: Err(DraftFailure::Transport),
         jev: Err(JevCallFailure::Timeout),
+        coverage: Err(JevCallFailure::Timeout),
+        override_coverage: true,
     });
     assert!(matches!(
         outcome.steps(),
@@ -376,7 +431,11 @@ fn saved_gemini_and_jev_fixtures_replay_offline() {
             AuthoringStep::Check {
                 verdict: BindingVerdict::Same
             },
-            AuthoringStep::Accepted { .. },
+            AuthoringStep::Coverage { .. },
+            AuthoringStep::Accepted {
+                overridden: false,
+                ..
+            },
         ]
     ));
     let monitor = outcome.into_monitor().expect("accepted monitor");
@@ -384,4 +443,164 @@ fn saved_gemini_and_jev_fixtures_replay_offline() {
     let verdicts = monitor.judge(&agent(), &double_pay()).expect("judge");
     assert_eq!(verdicts.len(), 1, "{verdicts:?}");
     assert_eq!(verdicts[0].verdict().outcome(), VerdictOutcome::Violate);
+}
+
+#[test]
+fn partial_coverage_shows_the_uncovered_clause_and_does_not_arm() {
+    let coverage = coverage_choice(&[("same", 0.91, 0.09), ("different", 0.08, 0.92)]);
+    let outcome = author_policy(
+        TWO_CLAUSES,
+        Ok(&jev_choice("same", 0.95, 0.05)),
+        Ok(&coverage),
+        false,
+    );
+    assert!(outcome.monitor().is_none());
+    let clauses = split_clauses(TWO_CLAUSES);
+    assert_eq!(clauses.len(), 2);
+    assert!(matches!(
+        outcome.steps(),
+        [
+            AuthoringStep::Sentence { .. },
+            AuthoringStep::Draft { .. },
+            AuthoringStep::Check {
+                verdict: BindingVerdict::Same
+            },
+            AuthoringStep::Coverage { .. },
+            AuthoringStep::Held {
+                reason: HoldReason::ClauseUncovered
+            },
+        ]
+    ));
+    let AuthoringStep::Coverage { clauses: marked } = &outcome.steps()[3] else {
+        panic!("coverage step");
+    };
+    assert_eq!(marked[0].text, clauses[0]);
+    assert_eq!(marked[0].coverage, ClauseCoverage::Covered);
+    assert_eq!(marked[1].text, clauses[1]);
+    assert_eq!(marked[1].coverage, ClauseCoverage::Uncovered);
+    let sse = outcome.encode_sse();
+    assert!(sse.contains("\"coverage\":\"uncovered\""));
+    assert!(sse.contains("\"reason\":\"clause_uncovered\""));
+    assert!(!sse.contains("event: accepted\n"));
+    assert!(!sse.contains("fraud"));
+}
+
+#[test]
+fn fully_covered_clauses_arm_as_before() {
+    let coverage = coverage_choice(&[("same", 0.80, 0.20), ("same", 0.97, 0.03)]);
+    let outcome = author_policy(
+        TWO_CLAUSES,
+        Ok(&jev_choice("same", 0.91, 0.09)),
+        Ok(&coverage),
+        false,
+    );
+    let monitor = outcome.into_monitor().expect("fully covered arms");
+    assert_eq!(monitor.pattern_id(), "absence.after-until");
+    let verdicts = monitor.judge(&agent(), &double_pay()).expect("judge");
+    assert_eq!(verdicts[0].verdict().outcome(), VerdictOutcome::Violate);
+}
+
+#[test]
+fn coverage_failure_marks_clauses_unknown_until_override() {
+    let blocked = author_policy(
+        TWO_CLAUSES,
+        Ok(&jev_choice("same", 0.91, 0.09)),
+        Err(JevCallFailure::Timeout),
+        false,
+    );
+    assert!(blocked.monitor().is_none());
+    assert!(matches!(
+        blocked.steps().last(),
+        Some(AuthoringStep::Held {
+            reason: HoldReason::ClauseUnknown
+        })
+    ));
+    let AuthoringStep::Coverage { clauses } = &blocked.steps()[3] else {
+        panic!("coverage step");
+    };
+    assert!(clauses
+        .iter()
+        .all(|clause| clause.coverage == ClauseCoverage::Unknown));
+    assert!(blocked
+        .encode_sse()
+        .contains("\"reason\":\"clause_unknown\""));
+
+    let low = coverage_choice(&[("same", 0.91, 0.09), ("same", 0.79, 0.21)]);
+    let under = author_policy(
+        TWO_CLAUSES,
+        Ok(&jev_choice("same", 0.91, 0.09)),
+        Ok(&low),
+        false,
+    );
+    assert!(matches!(
+        under.steps().last(),
+        Some(AuthoringStep::Held {
+            reason: HoldReason::ClauseUnknown
+        })
+    ));
+
+    let armed = author_policy(
+        TWO_CLAUSES,
+        Ok(&jev_choice("same", 0.91, 0.09)),
+        Err(JevCallFailure::Http { status: 422 }),
+        true,
+    );
+    assert!(matches!(
+        armed.steps().last(),
+        Some(AuthoringStep::Accepted {
+            overridden: true,
+            ..
+        })
+    ));
+    assert!(armed.monitor().is_some());
+    assert!(armed.encode_sse().contains("\"override\":true"));
+}
+
+#[test]
+fn override_does_not_arm_a_different_or_unknown_match() {
+    let coverage = coverage_choice(&[("same", 0.99, 0.01), ("different", 0.01, 0.99)]);
+    let different = author_policy(
+        TWO_CLAUSES,
+        Ok(&jev_choice("different", 0.10, 0.90)),
+        Ok(&coverage),
+        true,
+    );
+    assert!(different.monitor().is_none());
+    assert!(matches!(
+        different.steps().last(),
+        Some(AuthoringStep::Rejected {
+            reason: RejectReason::DraftDiffers
+        })
+    ));
+
+    let unknown = author_policy(
+        TWO_CLAUSES,
+        Err(JevCallFailure::Timeout),
+        Ok(&coverage),
+        true,
+    );
+    assert!(unknown.monitor().is_none());
+    assert!(matches!(
+        unknown.steps().last(),
+        Some(AuthoringStep::Rejected {
+            reason: RejectReason::MatchInconclusive
+        })
+    ));
+}
+
+#[test]
+fn coverage_request_batches_one_choice_per_clause_and_asks_for_no_prose() {
+    let draft = draft_from_interaction(&interaction(&absence_text())).expect("draft");
+    let clauses = split_clauses(TWO_CLAUSES);
+    let request = coverage_request(TWO_CLAUSES, &clauses, &draft);
+    let value: Value = serde_json::from_str(&request).expect("coverage request");
+    assert_eq!(value["model"], "jev-latest");
+    let questions = value["questions"].as_object().expect("questions");
+    assert_eq!(questions.len(), 2);
+    assert_eq!(questions[&clause_question_id(0)]["type"], "choice");
+    assert_eq!(questions[&clause_question_id(1)]["type"], "choice");
+    assert_eq!(value["state"]["clauses"][1], "Keep a credit.");
+    assert!(!request.to_ascii_lowercase().contains("explain"));
+    assert!(!request.contains("TYPESAFE_API_KEY"));
+    assert!(!request.contains("Bearer"));
 }
