@@ -1,0 +1,78 @@
+crates/ledger-agents/tests/agents.rs
+  s_86d483f0505f98::t_422dc0347e1668 168
+  s_86d483f0505f98::t_736524bc042000 13-14
+  s_86d483f0505f98::t_47a0b8d26f0516 250
+  s_86d483f0505f98::t_0a40d34bb35dd3 196-236
+  s_86d483f0505f98::t_99bddfbbb01c1f 403
+crates/ledger-agents/Cargo.toml
+  s_86d483f0505f98::t_e2077ca69922d8 10
+crates/ledger-jev/src/memo.rs
+  s_86d483f0505f98::t_b99f208123acdb 164-168,171,174
+  s_86d483f0505f98::t_20fd716fcf5ded 11-13
+  s_86d483f0505f98::t_aec9cc4f809ce1 58-60
+  s_86d483f0505f98::t_151d6598a47f43 346-372
+  s_86d483f0505f98::t_bd3bc021daf93d 1-10,14-57,61-75,77,96-163,169-170,172-173,175-239,250-330,373
+  s_86d483f0505f98::t_2d3f7e7f6dd448 331-345
+  s_86d483f0505f98::t_1068ac3b08b927 76,78-95
+  s_86d483f0505f98::t_8a73a8fdb1218a 240-249
+crates/ledger-agents/src/predicate.rs
+  s_86d483f0505f98::t_e2aaa01266450b 1-37,39-52
+  s_86d483f0505f98::t_632d44817c7da7 38
+crates/ledger-jev/src/lib.rs
+  s_86d483f0505f98::t_aafeb324b4d3c8 43-45
+  s_86d483f0505f98::t_bb4fa778ce0c1a 1,3-6,11-14
+  s_86d483f0505f98::t_7e70a819b1407e 15
+crates/ledger-agents/src/lib.rs
+  s_86d483f0505f98::t_0ca252586ce695 33
+  s_86d483f0505f98::t_25be2b1acb2b45 11-15
+crates/ledger-agents/src/desk.rs
+  s_86d483f0505f98::t_8612aa7078c815 1068
+  s_86d483f0505f98::t_9bfac2372a7843 828-834
+  s_86d483f0505f98::t_020406522b2e25 627-644,646
+  s_86d483f0505f98::t_8d9121c786b64d 15
+  s_86d483f0505f98::t_23e5621fdc946c 83-84
+  s_86d483f0505f98::t_d06871a22b1044 502-503,506-507
+  s_86d483f0505f98::t_b3127036a5d6fb 1098
+  s_86d483f0505f98::t_90f09acc615fe1 162-163,168-207
+  s_86d483f0505f98::t_0e5d888e6f9a29 372,374
+  s_86d483f0505f98::t_699d8f08ab8d0f 663,671,682
+  s_86d483f0505f98::t_059da90d914677 1112-1113,1125-1156,1159
+  s_86d483f0505f98::t_e7bddcdf9cc140 353-354
+  s_86d483f0505f98::t_9397e5e764c4ef 58-61
+  s_86d483f0505f98::t_74f23b6919d369 208,1157,1229-1233
+  s_86d483f0505f98::t_3565c09fab80c8 209,1158,1160,1234-1235
+crates/ledger-agents/src/tools.rs
+  s_86d483f0505f98::t_9394ef6af6e459 124
+  s_86d483f0505f98::t_c78a21c36140a1 15
+  s_86d483f0505f98::t_fa733b44d64a2f 137-143
+crates/ledger-agents/src/cycle.rs
+  s_86d483f0505f98::t_c5ae9fb6471652 231
+crates/ledger-agents/tests/common/mod.rs
+  s_86d483f0505f98::t_8826d3fe21e1bf 225-231
+Cargo.lock
+  s_86d483f0505f98::t_fbd878242ad56a 2394
+fixtures/jev/memo-benign-request.json
+  s_86d483f0505f98::t_877dd8a833fc0b 1
+fixtures/jev/memo-benign.json
+  s_86d483f0505f98::t_fa0125f630ca46 1
+fixtures/jev/memo-instructs-request.json
+  s_86d483f0505f98::t_5107fde8a5dda0 1
+fixtures/jev/memo-instructs.json
+  s_86d483f0505f98::t_e783dde0a18bf9 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d86e6fe11dfbd895b77781f07e090c9790291971",
+  "prompts": {},
+  "sessions": {
+    "s_86d483f0505f98": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "0da0ed01-9c80-462c-ace7-0efc02ff950d",
+        "model": "grok-4.7-high-fast"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    }
+  }
+}
