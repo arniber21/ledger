@@ -1,0 +1,21 @@
+web/src/ui/hotkeys.ts
+  s_61e0b0c14d18f7::t_540707ab536654 115,159-161,163
+web/src/ui/shortcuts-help.tsx
+  s_61e0b0c14d18f7::t_05e26aa81141cf 19
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8747800ffe0e6ea6075e772a5d7d5d52037867f7",
+  "prompts": {},
+  "sessions": {
+    "s_61e0b0c14d18f7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c168cc53-67a2-4357-967a-c871924e2eec",
+        "model": "unknown"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    }
+  }
+}
