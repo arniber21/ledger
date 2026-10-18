@@ -1,0 +1,76 @@
+crates/ledger-jev/src/lib.rs
+  s_0c8515992f8884::t_27abcb09d211d8 2-3
+  s_0c8515992f8884::t_565ec552b13470 51
+  s_0c8515992f8884::t_6630f013c15951 48-50
+  s_0c8515992f8884::t_e6243535fbe19f 27,46-47
+crates/ledger-agents/src/desk.rs
+  s_0c8515992f8884::t_c4260c788c0620 15-18,65-67,170-171,218-250,610-613,628-629,632-637,873-962,971-994,1252-1253,1256-1262
+crates/ledger-agents/src/predicate.rs
+  s_0c8515992f8884::t_7171219d4e6812 7,9,14-22,36
+crates/ledger-agents/src/tools.rs
+  s_0c8515992f8884::t_eeebe116084847 15,142-145
+crates/ledger-api/src/decode.rs
+  s_0c8515992f8884::t_47d6488d34a023 51-53,126-145
+crates/ledger-core/src/adapt.rs
+  s_0c8515992f8884::t_2fe5594c3a1c13 248-253
+crates/ledger-core/src/event.rs
+  s_0c8515992f8884::t_4ba38d0c7a2271 3-4,120-123,155,157-158,174-175,191,208-209,224-225,239-240,260-261,284-285,409,413-435
+crates/ledger-core/src/lib.rs
+  s_0c8515992f8884::t_ce8781f7ec354c 30-32,34
+crates/ledger-core/src/live.rs
+  s_0c8515992f8884::t_01b89cf631342e 16,18-19,58,154,163,305-355,363,370,443,511-525
+crates/ledger-core/src/source.rs
+  s_0c8515992f8884::t_7f3fa6e91af9e2 37-53
+crates/ledger-core/src/specs.rs
+  s_0c8515992f8884::t_60cfb349be5c96 1,28,37-38,149-214
+crates/ledger-ingest/src/normalize.rs
+  s_0c8515992f8884::t_91e995f83f8231 235-236
+crates/ledger-jev/src/memo.rs
+  s_0c8515992f8884::t_93ac84e7829fae 23-32,79,81-82,144-151,153,156,160,163-165
+crates/ledger-jev/src/panel.rs
+  s_0c8515992f8884::t_b9481bc9b892e2 1-625
+crates/ledger-spec/src/draft.rs
+  s_0c8515992f8884::t_368e94edc772f8 122-123
+fixtures/jev/panel-benign-request.json
+  s_0c8515992f8884::t_61ac44cec8661b 1
+fixtures/jev/panel-benign.json
+  s_0c8515992f8884::t_1fc59c67907b34 1
+fixtures/jev/panel-instructs-request.json
+  s_0c8515992f8884::t_fab8720f35fb15 1
+fixtures/jev/panel-instructs.json
+  s_0c8515992f8884::t_f58ac46c898693 1
+fixtures/jev/panel-rationale-request.json
+  s_0c8515992f8884::t_d8172bb478c352 1
+fixtures/jev/panel-rationale.json
+  s_0c8515992f8884::t_ea01f52b8088a2 1
+web/src/router.tsx
+  s_0c8515992f8884::t_e28ceaef69ae03 8,51-56,81-88
+web/src/shell/icons.tsx
+  s_0c8515992f8884::t_3147b23745a83a 147-155
+web/src/shell/palette.tsx
+  s_0c8515992f8884::t_687d256299588b 20,43
+web/src/shell/shell.tsx
+  s_0c8515992f8884::t_44b1bcf4d490df 132-139
+web/src/shell/sidebar.tsx
+  s_0c8515992f8884::t_99c5e4f7d272d5 15,25
+web/src/taint/recorded.ts
+  s_0c8515992f8884::t_163f18f9ade642 1-88
+web/src/taint/taint.tsx
+  s_0c8515992f8884::t_bd65a792bf2393 1-127
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "cb0f884521642e53fde94c94436296aad8b40827",
+  "prompts": {},
+  "sessions": {
+    "s_0c8515992f8884": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "7f9840bb-b9f3-4689-ba9e-0e24b965d704",
+        "model": "grok-4.7-high-fast"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    }
+  }
+}
