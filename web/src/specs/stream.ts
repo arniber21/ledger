@@ -4,6 +4,9 @@ import type { AuthorEvent } from "./types";
 /**
  * Posts a policy sentence and reads `ledger-spec`'s authoring frames.
  *
+ * `overrideCoverage` asks the pipeline to arm a Same match that left a clause
+ * uncovered or unknown. It does not invent a verdict.
+ *
  * `VITE_SPEC_AUTHOR_URL` is that stream. When it is unset, or the request
  * fails, the caller surfaces the failure. This module does not call Gemini
  * or Jev and does not fill in a draft, a verdict, or a score.
@@ -17,6 +20,7 @@ export async function streamAuthoring(
   sentence: string,
   onEvent: (event: AuthorEvent) => void,
   signal: AbortSignal,
+  overrideCoverage = false,
 ): Promise<void> {
   const url = authorUrl();
   if (!url) {
@@ -31,7 +35,7 @@ export async function streamAuthoring(
         accept: "text/event-stream",
         "content-type": "application/json",
       },
-      body: JSON.stringify({ sentence }),
+      body: JSON.stringify({ sentence, override: overrideCoverage }),
       signal,
     });
   } catch (error) {
