@@ -1,3 +1,9 @@
-//! HTTP/SSE API serving live verdicts to the web UI.
+//! HTTP server for the live trace view.
 
-fn main() {}
+#[tokio::main]
+async fn main() {
+    if let Err(err) = ledger_api::serve().await {
+        eprintln!("api: {err}");
+        std::process::exit(1);
+    }
+}
