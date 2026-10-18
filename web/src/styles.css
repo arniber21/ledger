@@ -1051,6 +1051,32 @@ kbd {
   vertical-align: top;
 }
 
+.calibration {
+  margin-top: 8px;
+  padding: 18px 0 8px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.calibration .chart-copy {
+  max-width: 720px;
+}
+
+.calibration-table {
+  margin-top: 14px;
+}
+
+.calibration-table th.num,
+.calibration-table td.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  padding-right: 0;
+}
+
+.calibration-table td.question {
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
 @media (max-width: 1180px) {
   .metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .charts, .board, .inbox-columns, .split, .spec-detail, .verdict-layout { grid-template-columns: 1fr; }

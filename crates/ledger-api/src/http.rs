@@ -98,6 +98,7 @@ pub async fn serve(store: Store, addr: &str) -> Result<Server, ApiError> {
         });
     let app = verdicts
         .merge(crate::inbox::router(store.clone()))
+        .merge(crate::calibration::router(store.clone()))
         .merge(crate::traces::router(crate::traces::AppState {
             store: Some(store),
         }))
