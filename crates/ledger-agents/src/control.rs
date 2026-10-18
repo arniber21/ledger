@@ -59,7 +59,7 @@ pub async fn listen(desk: &Desk, path: &Path) -> Result<(), AgentError> {
 pub fn toggle_running(path: &Path, fault: Fault) -> Result<bool, AgentError> {
     let mut stream = UnixStream::connect(path).map_err(not_running)?;
     stream
-        .set_read_timeout(Some(Duration::from_secs(30)))
+        .set_read_timeout(Some(Duration::from_secs(300)))
         .map_err(AgentError::ControlIo)?;
     writeln!(stream, "toggle {fault}").map_err(AgentError::ControlIo)?;
     stream
@@ -68,7 +68,12 @@ pub fn toggle_running(path: &Path, fault: Fault) -> Result<bool, AgentError> {
     let mut response = String::new();
     stream
         .read_to_string(&mut response)
-        .map_err(AgentError::ControlIo)?;
+        .map_err(|err| match err.kind() {
+            std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut => {
+                AgentError::ControlTimeout
+            }
+            _ => AgentError::ControlIo(err),
+        })?;
     match response.trim() {
         "on" => Ok(true),
         "off" => Ok(false),

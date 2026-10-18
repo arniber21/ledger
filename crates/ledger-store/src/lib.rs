@@ -387,6 +387,40 @@ impl Store {
         Ok(())
     }
 
+    /// Connects to the `ledger_test` database, creating and migrating it.
+    ///
+    /// Tests use this instead of [`Store::connect`] so they never write
+    /// fixture rows (`no-second-payment`, 2023 timestamps) into the live demo
+    /// database. The server is the one `DATABASE_URL` names; only the
+    /// database name changes.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError::Database`] when the server is unreachable or the
+    /// database cannot be created, and [`StoreError::Migrate`] on migration.
+    pub async fn connect_test() -> Result<Self, StoreError> {
+        let admin_url = database_url();
+        let test_url = match admin_url.rfind('/') {
+            Some(index) => format!("{}/ledger_test", &admin_url[..index]),
+            None => format!("{admin_url}/ledger_test"),
+        };
+        let admin = Self::connect(&admin_url).await?;
+        let exists: Option<i32> =
+            sqlx::query_scalar("SELECT 1 FROM pg_database WHERE datname = 'ledger_test'")
+                .fetch_optional(&admin.pool)
+                .await?;
+        if exists.is_none() {
+            // Parallel tests can race here; losing the race is fine.
+            let _ = sqlx::query("CREATE DATABASE ledger_test")
+                .execute(&admin.pool)
+                .await;
+        }
+        admin.pool.close().await;
+        let store = Self::connect(&test_url).await?;
+        store.migrate().await?;
+        Ok(store)
+    }
+
     /// Applies the embedded SQL migrations.
     ///
     /// Migrations create the `events` hypertable and the `verdicts` table.
@@ -1192,10 +1226,9 @@ mod tests {
     /// Each test opens its own pool. A pool is bound to the tokio runtime that
     /// created it, and `#[tokio::test]` gives every test its own runtime.
     async fn test_store() -> Store {
-        let store = Store::connect(&database_url())
+        let store = Store::connect_test()
             .await
-            .expect("connect to local timescale (just db-up)");
-        store.migrate().await.expect("apply migrations");
+            .expect("connect to ledger_test (just db-up)");
         store
     }
 
@@ -1271,7 +1304,7 @@ mod tests {
             id: Uuid::new_v4(),
             recorded_at: timestamp(),
             outcome: VerdictOutcome::Violate,
-            spec_id: "no-second-payment".to_owned(),
+            spec_id: "ledger.bill.no-second-payment".to_owned(),
             reason_code: Some("second-payment".to_owned()),
             evidence: serde_json::json!([
                 {"kind": "bill.pay", "bill_id": "bill-1"}
@@ -1494,7 +1527,7 @@ mod tests {
             id: Uuid::new_v4(),
             recorded_at: timestamp(),
             outcome: VerdictOutcome::Violate,
-            spec_id: "no-second-payment".to_owned(),
+            spec_id: "ledger.bill.no-second-payment".to_owned(),
             reason_code: Some("second-payment".to_owned()),
             evidence: serde_json::json!([{"role": "second-payment"}]),
         };
@@ -1765,7 +1798,7 @@ mod tests {
                 id,
                 recorded_at: timestamp(),
                 outcome,
-                spec_id: "no-second-payment".to_owned(),
+                spec_id: "ledger.bill.no-second-payment".to_owned(),
                 reason_code: Some("second-payment".to_owned()),
                 evidence: serde_json::json!({
                     "title": title,

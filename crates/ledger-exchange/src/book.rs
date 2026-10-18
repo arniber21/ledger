@@ -321,6 +321,23 @@ impl OrderBook {
             if maker_done {
                 self.locations.remove(&maker_id);
             }
+            if maker_done {
+                // The fill span above names the taker in `order.id`, so the
+                // monitor would never see the resting maker order resolve and
+                // would report `order-unresolved` for a fully filled order.
+                // This span resolves the maker once, when it leaves the book.
+                let span = tracing::info_span!(
+                    "exchange.fill",
+                    sentry.name = "exchange.fill",
+                    sentry.op = "exchange.fill",
+                    order.id = %maker_id,
+                    maker.order.id = %maker_id,
+                    taker.order.id = %order.id,
+                    role = "maker-filled",
+                );
+                let _entered = span.enter();
+                tracing::info!(order.id = %maker_id, "resting order filled");
+            }
             fills.push(self.record_fill(order, maker_id, maker_agent, price, fill_qty)?);
         }
         Ok(())
