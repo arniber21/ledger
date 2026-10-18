@@ -756,6 +756,53 @@ impl Store {
         rows.into_iter().map(Triage::try_from).collect()
     }
 
+    /// Inserts raw ranking scores when this verdict has none yet.
+    ///
+    /// Returns `true` when the row was inserted. A repeat id is left as stored
+    /// so a later weight change does not call Jev again. NULL dimensions are
+    /// Unknown, not a priority of zero.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError::Database`] when the insert fails, including when
+    /// `verdict_id` is not in `verdicts`.
+    pub async fn insert_rank_if_absent(&self, rank: &VerdictRank) -> Result<bool, StoreError> {
+        let inserted = sqlx::query(
+            "INSERT INTO verdict_rank
+                (verdict_id, recorded_at, request, response, money, evidence, ambiguity, intent)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+             ON CONFLICT (verdict_id) DO NOTHING",
+        )
+        .bind(rank.verdict_id)
+        .bind(rank.recorded_at)
+        .bind(&rank.request)
+        .bind(&rank.response)
+        .bind(rank.money)
+        .bind(rank.evidence)
+        .bind(rank.ambiguity)
+        .bind(rank.intent)
+        .execute(&self.pool)
+        .await?;
+        Ok(inserted.rows_affected() == 1)
+    }
+
+    /// Reads stored ranking scores, newest first.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError::Database`] when the query fails.
+    pub async fn list_ranks(&self) -> Result<Vec<VerdictRank>, StoreError> {
+        let rows = sqlx::query_as::<_, VerdictRank>(
+            "SELECT verdict_id, recorded_at, request, response, money, evidence, ambiguity, intent
+             FROM verdict_rank
+             ORDER BY recorded_at DESC, verdict_id ASC
+             LIMIT 1000",
+        )
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows)
+    }
+
     /// Stores one Jev score for a verdict as a `jev.judgment` event.
     ///
     /// `probability` is the score already returned by Jev. `None`, a non-finite
@@ -862,6 +909,19 @@ impl Store {
 
 fn usable_probability(value: Option<f64>) -> Option<f64> {
     value.filter(|score| score.is_finite() && (0.0..=1.0).contains(score))
+}
+
+/// Raw Jev scores for one verdict. NULL dimensions are Unknown.
+#[derive(Debug, Clone, PartialEq, sqlx::FromRow)]
+pub struct VerdictRank {
+    pub verdict_id: Uuid,
+    pub recorded_at: DateTime<Utc>,
+    pub request: serde_json::Value,
+    pub response: Option<serde_json::Value>,
+    pub money: Option<f64>,
+    pub evidence: Option<f64>,
+    pub ambiguity: Option<f64>,
+    pub intent: Option<f64>,
 }
 
 /// Last hypertable row already delivered to a reader.
@@ -1305,6 +1365,54 @@ mod tests {
         assert_eq!(row.status, TriageStatus::Dismissed);
     }
 
+    #[tokio::test]
+    async fn rank_round_trip_keeps_unknown_dimensions_null() {
+        let store = test_store().await;
+        let verdict = Verdict {
+            id: Uuid::new_v4(),
+            recorded_at: timestamp(),
+            outcome: VerdictOutcome::Violate,
+            spec_id: "ledger.bill.no-second-payment".to_owned(),
+            reason_code: Some("second-payment".to_owned()),
+            evidence: serde_json::json!({ "title": "needs review" }),
+        };
+        store
+            .insert_verdict(&verdict)
+            .await
+            .expect("insert verdict");
+        let rank = VerdictRank {
+            verdict_id: verdict.id,
+            recorded_at: timestamp(),
+            request: serde_json::json!({ "model": "jev-latest" }),
+            response: None,
+            money: Some(4.0),
+            evidence: None,
+            ambiguity: Some(0.0),
+            intent: Some(2.0),
+        };
+        assert!(store
+            .insert_rank_if_absent(&rank)
+            .await
+            .expect("insert rank"));
+        assert!(!store
+            .insert_rank_if_absent(&rank)
+            .await
+            .expect("repeat rank"));
+        let loaded = store
+            .list_ranks()
+            .await
+            .expect("list ranks")
+            .into_iter()
+            .find(|row| row.verdict_id == verdict.id)
+            .expect("stored rank");
+        assert_eq!(loaded.request, rank.request);
+        assert!(loaded.response.is_none());
+        assert_eq!(loaded.money, Some(4.0));
+        assert!(loaded.evidence.is_none());
+        assert_eq!(loaded.ambiguity, Some(0.0));
+        assert_eq!(loaded.intent, Some(2.0));
+        assert!(!format!("{loaded:?}").to_lowercase().contains("fraud"));
+    }
     #[test]
     fn calibration_sql_reads_review_events_and_keeps_the_threshold() {
         let sql = include_str!("../migrations/0003_jev_calibration.sql");

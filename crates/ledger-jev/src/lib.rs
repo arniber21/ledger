@@ -1,6 +1,6 @@
 //! Jev (TypeSafe System One) client: binding judgments, the memo predicate, the
-//! eight-question semantic panel, and recurring-schedule versus duplicate-payment
-//! judgments.
+//! eight-question semantic panel, recurring-schedule versus duplicate-payment
+//! judgments, and inbox ranking scores.
 //!
 //! Deterministic guards on amount, bill id, vendor id, and currency run first
 //! and skip Jev when they decide. Otherwise the model returns a typed Choice.
@@ -25,6 +25,7 @@ mod matchers;
 mod memo;
 mod obligation;
 mod panel;
+mod rank;
 mod request;
 mod resolve;
 mod schedule;
@@ -47,6 +48,10 @@ pub use panel::{
     CHANGES_PAYEE_QUESTION, DECISION_SOURCE, IGNORE_POLICY_QUESTION, OFF_SYSTEM_QUESTION,
     PANEL_QUESTION_IDS, REFERENCES_APPROVAL_QUESTION, REFUND_QUESTION, SKIP_APPROVAL_QUESTION,
     URGENCY_QUESTION,
+};
+pub use rank::{
+    map_ranking_body, map_ranking_exchange, no_second_payment_subject, priority, ranking_request,
+    DimensionScore, RankScore, RankStep, RankSubject, RankWeights, RANK_TOP_LEVEL,
 };
 pub use request::binding_request;
 pub use resolve::{resolve, BindingEffect, CallFault, Resolution};

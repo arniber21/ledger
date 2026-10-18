@@ -7,7 +7,7 @@ import {
 } from "@tanstack/react-table";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
-import { amountLabel } from "../inbox/model";
+import { amountLabel, scoreLabel } from "../inbox/model";
 import { outcomeLabel } from "../stream/reduce";
 import type { BindingComparison, BindingLine, VerdictItem } from "../stream/types";
 import { clock } from "../traces/model";
@@ -226,6 +226,14 @@ function VerdictDetail({
           <Prop label="Binding">{verdict.binding || "Not on this verdict"}</Prop>
           <Prop label="Amount">{verdict.amountCents == null ? "Not on this verdict" : amountLabel(verdict.amountCents)}</Prop>
         </dl>
+        <h3 className="prop-label">Priority scores</h3>
+        <dl className="props" data-testid="rank-scores">
+          <Prop label="Money at stake">{scoreLabel(verdict.rank, verdict.rank?.money)}</Prop>
+          <Prop label="Evidence">{scoreLabel(verdict.rank, verdict.rank?.evidence)}</Prop>
+          <Prop label="Binding ambiguity">{scoreLabel(verdict.rank, verdict.rank?.ambiguity)}</Prop>
+          <Prop label="Repeated action">{scoreLabel(verdict.rank, verdict.rank?.intent)}</Prop>
+        </dl>
+        <RankExchange rank={verdict.rank} />
       </div>
       <div className="verdict-panel">
         <div className="spec-tabs" role="tablist" aria-label="Verdict detail">
@@ -378,6 +386,27 @@ function Tab({
       {label}
     </button>
   );
+}
+
+function RankExchange({ rank }: { rank: VerdictItem["rank"] }) {
+  if (!rank) return <p className="reason">Scores are not stored for this verdict.</p>;
+  const input = exchangeText(rank.input);
+  const output = exchangeText(rank.output);
+  if (!input && !output) return null;
+  return (
+    <details className="rank-exchange">
+      <summary>Jev input and output</summary>
+      {input ? <pre className="rank-json">{input}</pre> : null}
+      {output ? <pre className="rank-json">{output}</pre> : null}
+    </details>
+  );
+}
+
+function exchangeText(value: unknown): string | null {
+  if (value == null) return null;
+  const text = JSON.stringify(value, null, 2);
+  if (text.includes("TYPESAFE") || text.includes("Bearer") || text.includes("GEMINI")) return null;
+  return text;
 }
 
 function Prop({ label, children }: { label: string; children: ReactNode }) {

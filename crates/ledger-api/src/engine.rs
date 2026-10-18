@@ -4,9 +4,11 @@
 //! same `observed_at` column, one row at a time, and steps Sentinel.
 
 use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 
 use chrono::{DateTime, Duration, Utc};
 use ledger_core::{Judged, LedgerEvent, LedgerKind, Session, VerdictOutcome};
+use ledger_jev::SystemOne;
 use ledger_store::{Event as StoredEvent, Store, Uuid, Verdict, VerdictOutcome as StoredOutcome};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
@@ -44,7 +46,25 @@ pub struct StreamMessage {
 }
 
 /// Verdict payload. `timeline` is the counterexample, built from evidence only.
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+/// Four raw Jev scores. A null dimension is Unknown, not a priority of zero.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct StreamRank {
+    /// Money at stake, on 0..=4.
+    pub money: Option<f64>,
+    /// Evidence strength, on 0..=4.
+    pub evidence: Option<f64>,
+    /// Binding ambiguity, on 0..=4.
+    pub ambiguity: Option<f64>,
+    /// Repeated action versus one-off, on 0..=4.
+    pub intent: Option<f64>,
+    /// System One request. No API key.
+    pub input: serde_json::Value,
+    /// System One response, or a failure marker. No explanation text.
+    pub output: Option<serde_json::Value>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct StreamVerdict {
     /// Stable id for this spec, binding, and outcome.
@@ -70,6 +90,9 @@ pub struct StreamVerdict {
     pub recorded_at: DateTime<Utc>,
     /// Evidence events in observation order.
     pub timeline: Vec<StreamEntry>,
+    /// Stored raw scores. Absent until Jev has been asked.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rank: Option<StreamRank>,
 }
 
 /// One step on the counterexample timeline.
@@ -109,6 +132,7 @@ pub struct Engine {
     approvals: HashMap<String, String>,
     amounts: HashMap<String, i64>,
     emitted: HashSet<Uuid>,
+    ranker: Option<Arc<dyn SystemOne>>,
 }
 
 impl Engine {
@@ -118,6 +142,19 @@ impl Engine {
     ///
     /// Returns an error when the response monitor cannot be instantiated.
     pub fn new(store: Store, tx: broadcast::Sender<StreamVerdict>) -> Result<Self, ApiError> {
+        Self::with_ranker(store, tx, None)
+    }
+
+    /// Opens a session and scores new verdicts with `ranker` when it is set.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the response monitor cannot be instantiated.
+    pub fn with_ranker(
+        store: Store,
+        tx: broadcast::Sender<StreamVerdict>,
+        ranker: Option<Arc<dyn SystemOne>>,
+    ) -> Result<Self, ApiError> {
         Ok(Self {
             store,
             session: Session::new()?,
@@ -127,7 +164,36 @@ impl Engine {
             approvals: HashMap::new(),
             amounts: HashMap::new(),
             emitted: HashSet::new(),
+            ranker,
         })
+    }
+
+    /// Scores stored verdicts that have no rank row yet.
+    ///
+    /// A missing ranker does nothing. A Jev failure still stores Unknown
+    /// dimensions so the inbox can fall back to severity order.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when a query fails.
+    pub async fn score_unranked(&mut self) -> Result<(), ApiError> {
+        if self.ranker.is_none() {
+            return Ok(());
+        }
+        let verdicts = self.store.list_verdicts(1_000).await?;
+        let existing = self.store.list_ranks().await?;
+        let have: HashSet<Uuid> = existing.into_iter().map(|row| row.verdict_id).collect();
+        for verdict in verdicts {
+            if have.contains(&verdict.id) {
+                continue;
+            }
+            let Some(frame) = verdict_from_stored(&verdict) else {
+                continue;
+            };
+            let frame = self.attach_rank(frame).await;
+            let _ = self.tx.send(frame);
+        }
+        Ok(())
     }
 
     /// Steps events observed in the last six hours, in `observed_at` order.
@@ -258,6 +324,7 @@ impl Engine {
             .unwrap_or_else(|_| serde_json::json!({})),
         };
         if self.store.insert_verdict_if_absent(&stored).await? {
+            let frame = self.attach_rank(frame).await;
             let _ = self.tx.send(frame.clone());
             Ok(Some(frame))
         } else {
@@ -265,10 +332,26 @@ impl Engine {
         }
     }
 
+    async fn attach_rank(&self, mut frame: StreamVerdict) -> StreamVerdict {
+        let Some(ranker) = self.ranker.clone() else {
+            return frame;
+        };
+        let scored = crate::rank::score_frame(ranker, &frame).await;
+        if let Err(error) = self
+            .store
+            .insert_rank_if_absent(&scored.row(frame.id, frame.recorded_at))
+            .await
+        {
+            tracing::warn!(error = %error, verdict_id = %frame.id, "rank was not stored");
+        }
+        frame.rank = Some(scored.stream);
+        frame
+    }
+
     async fn failed(&mut self, row: &StoredEvent, reason: &str) -> Result<StreamVerdict, ApiError> {
         let binding = row.id.to_string();
         let id = verdict_id("ledger.evidence", &binding, "Inconclusive", Some(reason));
-        let frame = StreamVerdict {
+        let mut frame = StreamVerdict {
             id,
             outcome: "Inconclusive".to_owned(),
             title: "inconclusive".to_owned(),
@@ -285,6 +368,7 @@ impl Engine {
                 kind: row.kind.clone(),
                 role: "evidence".to_owned(),
             }],
+            rank: None,
         };
         if self.emitted.insert(id) {
             let stored = Verdict {
@@ -303,6 +387,7 @@ impl Engine {
                 .unwrap_or_else(|_| serde_json::json!({})),
             };
             if self.store.insert_verdict_if_absent(&stored).await? {
+                frame = self.attach_rank(frame).await;
                 let _ = self.tx.send(frame.clone());
             }
         }
@@ -329,6 +414,7 @@ pub fn verdict_from_stored(verdict: &Verdict) -> Option<StreamVerdict> {
         amount_cents: body.amount_cents,
         recorded_at: verdict.recorded_at,
         timeline: body.timeline,
+        rank: None,
     })
 }
 
@@ -371,6 +457,7 @@ fn stream_verdict(
         amount_cents,
         recorded_at: Utc::now(),
         timeline,
+        rank: None,
     }
 }
 

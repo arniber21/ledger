@@ -9,7 +9,7 @@ use crate::{JevCallFailure, CALL_TIMEOUT};
 pub const SYSTEM_ONE_URL: &str = "https://api.typesafe.ai/v1/systemone";
 
 /// Something that can run one System One request.
-pub trait SystemOne {
+pub trait SystemOne: Send + Sync {
     /// Posts `request` and returns the raw response body.
     ///
     /// # Errors

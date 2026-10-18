@@ -158,6 +158,52 @@ describe("inbox model", () => {
     expect(lastReviewedLabel([], NOW)).toBe("No verdict has been reviewed.");
   });
 
+  test("priority weights reorder scored verdicts and unknown stays on severity order", () => {
+    const money = {
+      money: 4,
+      evidence: 0,
+      ambiguity: 0,
+      intent: 0,
+    };
+    const evidence = {
+      money: 0,
+      evidence: 4,
+      ambiguity: 4,
+      intent: 4,
+    };
+    const verdicts = [
+      verdict({ id: "money-high", outcome: "Violate", title: "needs review", rank: money }),
+      verdict({ id: "evidence-high", outcome: "Violate", title: "needs review", rank: evidence }),
+      verdict({ id: "unknown-violate", outcome: "Violate", title: "needs review", rank: { ...money, money: null } }),
+      verdict({ id: "unknown-gap", outcome: "Inconclusive", title: "inconclusive", rank: { money: null, evidence: null, ambiguity: null, intent: null } }),
+    ];
+    const moneyWeights = { money: 1, evidence: 0, ambiguity: 0, intent: 0 };
+    const evidenceWeights = { money: 0, evidence: 1, ambiguity: 0, intent: 0 };
+    const byMoney = prepareInbox(verdicts, [], queryFromSearch({ sort: "priority" }), moneyWeights);
+    const byEvidence = prepareInbox(verdicts, [], queryFromSearch({ sort: "priority" }), evidenceWeights);
+    expect(byMoney.items.map((item) => item.verdict.id)).toEqual([
+      "money-high",
+      "evidence-high",
+      "unknown-violate",
+      "unknown-gap",
+    ]);
+    expect(byEvidence.items.map((item) => item.verdict.id)).toEqual([
+      "evidence-high",
+      "money-high",
+      "unknown-violate",
+      "unknown-gap",
+    ]);
+    for (const prepared of [byMoney, byEvidence]) {
+      for (const view of ["board", "list", "split"] as const) {
+        expect(orderedIds(view, prepared.items, prepared.groups, new Set())).toEqual(
+          prepared.items.map((item) => item.verdict.id),
+        );
+      }
+    }
+    expect(JSON.stringify(byMoney)).not.toContain("fraud");
+    expect(parseInboxSearch({ sort: "priority" }).sort).toBe("priority");
+  });
+
   test("search params accept the three modes and reject a fake view", () => {
     expect(parseInboxSearch({ view: "split", group: "spec", sort: "id" }).view).toBe("split");
     expect(parseInboxSearch({ view: "fraud" }).view).toBeUndefined();
