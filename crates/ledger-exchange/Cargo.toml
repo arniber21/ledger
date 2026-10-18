@@ -6,4 +6,8 @@ publish.workspace = true
 
 [dependencies]
 ledger-core.workspace = true
+rust_decimal.workspace = true
+sentry.workspace = true
+thiserror.workspace = true
 tracing.workspace = true
+tracing-subscriber.workspace = true
