@@ -1,0 +1,15 @@
+- id: bpay-settled
+  vendor_id: vend-mill
+  vendor_name: Mill Flour Company
+  txn_sim_day: 2
+  txn_date: '2025-09-02'
+  amount: '50.00'
+  applications:
+  - document_id: bill-settled
+    amount: '50.00'
+  payment_account_id: acct-checking
+  memo: Payment sent against vendor bill.
+  provenance_note: fixture:bpay-settled
+  sim_payment_id: payment-settled
+  sim_obligation_id: obligation-settled
+  sim_event_ids: []

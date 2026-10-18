@@ -1219,6 +1219,10 @@ version = "0.1.0"
 dependencies = [
  "ledger-core",
  "ledger-exchange",
+ "rust_decimal",
+ "thiserror",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]

@@ -7,3 +7,12 @@ publish.workspace = true
 [dependencies]
 ledger-core.workspace = true
 ledger-exchange.workspace = true
+rust_decimal.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+tracing-subscriber = { workspace = true, features = ["registry"] }
+
+[dev-dependencies]
+ledger-core.workspace = true
+tracing.workspace = true
+tracing-subscriber = { workspace = true, features = ["registry"] }
