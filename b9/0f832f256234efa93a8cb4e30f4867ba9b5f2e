@@ -1,0 +1,50 @@
+web/src/shell/sidebar.tsx
+  s_a88c10f9626abe::t_2a6e2ae54bed4e 139
+  s_a88c10f9626abe::t_5364feccd5a8fd 3
+  s_a88c10f9626abe::t_bd854f08fec6b9 29,31-32
+  s_a88c10f9626abe::t_38eac9443d5469 103-123
+  s_a88c10f9626abe::t_e96fbd2c9afe97 137-138,140-142
+web/src/specs/runs.ts
+  s_a88c10f9626abe::t_96336b17432093 1-27
+web/src/specs/specs.tsx
+  s_a88c10f9626abe::t_e00c007f48b408 1-201,203-207,210-227,229-327,332-409,411-413
+  s_a88c10f9626abe::t_0176a524b963a7 202,208
+  s_a88c10f9626abe::t_3f59345a31ca2c 209,228
+  s_a88c10f9626abe::t_eaeeb0fd71b414 410
+  s_a88c10f9626abe::t_21f4addd7e631b 328-331
+web/src/specs/reduce.ts
+  s_a88c10f9626abe::t_88b008225db8ee 55
+  s_a88c10f9626abe::t_bf7a088e17d368 1-54,56-314
+web/src/specs/reduce.test.ts
+  s_a88c10f9626abe::t_aa7c6e00455a85 147-150
+  s_a88c10f9626abe::t_963df7270427e0 1-146,151-152
+web/src/vite-env.d.ts
+  s_a88c10f9626abe::t_3602b35de7420a 8-12
+web/src/styles.css
+  s_a88c10f9626abe::t_c18e7887bc1410 38
+  s_a88c10f9626abe::t_9e5ca99934302a 225-232
+  s_a88c10f9626abe::t_0fe76e02b664dc 782-1027,1030
+web/src/router.tsx
+  s_a88c10f9626abe::t_a7e3f88a0aeec6 4-5
+  s_a88c10f9626abe::t_b79421aa328a49 46-52
+web/src/specs/stream.ts
+  s_a88c10f9626abe::t_db2949f3548324 1-77
+web/src/specs/types.ts
+  s_a88c10f9626abe::t_5c8f1ce183f7be 1-63
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b90f832f256234efa93a8cb4e30f4867ba9b5f2e",
+  "prompts": {},
+  "sessions": {
+    "s_a88c10f9626abe": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "57ed7f2a-90e0-4237-a9c2-58daf373488b",
+        "model": "grok-4.7-high-fast"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    }
+  }
+}
