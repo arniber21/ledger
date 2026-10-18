@@ -1306,6 +1306,24 @@ kbd {
 
 .timeline-evidence { margin-top: 4px; color: var(--body); font-size: 14px; }
 
+.timeline-expand { margin: 4px 0 8px; }
+
+.rerank { margin-top: 16px; }
+
+.rerank-body {
+  margin: 8px 0 0;
+  padding: 8px 12px;
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
 .attr-card {
   margin-top: 10px;
   padding: 8px 12px;

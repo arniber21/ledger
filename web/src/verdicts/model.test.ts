@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { StoredEvent } from "../traces/model";
 import type { VerdictItem } from "../stream/types";
-import { agentOf, isViolating, sentryUrl, signatureLine, verdictTitle } from "./model";
+import { agentOf, counterexampleView, exchangeText, isViolating, relevanceLabel, sentryUrl, signatureLine, verdictTitle } from "./model";
 
 function verdict(partial: Partial<VerdictItem> & Pick<VerdictItem, "id" | "outcome" | "title">): VerdictItem {
   return {
@@ -17,6 +17,10 @@ function verdict(partial: Partial<VerdictItem> & Pick<VerdictItem, "id" | "outco
     comparison: null,
     ...partial,
   };
+}
+
+function step(eventId: string, observedAt: string, role: string) {
+  return { eventId, observedAt, source: "exchange", kind: role, role };
 }
 
 function event(partial: Partial<StoredEvent> & Pick<StoredEvent, "id">): StoredEvent {
@@ -82,6 +86,60 @@ describe("verdict detail", () => {
         [step],
       ),
     ).toBe("https://sentry.example/trace/1");
+  });
+
+  test("shows the three double-pay events and hides the rest until expand", () => {
+    const item = verdict({
+      id: "double-pay",
+      outcome: "Violate",
+      title: "needs review",
+      rerank: { request: "", response: "", failure: null, scores: [] },
+      timeline: [
+        step("pay", "2026-10-18T00:00:01Z", "payment"),
+        step("again", "2026-10-18T00:00:05Z", "second-payment"),
+        step("again:close", "2026-10-18T00:00:06Z", "credit"),
+      ],
+      rest: [
+        step("tick-1", "2026-10-18T00:00:02Z", "tick"),
+        step("settled", "2026-10-18T00:00:03Z", "settlement"),
+        step("order-9", "2026-10-18T00:00:04Z", "order"),
+      ],
+    });
+    const closed = counterexampleView(item, false);
+    expect(closed.steps.map((entry) => entry.eventId)).toEqual(["pay", "again", "again:close"]);
+    expect(closed.hiddenCount).toBe(3);
+    expect(closed.unknown).toBe(false);
+    const open = counterexampleView(item, true);
+    expect(open.steps.map((entry) => entry.eventId)).toEqual([
+      "pay",
+      "tick-1",
+      "settled",
+      "order-9",
+      "again",
+      "again:close",
+    ]);
+    expect(open.hiddenCount).toBe(3);
+  });
+
+  test("a failed ranking shows the full trace in time order", () => {
+    const item = verdict({
+      id: "double-pay",
+      outcome: "Violate",
+      title: "needs review",
+      rerank: { request: "", response: "", failure: "timeout", scores: [] },
+      timeline: [
+        step("pay", "2026-10-18T00:00:01Z", "payment"),
+        step("tick-1", "2026-10-18T00:00:02Z", "tick"),
+        step("again", "2026-10-18T00:00:04Z", "second-payment"),
+      ],
+    });
+    const view = counterexampleView(item, false);
+    expect(view.unknown).toBe(true);
+    expect(view.hiddenCount).toBe(0);
+    expect(view.steps.map((entry) => entry.eventId)).toEqual(["pay", "tick-1", "again"]);
+    expect(relevanceLabel("Unknown")).toBe("Unknown");
+    expect(relevanceLabel("NotRelevant")).toBe("Not relevant");
+    expect(exchangeText('{"explanation":"no"}')).toBe("");
   });
 
   test("does not display the word fraud as a title", () => {

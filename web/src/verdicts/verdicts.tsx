@@ -18,10 +18,13 @@ import { VerdictsIcon } from "../shell/icons";
 import {
   agentOf,
   assuranceOf,
+  counterexampleView,
   entryDetail,
   entryLabel,
   eventFor,
+  exchangeText as storedExchange,
   isViolating,
+  relevanceLabel,
   sentryUrl,
   signatureLine,
   sourcesOf,
@@ -241,7 +244,7 @@ function VerdictDetail({
           <Tab id="evidence" label="Evidence" current={tab} onSelect={onTab} />
           <Tab id="binding" label="Binding" current={tab} onSelect={onTab} />
         </div>
-        {tab === "counterexample" ? <Counterexample verdict={verdict} events={events} /> : null}
+        {tab === "counterexample" ? <Counterexample key={verdict.id} verdict={verdict} events={events} /> : null}
         {tab === "evidence" ? <EvidenceList verdict={verdict} events={events} /> : null}
         <BindingCard comparison={verdict.comparison ?? null} />
       </div>
@@ -275,8 +278,12 @@ function Counterexample({
   verdict: VerdictItem;
   events: ReturnType<typeof useTraces>["events"];
 }) {
-  const timeline = verdict.timeline ?? [];
-  if (timeline.length === 0) {
+  const [expanded, setExpanded] = useState(false);
+  const [exchangeOpen, setExchangeOpen] = useState(false);
+  const view = counterexampleView(verdict, expanded);
+  const request = storedExchange(verdict.rerank?.request ?? "");
+  const response = storedExchange(verdict.rerank?.response ?? "");
+  if (view.steps.length === 0) {
     return (
       <p className="trace-description" role="tabpanel">
         No timeline on this verdict.
@@ -284,33 +291,91 @@ function Counterexample({
     );
   }
   return (
-    <ol className="timeline" aria-label="Counterexample">
-      {timeline.map((step, index) => {
-        const violate = isViolating(verdict, step);
-        const signature = signatureLine(events, step);
-        const known = eventFor(events, step.eventId);
-        return (
-          <li
-            key={`${step.eventId}-${index}`}
-            className={violate ? "timeline-event is-violate" : "timeline-event"}
-            data-testid="timeline-event"
-          >
-            <span className={violate ? "dot dot-Violate" : "dot dot-span"} />
-            <div className="timeline-copy">
-              <p className="mono">{entryLabel(step)}</p>
-              <p className="timeline-time">{step.observedAt ? clock(step.observedAt) : "Time not on this event"}</p>
-              <p className="timeline-evidence">{entryDetail(step)}</p>
-              {signature ? <p className="signature">{signature}</p> : null}
-              {known ? (
-                <Link to="/traces" search={{ trace: step.eventId }}>
-                  Open trace
-                </Link>
-              ) : null}
-            </div>
-          </li>
-        );
-      })}
-    </ol>
+    <div role="tabpanel">
+      {view.unknown ? (
+        <p className="trace-description" data-testid="timeline-unknown">
+          Jev ranking is Unknown. The full trace is in time order.
+        </p>
+      ) : null}
+      <ol className="timeline" aria-label="Counterexample">
+        {view.steps.map((step, index) => {
+          const violate = isViolating(verdict, step);
+          const signature = signatureLine(events, step);
+          const known = eventFor(events, step.eventId);
+          return (
+            <li
+              key={`${step.eventId}-${index}`}
+              className={violate ? "timeline-event is-violate" : "timeline-event"}
+              data-testid="timeline-event"
+            >
+              <span className={violate ? "dot dot-Violate" : "dot dot-span"} />
+              <div className="timeline-copy">
+                <p className="mono">{entryLabel(step)}</p>
+                <p className="timeline-time">{step.observedAt ? clock(step.observedAt) : "Time not on this event"}</p>
+                <p className="timeline-evidence">{entryDetail(step)}</p>
+                {signature ? <p className="signature">{signature}</p> : null}
+                {known ? (
+                  <Link to="/traces" search={{ trace: step.eventId }}>
+                    Open trace
+                  </Link>
+                ) : null}
+              </div>
+            </li>
+          );
+        })}
+      </ol>
+      {view.hiddenCount > 0 ? (
+        <button
+          type="button"
+          className="tool timeline-expand"
+          data-testid="timeline-expand"
+          aria-expanded={expanded}
+          onClick={() => setExpanded((current) => !current)}
+        >
+          {expanded ? "Hide the rest" : `Show the rest (${view.hiddenCount})`}
+        </button>
+      ) : null}
+      {verdict.rerank ? <RerankCard record={verdict.rerank} open={exchangeOpen} onToggle={() => setExchangeOpen((current) => !current)} request={request} response={response} /> : null}
+    </div>
+  );
+}
+
+function RerankCard({
+  record,
+  open,
+  onToggle,
+  request,
+  response,
+}: {
+  record: NonNullable<VerdictItem["rerank"]>;
+  open: boolean;
+  onToggle: () => void;
+  request: string;
+  response: string;
+}) {
+  return (
+    <div className="rerank" data-testid="verdict-rerank">
+      {record.failure ? (
+        <p className="trace-description">Jev ranking is Unknown ({record.failure}).</p>
+      ) : null}
+      {record.scores.length > 0 ? (
+        <ul className="source-list">
+          {record.scores.map((score) => (
+            <li key={score.eventId} className="source-row" data-testid="rerank-score">
+              <span className="mono">{score.eventId}</span>
+              <span>{relevanceLabel(score.outcome)}</span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {request || response ? (
+        <button type="button" className="tool" data-testid="rerank-exchange" aria-pressed={open} onClick={onToggle}>
+          {open ? "Hide Jev input" : "Show Jev input"}
+        </button>
+      ) : null}
+      {open && request ? <pre className="rerank-body">{request}</pre> : null}
+      {open && response ? <pre className="rerank-body">{response}</pre> : null}
+    </div>
   );
 }
 

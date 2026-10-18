@@ -64,7 +64,7 @@ pub async fn serve(store: Store, addr: &str) -> Result<Server, ApiError> {
     serve_with_ranker(store, addr, None).await
 }
 
-/// Binds `addr` and, when `ranker` is set, scores verdicts that have no raw scores yet.
+/// Binds `addr` and, when `ranker` is set, scores verdicts and reranks violating traces.
 ///
 /// # Errors
 ///
