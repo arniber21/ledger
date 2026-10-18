@@ -57,9 +57,11 @@ migrate: db-up
     cargo run -p ledger-store --bin ledger-migrate
 
 # Local Solana validator used for exchange settlement. Foreground; run in its own terminal.
+# Gossip and the dynamic port range sit above 18000 so a process already bound to 8000
+# does not stop the validator from starting. RPC stays on 8899.
 validator:
     mkdir -p {{validator_dir}}
-    solana-test-validator --reset --ledger {{validator_dir}}
+    solana-test-validator --reset --ledger {{validator_dir}} --gossip-port 18000 --dynamic-port-range 18010-18100
 
 # --- run ---
 
