@@ -24,6 +24,10 @@ pub enum SceneError {
     #[error("LEDGER_JEV must be live or replay")]
     JevMode,
 
+    /// `LEDGER_TEST=1` and `LEDGER_JEV_FORCE` was not Same, Different, Unknown, or timeout.
+    #[error("LEDGER_JEV_FORCE must be Same, Different, Unknown, or timeout")]
+    Force,
+
     /// `LEDGER_JEV=live` and `TYPESAFE_API_KEY` is unset. The value is not printed.
     #[error("TYPESAFE_API_KEY is unset")]
     MissingJevKey,

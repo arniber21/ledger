@@ -220,7 +220,7 @@ export function Shell() {
 
   return (
     <ShellProvider value={value}>
-      <div className="shell">
+      <div className="shell" data-testid="shell">
         <div className="window">
           <Sidebar />
           <div className="main">

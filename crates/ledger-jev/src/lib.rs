@@ -21,6 +21,7 @@ use thiserror::Error;
 mod baseline;
 mod client;
 mod close;
+mod force;
 mod guard;
 mod matchers;
 mod memo;
@@ -40,6 +41,7 @@ pub use close::{
     close_memo_request, consider_alias, consider_close_memo, map_close_memo_body,
     map_close_memo_exchange, CloseVerdict, MEMO_CLOSES_QUESTION,
 };
+pub use force::ForcedOutcome;
 pub use guard::{guard, GuardDecision};
 pub use matchers::{exact_match, fuzzy_match, FUZZY_NAME_THRESHOLD};
 pub use memo::{

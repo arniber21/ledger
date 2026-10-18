@@ -107,3 +107,15 @@ demo:
 # Ctrl-C stops the processes this command started. See docs/demo.md.
 up:
     bash scripts/demo.sh
+
+# Playwright against the local stack. Headless. LEDGER_JEV=replay and LEDGER_TEST=1.
+e2e:
+    bash scripts/e2e.sh
+
+# The same harness in the Playwright UI.
+e2e-ui:
+    bash scripts/e2e.sh --ui
+
+# Database, validator, API, agents, and UI for the Playwright harness.
+e2e-stack:
+    bash scripts/e2e-stack.sh
