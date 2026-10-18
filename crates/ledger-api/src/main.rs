@@ -2,7 +2,10 @@
 
 use std::process::ExitCode;
 
-use ledger_api::serve;
+use std::sync::Arc;
+
+use ledger_api::serve_with_ranker;
+use ledger_jev::{SystemOne, SystemOneClient};
 use ledger_store::{database_url, Store};
 
 #[tokio::main]
@@ -25,10 +28,30 @@ async fn run() -> Result<(), ledger_api::ApiError> {
     let bind = std::env::var("API_BIND")
         .or_else(|_| std::env::var("LEDGER_API_ADDR"))
         .unwrap_or_else(|_| "127.0.0.1:8080".to_owned());
-    let server = serve(store, &bind).await?;
+    // The blocking Jev client owns its own runtime. Build it off this one.
+    let ranker = tokio::task::spawn_blocking(ranker_from_env)
+        .await
+        .unwrap_or(None);
+    let server = serve_with_ranker(store, &bind, ranker).await?;
     println!("verdicts at http://{}/v1/verdicts/stream", server.addr);
     println!("inbox at http://{}/api/inbox/triage", server.addr);
     println!("traces at http://{}/api/traces", server.addr);
     server.wait().await;
     Ok(())
+}
+
+fn ranker_from_env() -> Option<Arc<dyn SystemOne>> {
+    let Ok(key) = std::env::var("TYPESAFE_API_KEY") else {
+        return None;
+    };
+    if key.is_empty() {
+        return None;
+    }
+    match SystemOneClient::new(key) {
+        Ok(client) => Some(Arc::new(client)),
+        Err(error) => {
+            tracing::warn!(error = %error, "jev ranking client was not started");
+            None
+        }
+    }
 }

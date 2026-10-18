@@ -1,4 +1,5 @@
-//! Jev (TypeSafe System One) client: binding judgments and the memo predicate.
+//! Jev (TypeSafe System One) client: binding judgments, the memo predicate,
+//! and inbox ranking scores.
 //!
 //! Deterministic guards on amount, bill id, vendor id, and currency run first
 //! and skip Jev when they decide. Otherwise the model returns a typed Choice.
@@ -17,6 +18,7 @@ mod guard;
 mod matchers;
 mod memo;
 mod obligation;
+mod rank;
 mod request;
 mod resolve;
 
@@ -29,6 +31,10 @@ pub use memo::{
     INSTRUCTION_MEMO, MEMO_INSTRUCTS_QUESTION,
 };
 pub use obligation::ObligationRef;
+pub use rank::{
+    map_ranking_body, map_ranking_exchange, no_second_payment_subject, priority, ranking_request,
+    DimensionScore, RankScore, RankStep, RankSubject, RankWeights, RANK_TOP_LEVEL,
+};
 pub use request::binding_request;
 pub use resolve::{resolve, BindingEffect, CallFault, Resolution};
 
