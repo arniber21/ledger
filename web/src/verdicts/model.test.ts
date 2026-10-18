@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { StoredEvent } from "../traces/model";
 import type { VerdictItem } from "../stream/types";
-import { agentOf, counterexampleView, exchangeText, isViolating, scoreLabel, sentryUrl, signatureLine, verdictTitle } from "./model";
+import { agentOf, counterexampleView, exchangeText, isViolating, relevanceLabel, sentryUrl, signatureLine, verdictTitle } from "./model";
 
 function verdict(partial: Partial<VerdictItem> & Pick<VerdictItem, "id" | "outcome" | "title">): VerdictItem {
   return {
@@ -93,7 +93,7 @@ describe("verdict detail", () => {
       id: "double-pay",
       outcome: "Violate",
       title: "needs review",
-      rank: "ranked",
+      rerank: { request: "", response: "", failure: null, scores: [] },
       timeline: [
         step("pay", "2026-10-18T00:00:01Z", "payment"),
         step("again", "2026-10-18T00:00:05Z", "second-payment"),
@@ -126,7 +126,7 @@ describe("verdict detail", () => {
       id: "double-pay",
       outcome: "Violate",
       title: "needs review",
-      rank: "unknown",
+      rerank: { request: "", response: "", failure: "timeout", scores: [] },
       timeline: [
         step("pay", "2026-10-18T00:00:01Z", "payment"),
         step("tick-1", "2026-10-18T00:00:02Z", "tick"),
@@ -137,8 +137,8 @@ describe("verdict detail", () => {
     expect(view.unknown).toBe(true);
     expect(view.hiddenCount).toBe(0);
     expect(view.steps.map((entry) => entry.eventId)).toEqual(["pay", "tick-1", "again"]);
-    expect(scoreLabel("Unknown")).toBe("Unknown");
-    expect(scoreLabel("NotRelevant")).toBe("Not relevant");
+    expect(relevanceLabel("Unknown")).toBe("Unknown");
+    expect(relevanceLabel("NotRelevant")).toBe("Not relevant");
     expect(exchangeText('{"explanation":"no"}')).toBe("");
   });
 

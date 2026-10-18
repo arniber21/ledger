@@ -8,6 +8,7 @@ import {
   type RatePoint,
   type SavedView,
   type StreamEvent,
+  type RankScores,
   type RerankOutcome,
   type RerankRecord,
   type RerankScore,
@@ -94,10 +95,38 @@ function normalizeVerdict(input: VerdictInput): VerdictItem | null {
     binding: typeof input.binding === "string" ? input.binding : "",
     timeline: readTimeline(input.timeline),
     rest: readTimeline(input.rest),
-    rank: input.rank === "ranked" || input.rank === "unknown" ? input.rank : null,
     rerank: readRerank(input.rerank),
     comparison,
+    rank: readRank(input.rank),
   };
+}
+
+const RANK_TOP_LEVEL = 4;
+
+function readRank(value: unknown): RankScores | undefined {
+  if (typeof value !== "object" || value === null) return undefined;
+  const rank = value as Record<string, unknown>;
+  return {
+    money: readScore(rank.money),
+    evidence: readScore(rank.evidence),
+    ambiguity: readScore(rank.ambiguity),
+    intent: readScore(rank.intent),
+    input: safeExchange(rank.input),
+    output: safeExchange(rank.output),
+  };
+}
+
+function readScore(value: unknown): number | null {
+  if (typeof value !== "number" || !Number.isFinite(value)) return null;
+  if (value < 0 || value > RANK_TOP_LEVEL) return null;
+  return value;
+}
+
+function safeExchange(value: unknown): unknown {
+  if (value == null) return undefined;
+  const text = JSON.stringify(value);
+  if (text.includes("TYPESAFE") || text.includes("Bearer") || text.includes("GEMINI")) return undefined;
+  return value;
 }
 
 const BINDING_OUTCOMES: readonly BindingOutcome[] = ["Same", "Different", "Unknown"];

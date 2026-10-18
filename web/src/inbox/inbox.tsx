@@ -27,10 +27,15 @@ import {
   orderedIds,
   prepareInbox,
   queryFromSearch,
+  rememberRankSliders,
+  scoreLabel,
+  storedRankSliders,
+  weightsFromSliders,
   mergeInboxSearch,
   rememberInboxView,
   shortId,
   storedInboxView,
+  type RankSliders,
   type InboxGroupBy,
   type InboxItem,
   type InboxSearch,
@@ -70,9 +75,12 @@ export function InboxPage({ search }: { search: InboxSearch }) {
   const triage = useTriage();
   const setTriage = useSetTriage();
   const query = queryFromSearch(search);
+  const [sliders, setSliders] = useState<RankSliders>(() => storedRankSliders());
+  const [weightsOpen, setWeightsOpen] = useState(false);
+  const weights = useMemo(() => weightsFromSliders(sliders), [sliders]);
   const prepared = useMemo(
-    () => prepareInbox(metrics.verdicts, triage, query),
-    [metrics.verdicts, triage, query],
+    () => prepareInbox(metrics.verdicts, triage, query, weights),
+    [metrics.verdicts, triage, query, weights],
   );
   const view = search.view ?? storedInboxView() ?? "board";
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(() => new Set());
@@ -84,6 +92,7 @@ export function InboxPage({ search }: { search: InboxSearch }) {
   const [statusError, setStatusError] = useState<string | null>(null);
   const filterRef = useRef<HTMLInputElement>(null);
   const addRef = useRef<HTMLDivElement>(null);
+  const weightsRef = useRef<HTMLDivElement>(null);
   const now = Date.now();
 
   const items = prepared.items;
@@ -128,13 +137,23 @@ export function InboxPage({ search }: { search: InboxSearch }) {
   }, [selectedId, view]);
 
   useEffect(() => {
-    if (!adding) return;
+    if (!adding && !weightsOpen) return;
     const onPointer = (event: PointerEvent) => {
-      if (!addRef.current?.contains(event.target as Node)) setAdding(false);
+      if (adding && !addRef.current?.contains(event.target as Node)) setAdding(false);
+      if (weightsOpen && !weightsRef.current?.contains(event.target as Node)) setWeightsOpen(false);
     };
     window.addEventListener("pointerdown", onPointer);
     return () => window.removeEventListener("pointerdown", onPointer);
-  }, [adding]);
+  }, [adding, weightsOpen]);
+
+  function onWeight(key: keyof RankSliders, value: number) {
+    setSliders((current) => {
+      const next = { ...current, [key]: value };
+      rememberRankSliders(next);
+      return next;
+    });
+    if (search.sort !== "priority") patchSearch({ sort: "priority" });
+  }
 
   function patchSearch(patch: Partial<InboxSearch>) {
     void navigate({ to: "/inbox", search: (previous) => mergeInboxSearch(previous, patch) });
@@ -287,11 +306,16 @@ export function InboxPage({ search }: { search: InboxSearch }) {
               adding={adding}
               addRef={addRef}
               filterRef={filterRef}
+              weightsRef={weightsRef}
+              weightsOpen={weightsOpen}
+              sliders={sliders}
               agents={agents}
               chips={chips}
               onPatch={patchSearch}
               onToggleAdd={() => setAdding((open) => !open)}
               onCloseAdd={() => setAdding(false)}
+              onToggleWeights={() => setWeightsOpen((open) => !open)}
+              onWeight={onWeight}
             />
             {items.length === 0 ? (
               <div className="empty" data-testid="inbox-empty">
@@ -427,21 +451,31 @@ function InboxToolbar({
   adding,
   addRef,
   filterRef,
+  weightsRef,
+  weightsOpen,
+  sliders,
   agents,
   chips,
   onPatch,
   onToggleAdd,
   onCloseAdd,
+  onToggleWeights,
+  onWeight,
 }: {
   search: InboxSearch;
   adding: boolean;
   addRef: RefObject<HTMLDivElement | null>;
   filterRef: RefObject<HTMLInputElement | null>;
+  weightsRef: RefObject<HTMLDivElement | null>;
+  weightsOpen: boolean;
+  sliders: RankSliders;
   agents: readonly string[];
   chips: { id: string; label: string; clear: Partial<InboxSearch> }[];
   onPatch: (patch: Partial<InboxSearch>) => void;
   onToggleAdd: () => void;
   onCloseAdd: () => void;
+  onToggleWeights: () => void;
+  onWeight: (key: keyof RankSliders, value: number) => void;
 }) {
   return (
     <div className="inbox-toolbar">
@@ -480,8 +514,29 @@ function InboxToolbar({
           <option value="oldest">Oldest</option>
           <option value="amount">Amount</option>
           <option value="id">Id</option>
+          <option value="priority">Sort by priority</option>
         </select>
       </label>
+      <div className="toolbar-add" ref={weightsRef}>
+        <button
+          type="button"
+          className="tool"
+          data-testid="rank-weights"
+          aria-expanded={weightsOpen}
+          onClick={onToggleWeights}
+        >
+          Weights
+        </button>
+        {weightsOpen ? (
+          <div className="weights-pop" role="dialog" aria-label="Priority weights" data-testid="rank-weights-popover">
+            <p className="assign-empty">Weights recombine the stored scores. They do not call Jev.</p>
+            <WeightSlider label="Money at stake" testId="rank-weight-money" value={sliders.money} onChange={(value) => onWeight("money", value)} />
+            <WeightSlider label="Evidence" testId="rank-weight-evidence" value={sliders.evidence} onChange={(value) => onWeight("evidence", value)} />
+            <WeightSlider label="Binding ambiguity" testId="rank-weight-ambiguity" value={sliders.ambiguity} onChange={(value) => onWeight("ambiguity", value)} />
+            <WeightSlider label="Repeated action" testId="rank-weight-intent" value={sliders.intent} onChange={(value) => onWeight("intent", value)} />
+          </div>
+        ) : null}
+      </div>
       {chips.map((chip) => (
         <button key={chip.id} type="button" className="chip" data-testid={`inbox-chip-${chip.id}`} onClick={() => onPatch(chip.clear)}>
           {chip.label}
@@ -847,6 +902,7 @@ function Split({
             <Prop label="Age" value={ageLabel(preview.verdict.recordedAt, now)} />
             <Prop label="Binding" value={preview.verdict.binding || "No binding id was stored."} />
           </dl>
+          <RankScoresView verdict={preview.verdict} />
           <h3 className="prop-label">Evidence</h3>
           {preview.verdict.evidence ? <p>{preview.verdict.evidence}</p> : <p className="reason">No evidence text on this verdict.</p>}
           <Timeline steps={preview.verdict.timeline ?? []} />
@@ -860,6 +916,72 @@ function Split({
       ) : null}
     </div>
   );
+}
+
+function WeightSlider({
+  label,
+  testId,
+  value,
+  onChange,
+}: {
+  label: string;
+  testId: string;
+  value: number;
+  onChange: (value: number) => void;
+}) {
+  return (
+    <label className="weight-row">
+      <span>{label}</span>
+      <span className="mono">{value}</span>
+      <input
+        type="range"
+        min={0}
+        max={100}
+        step={1}
+        aria-label={`${label} weight`}
+        data-testid={testId}
+        value={value}
+        onChange={(event) => onChange(Number(event.target.value))}
+      />
+    </label>
+  );
+}
+
+function RankScoresView({ verdict }: { verdict: InboxItem["verdict"] }) {
+  const rank = verdict.rank;
+  return (
+    <div data-testid="rank-scores">
+      <h3 className="prop-label">Priority scores</h3>
+      <dl className="props">
+        <Prop label="Money at stake" value={scoreLabel(rank, rank?.money)} />
+        <Prop label="Evidence" value={scoreLabel(rank, rank?.evidence)} />
+        <Prop label="Binding ambiguity" value={scoreLabel(rank, rank?.ambiguity)} />
+        <Prop label="Repeated action" value={scoreLabel(rank, rank?.intent)} />
+      </dl>
+      <RankExchange rank={rank} />
+    </div>
+  );
+}
+
+function RankExchange({ rank }: { rank: InboxItem["verdict"]["rank"] }) {
+  if (!rank) return <p className="reason">Scores are not stored for this verdict.</p>;
+  const input = exchangeText(rank.input);
+  const output = exchangeText(rank.output);
+  if (!input && !output) return null;
+  return (
+    <details className="rank-exchange">
+      <summary>Jev input and output</summary>
+      {input ? <pre className="rank-json">{input}</pre> : null}
+      {output ? <pre className="rank-json">{output}</pre> : null}
+    </details>
+  );
+}
+
+function exchangeText(value: unknown): string | null {
+  if (value == null) return null;
+  const text = JSON.stringify(value, null, 2);
+  if (text.includes("TYPESAFE") || text.includes("Bearer") || text.includes("GEMINI")) return null;
+  return text;
 }
 
 function Prop({ label, value }: { label: string; value: string }) {

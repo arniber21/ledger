@@ -56,6 +56,19 @@ export type BindingComparison = {
   jev: BindingLine | null;
 };
 
+/**
+ * Four raw Jev scores on 0..4. Null is Unknown, not a priority of zero.
+ * Absent means this verdict has not been scored.
+ */
+export type RankScores = {
+  money: number | null;
+  evidence: number | null;
+  ambiguity: number | null;
+  intent: number | null;
+  input?: unknown;
+  output?: unknown;
+};
+
 /** One verdict the dashboard can show. Evidence only; no model prose. */
 export type VerdictItem = {
   id: string;
@@ -70,12 +83,13 @@ export type VerdictItem = {
   recordedAt: string;
   binding?: string;
   timeline?: TimelineStep[];
-  /** Events behind expand. Empty when the ranking is unknown. */
+  /** Events behind expand. Empty when the rerank failed. */
   rest?: TimelineStep[];
-  /** `ranked` selects a minimal set. `unknown` shows the full trace. */
-  rank?: "ranked" | "unknown" | null;
+  /** Counterexample selection. A `failure` means the full trace is shown. */
   rerank?: RerankRecord | null;
   comparison?: BindingComparison | null;
+  /** Inbox scores. Null dimensions are Unknown. */
+  rank?: RankScores;
 };
 
 /** One bucket from a 10-minute events-per-second series, by source. */

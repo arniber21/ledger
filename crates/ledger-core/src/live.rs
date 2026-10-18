@@ -13,9 +13,10 @@ use crate::adapt::TraceCursor;
 use crate::error::AdapterError;
 use crate::event::{AgentId, LedgerEvent, LedgerKind};
 use crate::gc::MonitorDesk;
+use crate::source::TAINT_INSTRUCTS_ATTRIBUTE;
 use crate::specs::{
-    absence_evaluator, precedence_evaluator, response_evaluator, SPEC_ABSENCE, SPEC_PRECEDENCE,
-    SPEC_RESPONSE,
+    absence_evaluator, precedence_evaluator, response_evaluator, tainted_memo_evaluator,
+    SPEC_ABSENCE, SPEC_PRECEDENCE, SPEC_RESPONSE, SPEC_TAINT,
 };
 
 /// Ticks after an order before the response scope closes.
@@ -59,6 +60,7 @@ pub struct TimelineEntry {
 struct AgentMonitors {
     absence: Evaluator,
     precedence: Evaluator,
+    taint: Evaluator,
 }
 
 struct OpenOrder {
@@ -154,6 +156,7 @@ impl Session {
                 SPEC_PRECEDENCE,
                 &self.history,
             )?);
+            judged.extend(seal(&monitor.taint, &evidence, SPEC_TAINT, &self.history)?);
         }
         judged.extend(seal(
             &self.response,
@@ -162,6 +165,7 @@ impl Session {
             &self.history,
         )?);
         judged.extend(self.gaps(&judged));
+        judged.extend(self.unknown_panels(&judged));
         Ok(strongest(judged))
     }
 
@@ -329,6 +333,58 @@ impl Session {
         }
         gaps
     }
+
+    /// A scored memo whose payment question is unknown feeds Inconclusive.
+    ///
+    /// A `no` flag does not fire. A missing panel does not fire.
+    fn unknown_panels(&self, judged: &[Judged]) -> Vec<Judged> {
+        let mut rows = Vec::new();
+        for event in &self.history {
+            if event.kind() != LedgerKind::AgentPayBill {
+                continue;
+            }
+            let Some(binding) = event.bill_id().map(|id| id.as_str().to_owned()) else {
+                continue;
+            };
+            if self.taint_flag(&binding) != Some(crate::TAINT_UNKNOWN) {
+                continue;
+            }
+            let covered = judged
+                .iter()
+                .chain(rows.iter())
+                .any(|item| item.spec_id == SPEC_TAINT && item.binding == binding);
+            if covered {
+                continue;
+            }
+            rows.push(Judged {
+                spec_id: SPEC_TAINT.to_owned(),
+                binding: binding.clone(),
+                outcome: VerdictOutcome::Inconclusive,
+                reason_code: Some("memo-panel-unknown".to_owned()),
+                timeline: timeline(SPEC_TAINT, &binding, &self.history),
+                matched: Vec::new(),
+            });
+        }
+        rows
+    }
+
+    fn taint_flag(&self, binding: &str) -> Option<&str> {
+        self.history
+            .iter()
+            .find(|event| {
+                event.kind() == LedgerKind::BillMemo
+                    && event.bill_id().is_some_and(|id| id.as_str() == binding)
+                    && event.attribute(TAINT_INSTRUCTS_ATTRIBUTE).is_some()
+            })
+            .or_else(|| {
+                self.history.iter().find(|event| {
+                    event.kind() == LedgerKind::AgentPayBill
+                        && event.bill_id().is_some_and(|id| id.as_str() == binding)
+                        && event.attribute(TAINT_INSTRUCTS_ATTRIBUTE).is_some()
+                })
+            })
+            .and_then(|event| event.attribute(TAINT_INSTRUCTS_ATTRIBUTE))
+    }
 }
 
 impl AgentMonitors {
@@ -336,12 +392,14 @@ impl AgentMonitors {
         Ok(Self {
             absence: absence_evaluator(agent)?,
             precedence: precedence_evaluator(agent)?,
+            taint: tainted_memo_evaluator(agent)?,
         })
     }
 
     fn step(&mut self, event: &Event) -> Result<(), AdapterError> {
         self.absence.step(Input::event(event.clone()))?;
         self.precedence.step(Input::event(event.clone()))?;
+        self.taint.step(Input::event(event.clone()))?;
         Ok(())
     }
 }
@@ -427,6 +485,7 @@ fn reason_code(
                 SPEC_ABSENCE => "second-payment",
                 SPEC_PRECEDENCE => "payment-without-approval",
                 SPEC_RESPONSE => "order-unresolved",
+                SPEC_TAINT => "tainted-memo-without-approval",
                 _ => "needs-review",
             }
             .to_owned(),
@@ -535,7 +594,21 @@ fn on_timeline(spec_id: &str, binding: &str, event: &LedgerEvent, history: &[Led
     if event.is_derived() {
         return false;
     }
-    event.bill_id().is_some_and(|id| id.as_str() == binding)
+    if !event.bill_id().is_some_and(|id| id.as_str() == binding) {
+        return false;
+    }
+    let panel_kind = matches!(
+        event.kind(),
+        LedgerKind::BillMemo | LedgerKind::AgentDecision
+    );
+    if spec_id == SPEC_TAINT {
+        return panel_kind
+            || matches!(
+                event.kind(),
+                LedgerKind::AgentPayBill | LedgerKind::Approval
+            );
+    }
+    !panel_kind
 }
 
 fn tick_in_order_window(binding: &str, tick: &LedgerEvent, history: &[LedgerEvent]) -> bool {

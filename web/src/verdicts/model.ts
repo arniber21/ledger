@@ -35,12 +35,12 @@ export function verdictTitle(verdict: Pick<VerdictItem, "title">): string {
 
 /** Which timeline steps are visible, and how many stay behind expand. */
 export function counterexampleView(
-  verdict: Pick<VerdictItem, "timeline" | "rest" | "rank">,
+  verdict: Pick<VerdictItem, "timeline" | "rest" | "rerank">,
   expanded: boolean,
 ): { steps: TimelineStep[]; hiddenCount: number; unknown: boolean } {
   const shown = verdict.timeline ?? [];
   const rest = verdict.rest ?? [];
-  const unknown = verdict.rank === "unknown";
+  const unknown = Boolean(verdict.rerank?.failure);
   if (unknown) {
     return { steps: byTime([...shown, ...rest]), hiddenCount: 0, unknown: true };
   }
@@ -50,7 +50,7 @@ export function counterexampleView(
   return { steps: byTime([...shown, ...rest]), hiddenCount: rest.length, unknown: false };
 }
 
-export function scoreLabel(outcome: RerankOutcome): string {
+export function relevanceLabel(outcome: RerankOutcome): string {
   if (outcome === "Relevant") return "Relevant";
   if (outcome === "NotRelevant") return "Not relevant";
   return "Unknown";

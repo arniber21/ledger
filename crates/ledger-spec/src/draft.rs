@@ -119,6 +119,8 @@ fn kind_lines() -> String {
 fn kind_gloss(kind: LedgerKind) -> &'static str {
     match kind {
         LedgerKind::AgentPayBill => "the agent pays the bill",
+        LedgerKind::BillMemo => "a bill memo was read",
+        LedgerKind::AgentDecision => "the agent recorded a decision rationale",
         LedgerKind::ObligationSettled => "the exchange records the bill's first settlement",
         LedgerKind::ExtraPayment => {
             "the exchange records another payment on an already settled bill"

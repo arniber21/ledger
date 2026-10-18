@@ -10,7 +10,7 @@ use chrono::{DateTime, Duration, Utc};
 use ledger_core::{Judged, LedgerEvent, LedgerKind, Session, TimelineEntry, VerdictOutcome};
 use ledger_jev::{
     rank_exchange, rerank_request, strip_explanation, Candidate, Counterexample, JevCallFailure,
-    Ranking, Relevance, ViolatedSpec,
+    Ranking, Relevance, SystemOne, ViolatedSpec,
 };
 use ledger_store::{Event as StoredEvent, Store, Uuid, Verdict, VerdictOutcome as StoredOutcome};
 use rust_decimal::Decimal;
@@ -19,9 +19,6 @@ use serde_json::Value;
 use std::str::FromStr;
 use thiserror::Error;
 use tokio::sync::broadcast;
-
-/// Synchronous System One call. The API key stays inside the closure.
-pub type Ranker = Arc<dyn Fn(&str) -> Result<String, JevCallFailure> + Send + Sync>;
 
 use crate::decode::{self, read_event};
 
@@ -53,7 +50,25 @@ pub struct StreamMessage {
 }
 
 /// Verdict payload. `timeline` is the counterexample, built from evidence only.
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+/// Four raw Jev scores. A null dimension is Unknown, not a priority of zero.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct StreamRank {
+    /// Money at stake, on 0..=4.
+    pub money: Option<f64>,
+    /// Evidence strength, on 0..=4.
+    pub evidence: Option<f64>,
+    /// Binding ambiguity, on 0..=4.
+    pub ambiguity: Option<f64>,
+    /// Repeated action versus one-off, on 0..=4.
+    pub intent: Option<f64>,
+    /// System One request. No API key.
+    pub input: serde_json::Value,
+    /// System One response, or a failure marker. No explanation text.
+    pub output: Option<serde_json::Value>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct StreamVerdict {
     /// Stable id for this spec, binding, and outcome.
@@ -82,15 +97,15 @@ pub struct StreamVerdict {
     /// When `rank` is `ranked`, this is the minimal counterexample. When
     /// `rank` is `unknown`, this is the full trace.
     pub timeline: Vec<StreamEntry>,
-    /// Events behind the expand control. Empty when the ranking is unknown.
+    /// Events behind the expand control. Empty when the rerank failed.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub rest: Vec<StreamEntry>,
-    /// `ranked` or `unknown`. Absent when this verdict was not reranked.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub rank: Option<String>,
-    /// Stored Jev input and mapped scores. No explanation text.
+    /// Stored Jev input and mapped scores for the counterexample. No explanation text.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub rerank: Option<RerankRecord>,
+    /// Stored raw scores. Absent until Jev has been asked.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rank: Option<StreamRank>,
 }
 
 /// One stored rerank. `failure` is a reason code, not model prose.
@@ -148,8 +163,6 @@ struct StoredBody {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     rest: Vec<StreamEntry>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    rank: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     rerank: Option<RerankRecord>,
 }
 
@@ -163,7 +176,7 @@ pub struct Engine {
     approvals: HashMap<String, String>,
     amounts: HashMap<String, i64>,
     emitted: HashSet<Uuid>,
-    ranker: Option<Ranker>,
+    ranker: Option<Arc<dyn SystemOne>>,
 }
 
 impl Engine {
@@ -176,10 +189,10 @@ impl Engine {
         Self::with_ranker(store, tx, None)
     }
 
-    /// Opens a session that reranks violating traces through `ranker`.
+    /// Opens a session that scores verdicts and reranks violating traces.
     ///
-    /// `None` leaves the evidence timeline unchanged. A ranker error shows the
-    /// full trace in time order.
+    /// `None` leaves the evidence timeline unchanged and stores no scores.
+    /// A rerank error shows the full trace in time order.
     ///
     /// # Errors
     ///
@@ -187,7 +200,7 @@ impl Engine {
     pub fn with_ranker(
         store: Store,
         tx: broadcast::Sender<StreamVerdict>,
-        ranker: Option<Ranker>,
+        ranker: Option<Arc<dyn SystemOne>>,
     ) -> Result<Self, ApiError> {
         Ok(Self {
             store,
@@ -200,6 +213,34 @@ impl Engine {
             emitted: HashSet::new(),
             ranker,
         })
+    }
+
+    /// Scores stored verdicts that have no rank row yet.
+    ///
+    /// A missing ranker does nothing. A Jev failure still stores Unknown
+    /// dimensions so the inbox can fall back to severity order.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when a query fails.
+    pub async fn score_unranked(&mut self) -> Result<(), ApiError> {
+        if self.ranker.is_none() {
+            return Ok(());
+        }
+        let verdicts = self.store.list_verdicts(1_000).await?;
+        let existing = self.store.list_ranks().await?;
+        let have: HashSet<Uuid> = existing.into_iter().map(|row| row.verdict_id).collect();
+        for verdict in verdicts {
+            if have.contains(&verdict.id) {
+                continue;
+            }
+            let Some(frame) = verdict_from_stored(&verdict) else {
+                continue;
+            };
+            let frame = self.attach_rank(frame).await;
+            let _ = self.tx.send(frame);
+        }
+        Ok(())
     }
 
     /// Steps events observed in the last six hours, in `observed_at` order.
@@ -317,8 +358,11 @@ impl Engine {
         if item.outcome == VerdictOutcome::Violate {
             if let Some(ranked) = self.rank_violation(item).await {
                 frame.timeline = ranked.timeline;
-                frame.rest = ranked.rest;
-                frame.rank = Some(ranked.rank.to_owned());
+                frame.rest = if ranked.counterexample == "full" {
+                    Vec::new()
+                } else {
+                    ranked.rest
+                };
                 frame.rerank = Some(ranked.rerank);
                 frame.evidence = evidence_of(&frame.timeline, item.reason_code.as_deref());
             }
@@ -333,6 +377,7 @@ impl Engine {
                 .unwrap_or_else(|_| serde_json::json!({})),
         };
         if self.store.insert_verdict_if_absent(&stored).await? {
+            let frame = self.attach_rank(frame).await;
             let _ = self.tx.send(frame.clone());
             Ok(Some(frame))
         } else {
@@ -340,10 +385,26 @@ impl Engine {
         }
     }
 
+    async fn attach_rank(&self, mut frame: StreamVerdict) -> StreamVerdict {
+        let Some(ranker) = self.ranker.clone() else {
+            return frame;
+        };
+        let scored = crate::rank::score_frame(ranker, &frame).await;
+        if let Err(error) = self
+            .store
+            .insert_rank_if_absent(&scored.row(frame.id, frame.recorded_at))
+            .await
+        {
+            tracing::warn!(error = %error, verdict_id = %frame.id, "rank was not stored");
+        }
+        frame.rank = Some(scored.stream);
+        frame
+    }
+
     async fn failed(&mut self, row: &StoredEvent, reason: &str) -> Result<StreamVerdict, ApiError> {
         let binding = row.id.to_string();
         let id = verdict_id("ledger.evidence", &binding, "Inconclusive", Some(reason));
-        let frame = StreamVerdict {
+        let mut frame = StreamVerdict {
             id,
             outcome: "Inconclusive".to_owned(),
             title: "inconclusive".to_owned(),
@@ -361,8 +422,8 @@ impl Engine {
                 role: "evidence".to_owned(),
             }],
             rest: Vec::new(),
-            rank: None,
             rerank: None,
+            rank: None,
         };
         if self.emitted.insert(id) {
             let stored = Verdict {
@@ -378,12 +439,12 @@ impl Engine {
                     timeline: frame.timeline.clone(),
                     amount_cents: frame.amount_cents,
                     rest: Vec::new(),
-                    rank: None,
                     rerank: None,
                 })
                 .unwrap_or_else(|_| serde_json::json!({})),
             };
             if self.store.insert_verdict_if_absent(&stored).await? {
+                frame = self.attach_rank(frame).await;
                 let _ = self.tx.send(frame.clone());
             }
         }
@@ -411,13 +472,13 @@ pub fn verdict_from_stored(verdict: &Verdict) -> Option<StreamVerdict> {
         recorded_at: verdict.recorded_at,
         timeline: body.timeline,
         rest: body.rest,
-        rank: body.rank,
         rerank: body.rerank,
+        rank: None,
     })
 }
 
-async fn rank_call(ranker: Ranker, request: String) -> Result<String, JevCallFailure> {
-    match tokio::task::spawn_blocking(move || ranker(&request)).await {
+async fn rank_call(ranker: Arc<dyn SystemOne>, request: String) -> Result<String, JevCallFailure> {
+    match tokio::task::spawn_blocking(move || ranker.evaluate(&request)).await {
         Ok(result) => result,
         Err(_) => Err(JevCallFailure::Transport),
     }
@@ -463,15 +524,15 @@ fn stream_verdict(
         recorded_at: Utc::now(),
         timeline,
         rest: Vec::new(),
-        rank: None,
         rerank: None,
+        rank: None,
     }
 }
 
 struct AppliedRank {
     timeline: Vec<StreamEntry>,
     rest: Vec<StreamEntry>,
-    rank: &'static str,
+    counterexample: &'static str,
     rerank: RerankRecord,
 }
 
@@ -521,7 +582,7 @@ fn apply_counterexample(
             .map(stream_entry)
             .collect()
     };
-    let (timeline, rest, rank) = match &ranking.counterexample {
+    let (timeline, rest, counterexample) = match &ranking.counterexample {
         Counterexample::Selected { shown, rest } => (entries(shown), entries(rest), "ranked"),
         Counterexample::Full { events } => (entries(events), Vec::new(), "unknown"),
     };
@@ -533,7 +594,7 @@ fn apply_counterexample(
     AppliedRank {
         timeline,
         rest,
-        rank,
+        counterexample,
         rerank: RerankRecord {
             request,
             response,
@@ -573,7 +634,6 @@ fn stored_body(item: &Judged, frame: &StreamVerdict) -> StoredBody {
         timeline: frame.timeline.clone(),
         amount_cents: frame.amount_cents,
         rest: frame.rest.clone(),
-        rank: frame.rank.clone(),
         rerank: frame.rerank.clone(),
     }
 }
@@ -680,7 +740,7 @@ mod tests {
             "{}".to_owned(),
             body.to_owned(),
         );
-        assert_eq!(applied.rank, "ranked");
+        assert_eq!(applied.counterexample, "ranked");
         assert_eq!(ids(&applied.timeline), vec!["pay", "again", "again:close"]);
         assert_eq!(ids(&applied.rest), vec!["tick-1", "settled", "order-9"]);
         assert!(applied.rerank.failure.is_none());
@@ -709,7 +769,7 @@ mod tests {
             "{}".to_owned(),
             String::new(),
         );
-        assert_eq!(applied.rank, "unknown");
+        assert_eq!(applied.counterexample, "unknown");
         assert!(applied.rest.is_empty());
         assert_eq!(
             ids(&applied.timeline),

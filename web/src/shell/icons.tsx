@@ -144,6 +144,15 @@ export function BoardIcon() {
   );
 }
 
+export function SemanticIcon() {
+  return (
+    <Stroke>
+      <path d="M3 4.2h6.2M3 8h10M3 11.8h7.4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+      <circle cx="12.4" cy="4.2" r="1.1" stroke="currentColor" strokeWidth="1.3" />
+    </Stroke>
+  );
+}
+
 export function ListIcon() {
   return (
     <Stroke>
