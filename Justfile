@@ -32,6 +32,17 @@ fmt:
 fmt-check:
     cargo fmt --all -- --check
 
+# --- data ---
+
+# Download the sponsor dataset (HuggingFace CL251215/QuickBooks-Hackathon-2026) and extract
+# company-001 into data/hackathon-100/company-001. Gitignored: the dataset has no declared license.
+# Never extracts `hidden/` (simulation ground truth).
+data:
+    mkdir -p data
+    [ -f data/hackathon-100-participant.tar.gz ] || curl -sL --fail -o data/hackathon-100-participant.tar.gz https://huggingface.co/datasets/CL251215/QuickBooks-Hackathon-2026/resolve/main/hackathon-100-participant.tar.gz
+    tar -xzf data/hackathon-100-participant.tar.gz -C data --exclude='*hidden*' 'hackathon-100/company-001'
+    @echo "data/hackathon-100/company-001"
+
 # --- infrastructure ---
 
 # Start TimescaleDB (needs Docker/OrbStack running). Compose file lands with #4.

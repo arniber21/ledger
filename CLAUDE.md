@@ -13,3 +13,4 @@ Ledger Sentinel: live runtime verification of simulated financial agents. Read `
 - Run `just check` and `just test` before finishing. One issue per branch/PR; reference it (`Closes #N`). Commit messages end with the Co-Authored-By line.
 - Prefer cloning/adapting small open-source examples (exchange, SPL transfer) over inventing, and note the source in the file header.
 - Tools: Docker (OrbStack), `solana-test-validator`/`surfpool`, bun, just. Solana CLI is on PATH via the Justfile.
+- Dataset: run `just data` (downloads from HuggingFace `CL251215/QuickBooks-Hackathon-2026`, extracts company-001 only into gitignored `data/`; not committed because it has no declared license and the repo is public). Files: `data/hackathon-100/company-001/rwm-v4/world-*/{bills,vendors,bill_payments,company,terms,accounts}.yaml`, one YAML per entity type; read `SCHEMA.md` there first.
