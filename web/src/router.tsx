@@ -1,4 +1,4 @@
-import { createRootRoute, createRoute, createRouter, RouterProvider } from "@tanstack/react-router";
+import { createRootRoute, Link, createRoute, createRouter, RouterProvider } from "@tanstack/react-router";
 import { isSavedView } from "./stream/reduce";
 import { Dashboard, parseOutcomeSearch } from "./dashboard/dashboard";
 import { InboxPage } from "./inbox/inbox";
@@ -9,8 +9,21 @@ import { TaintPage } from "./taint/taint";
 import { TracesPage } from "./traces/traces";
 import { Shell } from "./shell/shell";
 
+function NotFound() {
+  return (
+    <div className="empty not-found" data-testid="not-found">
+      <h2>Page not found</h2>
+      <p>That address is not part of Ledger Sentinel. Press G then D for the dashboard, or Cmd K for quick actions.</p>
+      <Link to="/" search={{ view: undefined, outcome: undefined }} className="primary">
+        Go to Dashboard
+      </Link>
+    </div>
+  );
+}
+
 const rootRoute = createRootRoute({
   component: Shell,
+  notFoundComponent: NotFound,
 });
 
 const dashboardRoute = createRoute({

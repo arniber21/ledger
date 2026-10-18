@@ -10,6 +10,43 @@ import { Palette } from "./palette";
 import { Shortcuts } from "./shortcuts";
 import { Sidebar } from "./sidebar";
 
+const TITLES: Record<string, string> = {
+  "/": "Dashboard",
+  "/inbox": "Inbox",
+  "/traces": "Traces",
+  "/taint": "Semantic",
+  "/specs": "Specs",
+  "/verdicts": "Verdicts",
+};
+
+export function titleFor(pathname: string): string {
+  const page = TITLES[pathname.length > 1 ? pathname.replace(/\/$/, "") : pathname];
+  return page ? `${page} · Ledger Sentinel` : "Not found · Ledger Sentinel";
+}
+
+const COLLAPSE_KEY = "ledger.sidebar.collapsed";
+
+function readCollapsed(): boolean {
+  try {
+    return window.localStorage.getItem(COLLAPSE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function writeCollapsed(value: boolean) {
+  try {
+    window.localStorage.setItem(COLLAPSE_KEY, value ? "1" : "0");
+  } catch {
+    // Storage can be blocked. The toggle still works for this session.
+  }
+}
+
+function focusMain(event: { preventDefault: () => void }) {
+  event.preventDefault();
+  document.getElementById("main")?.focus();
+}
+
 function isTyping(event: KeyboardEvent): boolean {
   const target = event.target;
   if (!(target instanceof HTMLElement)) return false;
@@ -32,6 +69,24 @@ export function Shell() {
   const [reviewed, setReviewed] = useState<ReadonlySet<string>>(() => new Set());
   const [inboxView, setInboxView] = useState<InboxView>("board");
   const feedRef = useRef<readonly string[]>([]);
+  const [collapsed, setCollapsedState] = useState<boolean>(readCollapsed);
+  const [everLive, setEverLive] = useState(false);
+
+  const setCollapsed = useCallback((next: boolean | ((current: boolean) => boolean)) => {
+    setCollapsedState((current) => {
+      const value = typeof next === "function" ? next(current) : next;
+      writeCollapsed(value);
+      return value;
+    });
+  }, []);
+
+  useEffect(() => {
+    if (metrics.connection === "live") setEverLive(true);
+  }, [metrics.connection]);
+
+  useEffect(() => {
+    document.title = titleFor(pathname);
+  }, [pathname]);
 
   const registerFeed = useCallback((ids: readonly string[]) => {
     feedRef.current = ids;
@@ -65,6 +120,9 @@ export function Shell() {
     inboxView,
     setInboxView,
     savedView,
+    collapsed,
+    setCollapsed,
+    everLive,
   };
 
   useEffect(() => {
@@ -124,6 +182,11 @@ export function Shell() {
       }
 
       const key = event.key.toLowerCase();
+      if (event.key === "[" && !event.metaKey && !event.ctrlKey && !event.altKey) {
+        event.preventDefault();
+        setCollapsed((current) => !current);
+        return;
+      }
       if (key === "g" && !event.metaKey && !event.ctrlKey && !event.altKey) {
         chord = true;
         window.clearTimeout(timer);
@@ -222,20 +285,32 @@ export function Shell() {
       window.removeEventListener("keydown", onKey);
       window.clearTimeout(timer);
     };
-  }, [navigate, paletteOpen, pathname, router.history, selectedId, shortcutsOpen, toggleReviewed]);
+  }, [navigate, setCollapsed, paletteOpen, pathname, router.history, selectedId, shortcutsOpen, toggleReviewed]);
 
   return (
     <ShellProvider value={value}>
       <div className="shell" data-testid="shell">
-        <div className="window">
+        <a className="skip-link" href="#main" onClick={focusMain}>
+          Skip to content
+        </a>
+        <div className={collapsed ? "window is-collapsed" : "window"}>
           <Sidebar />
-          <div className="main">
+          <div className="main" id="main" tabIndex={-1}>
             {faultNotice ? (
               <p className="notice" role="status">
                 {faultNotice}
               </p>
             ) : null}
-            <Outlet />
+            {metrics.connection === "offline" ? (
+              <p className="notice notice-stale" role="status" data-testid="stream-banner">
+                {everLive
+                  ? "Reconnecting… Showing the last data received. Numbers may be out of date."
+                  : "Connecting to the stream…"}
+              </p>
+            ) : null}
+            <div className="route-fade" key={pathname}>
+              <Outlet />
+            </div>
           </div>
         </div>
       </div>

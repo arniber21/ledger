@@ -20,6 +20,10 @@ export type ShellContextValue = {
   inboxView: InboxView;
   setInboxView: (view: InboxView) => void;
   savedView: SavedView | undefined;
+  collapsed: boolean;
+  setCollapsed: (next: boolean | ((current: boolean) => boolean)) => void;
+  /** True once the stream has connected at least once. Before that, numbers are not data. */
+  everLive: boolean;
 };
 
 const ShellContext = createContext<ShellContextValue | null>(null);
