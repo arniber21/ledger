@@ -20,7 +20,7 @@ use crate::event::{AgentId, LedgerKind};
 pub(crate) const APPLICATION: &str = "ledger";
 /// Probe id of the exchange source.
 pub(crate) const EXCHANGE_SOURCE: &str = "exchange";
-/// Producer schema the absence specification is written against.
+/// Producer schema ledger Patterns are written against.
 pub(crate) const SCHEMA_VERSION: &str = "ledger-events-v1";
 /// Deployment topology stamped on receiver-owned assurance.
 pub(crate) const TOPOLOGY_ID: &str = "ledger-sim";
@@ -29,9 +29,9 @@ pub(crate) const SENTINEL_CLOCK: &str = "ledger.sentinel";
 /// Exchange producer clock.
 pub(crate) const EXCHANGE_CLOCK: &str = "ledger.exchange";
 /// Attribute whose value is the bill id. One Binding per bill.
-pub(crate) const BILL_ATTRIBUTE: &str = "ledger.bill.id";
+pub const BILL_ATTRIBUTE: &str = "ledger.bill.id";
 /// Attribute whose value is the acting agent.
-pub(crate) const AGENT_ATTRIBUTE: &str = "ledger.agent.id";
+pub const AGENT_ATTRIBUTE: &str = "ledger.agent.id";
 /// Sequence epoch for a trace that does not restart numbering.
 pub(crate) const SEQUENCE_EPOCH: u64 = 1;
 /// Filter epoch acknowledged by every adapted event.
@@ -41,7 +41,9 @@ pub(crate) fn monitored_application() -> MonitoredApplicationId {
     MonitoredApplicationId::new(APPLICATION).expect("constant application id is non-blank")
 }
 
-pub(crate) fn schema_version() -> SchemaVersion {
+/// Returns the producer schema version authored Patterns bind against.
+#[must_use]
+pub fn schema_version() -> SchemaVersion {
     SchemaVersion::new(SCHEMA_VERSION).expect("constant schema version is non-blank")
 }
 
@@ -57,13 +59,15 @@ pub(crate) fn filter_epoch() -> FilterEpoch {
     FilterEpoch::new(FILTER_EPOCH)
 }
 
-pub(crate) fn event_kind(kind: LedgerKind) -> EventKind {
+/// Returns the Sentinel event kind for `kind`.
+#[must_use]
+pub fn event_kind(kind: LedgerKind) -> EventKind {
     EventKind::new(kind.event_kind()).expect("constant event kind is non-blank")
 }
 
 /// Exchange settlement record. One source, shared by every agent.
 #[must_use]
-pub(crate) fn exchange_source() -> SourceIdentity {
+pub fn exchange_source() -> SourceIdentity {
     SourceIdentity::new(
         monitored_application(),
         SourceId::new(EXCHANGE_SOURCE).expect("constant exchange source id is non-blank"),
@@ -75,7 +79,7 @@ pub(crate) fn exchange_source() -> SourceIdentity {
 /// # Errors
 ///
 /// Returns [`AdapterError::Identifier`] when the derived source id is rejected.
-pub(crate) fn agent_source(agent: &AgentId) -> Result<SourceIdentity, AdapterError> {
+pub fn agent_source(agent: &AgentId) -> Result<SourceIdentity, AdapterError> {
     let source_id = format!("agent.{}", agent.as_str());
     Ok(SourceIdentity::new(
         monitored_application(),
@@ -102,7 +106,7 @@ pub(crate) fn clock_domain(
 
 /// Assurance tier of the source that emits `kind`.
 #[must_use]
-pub(crate) const fn tier_of(kind: LedgerKind) -> SourceTier {
+pub const fn tier_of(kind: LedgerKind) -> SourceTier {
     if kind.is_exchange() {
         SourceTier::Anchor
     } else {
@@ -112,7 +116,7 @@ pub(crate) const fn tier_of(kind: LedgerKind) -> SourceTier {
 
 /// Capabilities both sources actually provide: causal edges and completeness.
 #[must_use]
-pub(crate) fn capabilities() -> SourceCapabilities {
+pub fn capabilities() -> SourceCapabilities {
     SourceCapabilities::new([
         SourceCapability::CausalEdges,
         SourceCapability::CompletenessSignals,

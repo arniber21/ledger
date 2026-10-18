@@ -74,25 +74,39 @@ pub fn binding_smoke_request() -> &'static str {
     include_str!("../smoke_request.json")
 }
 
-/// Map a raw System One response body to a binding verdict.
+/// Map a raw System One Choice body for one question id.
 ///
 /// Invalid JSON, a missing or non-choice answer, a malformed distribution,
 /// a score below [`SAME_PROBABILITY_THRESHOLD`] / [`DIFFERENT_PROBABILITY_THRESHOLD`],
 /// and a contradiction all return [`BindingVerdict::Unknown`].
-/// Any explanation field on the body is ignored.
-#[must_use]
-pub fn map_binding_body(body: &str) -> BindingVerdict {
+/// Any explanation field on the body is ignored. Thresholds are the same ones
+/// [`map_binding_body`] uses.
+#[must_use = "an unmapped Choice is dropped"]
+pub fn map_choice_body(body: &str, question_id: &str) -> BindingVerdict {
     let Ok(value) = serde_json::from_str::<Value>(body) else {
         return BindingVerdict::Unknown;
     };
-    map_binding_value(&value)
+    map_choice_value(&value, question_id)
 }
 
-/// Map a finished call. Every [`JevCallFailure`] becomes [`BindingVerdict::Unknown`].
-#[must_use]
-pub fn map_binding_exchange(exchange: Result<&str, JevCallFailure>) -> BindingVerdict {
+/// Map a raw System One response body to a binding verdict.
+///
+/// This is [`map_choice_body`] for [`SAME_OBLIGATION_QUESTION`].
+#[must_use = "an unmapped Choice is dropped"]
+pub fn map_binding_body(body: &str) -> BindingVerdict {
+    map_choice_body(body, SAME_OBLIGATION_QUESTION)
+}
+
+/// Map a finished Choice call for `question_id`.
+///
+/// Every [`JevCallFailure`] becomes [`BindingVerdict::Unknown`].
+#[must_use = "an unmapped Choice is dropped"]
+pub fn map_choice_exchange(
+    exchange: Result<&str, JevCallFailure>,
+    question_id: &str,
+) -> BindingVerdict {
     match exchange {
-        Ok(body) => map_binding_body(body),
+        Ok(body) => map_choice_body(body, question_id),
         Err(
             JevCallFailure::Timeout
             | JevCallFailure::Transport
@@ -102,10 +116,16 @@ pub fn map_binding_exchange(exchange: Result<&str, JevCallFailure>) -> BindingVe
     }
 }
 
-fn map_binding_value(value: &Value) -> BindingVerdict {
+/// Map a finished binding call. Every [`JevCallFailure`] becomes [`BindingVerdict::Unknown`].
+#[must_use = "an unmapped Choice is dropped"]
+pub fn map_binding_exchange(exchange: Result<&str, JevCallFailure>) -> BindingVerdict {
+    map_choice_exchange(exchange, SAME_OBLIGATION_QUESTION)
+}
+
+fn map_choice_value(value: &Value, question_id: &str) -> BindingVerdict {
     let Some(answer) = value
         .get("answers")
-        .and_then(|answers| answers.get(SAME_OBLIGATION_QUESTION))
+        .and_then(|answers| answers.get(question_id))
     else {
         return BindingVerdict::Unknown;
     };
@@ -279,6 +299,29 @@ mod tests {
         assert!(!binding_smoke_request()
             .to_ascii_lowercase()
             .contains("explain"));
+    }
+
+    #[test]
+    fn another_question_id_uses_the_same_thresholds() {
+        let raw = serde_json::json!({
+            "model": "jev-test",
+            "answers": {
+                "draft_matches_policy": choice("same", 0.80, 0.20)
+            }
+        })
+        .to_string();
+        assert_eq!(
+            map_choice_body(&raw, "draft_matches_policy"),
+            BindingVerdict::Same
+        );
+        assert_eq!(
+            map_choice_body(&raw, SAME_OBLIGATION_QUESTION),
+            BindingVerdict::Unknown
+        );
+        assert_eq!(
+            map_choice_exchange(Err(JevCallFailure::Timeout), "draft_matches_policy"),
+            BindingVerdict::Unknown
+        );
     }
 
     #[test]
