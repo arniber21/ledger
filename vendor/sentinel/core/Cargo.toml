@@ -1,0 +1,43 @@
+[package]
+name = "sentinel-core"
+description = "Verification Core: resumable pure evaluator, hot-path automata, cold-path relational queries (ADR-0012/0005/0020)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+publish.workspace = true
+
+[dependencies]
+sentinel-model = { path = "../model" }
+sentinel-compile = { path = "../compile" }
+
+# `sentinel-ingest` is a **test-only** edge, and it must stay one.
+#
+# Issue #12 moved `SourceEvidence`/`SequenceGap` into `sentinel-model`, so the
+# Core's own code links `sentinel-model` and `sentinel-compile` and nothing
+# else — no `serde_json`, matching what a crate whose premise is "reads and
+# validates no wire format" should link. The regression-pin test files
+# (`tests/tracer_bullet.rs`, `tests/support/mod.rs`) do use
+# `sentinel_ingest::capture`/`::sagashop` directly to build fixtures from the
+# vendored captures, so the edge is kept here rather than deleted.
+#
+# `.github/scripts/check-core-purity.sh` enforces the distinction with
+# `cargo tree --edges normal`, which excludes dev edges by construction.
+[dev-dependencies]
+sentinel-ingest = { path = "../ingest" }
+# The #78 corpus converter (tests/corpus_support) serializes generic
+# trace-corpus-v1 records; test-only, mirrors ingest's pinned version.
+serde_json = { version = "=1.0.108", default-features = false, features = ["std"] }
+# Decoding an encoded Verdict back into its generated message, for the one
+# assertion that cannot be made through the domain type: `Verdict::
+# cold_settlement_watermarks()` returns `BTreeMap<SourceIdentity, u64>` and
+# discards `observed_at`, so the value `verdict.rs` writes into a cold
+# Watermark is observable only in the bytes. Test-only, like the edge above;
+# `prost` is already on the Core's *normal* edge through `sentinel-model`, so
+# this adds nothing to `check-core-purity.sh`'s allowlist either way. Pinned to
+# `sentinel-model`'s version.
+prost = "=0.12.6"
+
+[lints]
+workspace = true

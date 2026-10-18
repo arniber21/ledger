@@ -10,6 +10,9 @@ members = [
     "crates/ledger-store",
     "crates/ledger-api",
 ]
+# Nested workspace. Cargo rejects a workspace inside a workspace, so the
+# vendored Sentinel tree keeps its own [workspace] and is not a member here.
+exclude = ["vendor/sentinel"]
 
 [workspace.package]
 version = "0.1.0"
@@ -17,10 +20,10 @@ edition = "2021"
 publish = false
 
 [workspace.dependencies]
-# Pre-existing Sentinel code, consumed by path (see README "Disclosure").
-sentinel-model = { path = "/Users/arnabghosh/Desktop/emet/sentinel/model" }
-sentinel-compile = { path = "/Users/arnabghosh/Desktop/emet/sentinel/compile" }
-sentinel-core = { path = "/Users/arnabghosh/Desktop/emet/sentinel/core" }
+# Pre-existing Sentinel code, vendored in this repo (see README "Disclosure").
+sentinel-model = { path = "vendor/sentinel/model" }
+sentinel-compile = { path = "vendor/sentinel/compile" }
+sentinel-core = { path = "vendor/sentinel/core" }
 
 ledger-core = { path = "crates/ledger-core" }
 ledger-exchange = { path = "crates/ledger-exchange" }
