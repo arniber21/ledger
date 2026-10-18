@@ -4,13 +4,22 @@
 //! and do not call this. The API key is `TYPESAFE_API_KEY`. It is not printed,
 //! logged, or stored in the response.
 
-use ledger_jev::{memo_request, JevCallFailure, CALL_TIMEOUT};
+use ledger_jev::{panel_request, JevCallFailure, BILL_MEMO_SOURCE, CALL_TIMEOUT, DECISION_SOURCE};
 
-/// Posts one memo predicate and returns the raw response body.
+/// Posts one eight-question panel for a bill memo.
 ///
 /// A missing key, a timeout, a transport failure, or a non-success status is
 /// a [`JevCallFailure`]. The failure does not include the key or the body.
 pub(crate) async fn fetch_memo_predicate(memo: &str) -> Result<String, JevCallFailure> {
+    fetch_panel(BILL_MEMO_SOURCE, memo).await
+}
+
+/// Posts one eight-question panel for a decision rationale.
+pub(crate) async fn fetch_decision_panel(rationale: &str) -> Result<String, JevCallFailure> {
+    fetch_panel(DECISION_SOURCE, rationale).await
+}
+
+async fn fetch_panel(source: &str, text: &str) -> Result<String, JevCallFailure> {
     let raw = std::env::var("TYPESAFE_API_KEY").unwrap_or_default();
     let key = raw.trim();
     if key.is_empty() {
@@ -24,7 +33,7 @@ pub(crate) async fn fetch_memo_predicate(memo: &str) -> Result<String, JevCallFa
         .post("https://api.typesafe.ai/v1/systemone")
         .bearer_auth(key)
         .header("content-type", "application/json")
-        .body(memo_request(memo))
+        .body(panel_request(source, text))
         .send()
         .await
         .map_err(call_failure)?;

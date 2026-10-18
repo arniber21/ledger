@@ -48,9 +48,9 @@ pub fn read_event(row: &StoredEvent) -> Result<Option<LedgerEvent>, String> {
     if kind.carries_bill() {
         let bill = BillId::new(required(row, &["bill.id", "bill_id"], "bill id")?)
             .map_err(|error| error.to_string())?;
-        return LedgerEvent::new(row.id.to_string(), kind, bill, agent, times, predecessors)
-            .map(Some)
-            .map_err(|error| error.to_string());
+        let event = LedgerEvent::new(row.id.to_string(), kind, bill, agent, times, predecessors)
+            .map_err(|error| error.to_string())?;
+        return Ok(Some(with_taint(event, row)));
     }
     Ok(None)
 }
@@ -121,6 +121,26 @@ fn order_end(row: &StoredEvent) -> Option<OrderEnd> {
         "exchange.cancel" => Some(OrderEnd::Cancel),
         _ => None,
     }
+}
+
+fn with_taint(mut event: LedgerEvent, row: &StoredEvent) -> LedgerEvent {
+    let Some(object) = row
+        .payload
+        .pointer("/attributes")
+        .and_then(Value::as_object)
+    else {
+        return event;
+    };
+    for (key, value) in object {
+        if !key.starts_with("ledger.taint.") {
+            continue;
+        }
+        let Some(text) = value.as_str().filter(|text| !text.trim().is_empty()) else {
+            continue;
+        };
+        event = event.with_attribute(key, text);
+    }
+    event
 }
 
 fn predecessors(row: &StoredEvent) -> Vec<String> {

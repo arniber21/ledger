@@ -1,4 +1,4 @@
-//! The three shipped monitors: precedence, absence-after, and response.
+//! The shipped monitors: precedence, absence-after, response, and tainted-memo.
 //!
 //! Each one is a catalogue Pattern lowered into an [`Evaluator`]. Callers step
 //! that evaluator and seal it. They do not call the batch `evaluate` path.
@@ -25,7 +25,7 @@ use crate::error::AdapterError;
 use crate::event::{AgentId, LedgerKind};
 use crate::source::{
     agent_source, capabilities, event_kind, exchange_source, schema_version, AGENT_ATTRIBUTE,
-    BILL_ATTRIBUTE, ORDER_ATTRIBUTE,
+    BILL_ATTRIBUTE, ORDER_ATTRIBUTE, TAINT_INSTRUCTS_ATTRIBUTE, TAINT_YES,
 };
 
 /// Absence-after: no second payment on a settled bill before a credit.
@@ -34,6 +34,8 @@ pub const SPEC_ABSENCE: &str = "ledger.bill.no-second-payment";
 pub const SPEC_PRECEDENCE: &str = "ledger.bill.approval-before-payment";
 /// Response: an order is filled or cancelled before the deadline.
 pub const SPEC_RESPONSE: &str = "ledger.order.fill-or-cancel";
+/// A payment whose memo instructs payment needs a prior approval.
+pub const SPEC_TAINT: &str = "ledger.bill.tainted-memo-needs-approval";
 
 const SPEC_VERSION: &str = "v1";
 
@@ -133,6 +135,72 @@ pub fn precedence_evaluator(agent: &AgentId) -> Result<Evaluator, AdapterError> 
     let instance = instantiate(
         PatternId::PrecedenceApproval,
         identity(SPEC_PRECEDENCE),
+        ProducerContract::new(schema_version()),
+        arguments,
+        evidence,
+    )?;
+    let Some(precedence) = instance.ir().as_precedence() else {
+        return Err(AdapterError::NotPrecedence);
+    };
+    let specification = PrecedenceSpecification::try_from(precedence)?;
+    Ok(Evaluator::new(specification))
+}
+
+/// Per-agent precedence for a memo that instructs payment.
+///
+/// The trigger is a payment carrying [`TAINT_INSTRUCTS_ATTRIBUTE`] = [`TAINT_YES`].
+/// Code sets that flag from the panel probability. A benign memo does not carry
+/// it, so this spec does not fire. The requirement is an approval in the
+/// payment's causal past.
+///
+/// # Errors
+///
+/// Returns an error when the Pattern cannot be instantiated or lowered.
+pub fn tainted_memo_evaluator(agent: &AgentId) -> Result<Evaluator, AdapterError> {
+    let mut required = BTreeMap::new();
+    required.insert(
+        attribute_key(AGENT_ATTRIBUTE),
+        AttributeValue::String(agent.as_str().to_owned()),
+    );
+    required.insert(
+        attribute_key(TAINT_INSTRUCTS_ATTRIBUTE),
+        AttributeValue::String(TAINT_YES.to_owned()),
+    );
+    let arguments = BTreeMap::from([
+        (
+            PRECEDENCE_BINDING_ATTRIBUTE.to_owned(),
+            ParameterValue::AttributeKey(attribute_key(BILL_ATTRIBUTE)),
+        ),
+        (
+            PRECEDENCE_TRIGGER.to_owned(),
+            ParameterValue::Selector(SelectorValue::new(
+                event_kind(LedgerKind::AgentPayBill),
+                required,
+            )),
+        ),
+        (
+            PRECEDENCE_REQUIREMENT.to_owned(),
+            selector(LedgerKind::Approval, None),
+        ),
+    ]);
+    let capable = capabilities();
+    let evidence = BTreeMap::from([
+        (
+            PRECEDENCE_TRIGGER_SOURCE.to_owned(),
+            EvidenceBinding::new(
+                agent_source(agent)?,
+                SourceTier::Contributing,
+                capable.clone(),
+            ),
+        ),
+        (
+            PRECEDENCE_REQUIREMENT_SOURCE.to_owned(),
+            EvidenceBinding::new(exchange_source(), SourceTier::Anchor, capable),
+        ),
+    ]);
+    let instance = instantiate(
+        PatternId::PrecedenceApproval,
+        identity(SPEC_TAINT),
         ProducerContract::new(schema_version()),
         arguments,
         evidence,
