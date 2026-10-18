@@ -4,6 +4,10 @@
 //! order flow. Order-book methods only emit `tracing` spans; they do not
 //! install a subscriber.
 //!
+//! The same subscriber fans every span to Sentry and to ledger-ingest.
+//! Ingest has no sample rate. Sentry stays at `traces_sample_rate` 1.0 with
+//! `send_default_pii` false.
+//!
 //! Feature names were checked against the Sentry Rust docs for SDK 0.49
 //! (`https://docs.sentry.io/platforms/rust/logs/`):
 //! - `tracing` enables the `sentry-tracing` integration at
@@ -11,14 +15,16 @@
 //! - `logs` enables structured logs. It is also a default feature; it is named
 //!   here so a build without default features still sends logs.
 
+use ledger_ingest::{IngestError, IngestWorker};
 use sentry::integrations::tracing::EventFilter;
 use std::time::Duration;
 use thiserror::Error;
 use tracing_subscriber::prelude::*;
 
-/// Guard that flushes Sentry when dropped.
-#[must_use = "dropping the guard flushes Sentry and ends telemetry"]
+/// Guard that flushes ingest and Sentry when dropped.
+#[must_use = "dropping the guard flushes ingest and Sentry and ends telemetry"]
 pub struct TelemetryGuard {
+    worker: Option<IngestWorker>,
     _client: sentry::ClientInitGuard,
 }
 
@@ -35,14 +41,24 @@ pub enum TelemetryError {
     /// Another subscriber is already installed in this process.
     #[error("tracing subscriber is already installed")]
     AlreadyInstalled,
+    /// Timescale ingest could not start or could not store a span.
+    #[error("ingest failed: {0}")]
+    Ingest(#[source] IngestError),
+}
+
+impl From<IngestError> for TelemetryError {
+    fn from(error: IngestError) -> Self {
+        Self::Ingest(error)
+    }
 }
 
 /// Starts Sentry from `SENTRY_DSN` and forwards `tracing` spans and logs.
 ///
 /// Sample rate is 1.0 so every order trace is sent. `send_default_pii` is
-/// false. Error-level events are captured as Sentry errors and as logs.
-/// Info and warn events, including order rejections, are logs and breadcrumbs,
-/// not error events.
+/// false. The same subscriber forwards every span at info or above to
+/// ledger-ingest, which does not sample. Error-level events are captured as
+/// Sentry errors and as logs. Info and warn events, including order
+/// rejections, are logs and breadcrumbs, not error events.
 ///
 /// # Errors
 ///
@@ -69,16 +85,40 @@ pub fn install_telemetry() -> Result<TelemetryGuard, TelemetryError> {
         return Err(TelemetryError::Disabled);
     }
 
+    let (ingest_layer, worker) = IngestWorker::start()?;
     let sentry_layer = sentry::integrations::tracing::layer().event_filter(event_filter);
 
     let filter = tracing_subscriber::filter::LevelFilter::INFO;
-    tracing_subscriber::registry()
+    // The level gate is not a sampler. Ingest and Sentry both receive every
+    // span at info or above. Sentry's trace sample rate stays 1.0.
+    let installed = tracing_subscriber::registry()
         .with(tracing_subscriber::fmt::layer().with_filter(filter))
         .with(sentry_layer.with_filter(filter))
-        .try_init()
-        .map_err(|_| TelemetryError::AlreadyInstalled)?;
+        .with(ingest_layer.with_filter(filter))
+        .try_init();
+    if installed.is_err() {
+        drop(worker);
+        return Err(TelemetryError::AlreadyInstalled);
+    }
 
-    Ok(TelemetryGuard { _client: client })
+    Ok(TelemetryGuard {
+        worker: Some(worker),
+        _client: client,
+    })
+}
+
+impl TelemetryGuard {
+    /// Writes queued spans to Timescale, then flushes Sentry when dropped.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`TelemetryError::Ingest`] when a queued span could not be stored.
+    pub fn close(mut self) -> Result<(), TelemetryError> {
+        match self.worker.take() {
+            Some(worker) => worker.close().map_err(TelemetryError::from),
+            None => Ok(()),
+        }
+    }
 }
 
 /// Maps tracing levels onto Sentry events, logs, and breadcrumbs.
