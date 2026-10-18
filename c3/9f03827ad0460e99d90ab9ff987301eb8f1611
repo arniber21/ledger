@@ -1,0 +1,39 @@
+crates/ledger-core/src/error.rs
+  s_eb3f1e996a1e9e::t_49a376a95309f2 1-57
+crates/ledger-core/src/source.rs
+  s_eb3f1e996a1e9e::t_892265774265a8 1-144
+  s_eb3f1e996a1e9e::t_3a0f94d0d24488 145-147
+crates/ledger-core/src/judge.rs
+  s_eb3f1e996a1e9e::t_e86b7177ec1896 1-20,22-26,29-65,78-114,124-126
+  s_eb3f1e996a1e9e::t_c86daadec15f30 21
+  s_eb3f1e996a1e9e::t_3954dba5aa223c 66-77
+  s_eb3f1e996a1e9e::t_2e6ad61e04d7a3 115-123,127-129
+  s_eb3f1e996a1e9e::t_bb5b31f2060e70 27-28
+crates/ledger-core/src/adapt.rs
+  s_eb3f1e996a1e9e::t_147d33f87f07b0 1-263
+  s_eb3f1e996a1e9e::t_f10d0c172ffae7 264-267
+crates/ledger-core/src/lib.rs
+  s_eb3f1e996a1e9e::t_a94be8659c561f 2-21
+crates/ledger-core/tests/absence_after.rs
+  s_eb3f1e996a1e9e::t_9864a0729aae60 1-222
+crates/ledger-core/src/event.rs
+  s_eb3f1e996a1e9e::t_25098d4cbd247a 1-151,153-157,159-165,167-213
+  s_eb3f1e996a1e9e::t_1ee9b68e0949af 166
+  s_eb3f1e996a1e9e::t_66240996ea78c3 152,158
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c39f03827ad0460e99d90ab9ff987301eb8f1611",
+  "prompts": {},
+  "sessions": {
+    "s_eb3f1e996a1e9e": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "06b34b26-1c10-4170-a615-2c40e2997086",
+        "model": "grok-4.7-high-fast"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    }
+  }
+}
