@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { VerdictItem } from "../stream/types";
+import { useConfirm, useHotkeys, useToast } from "../ui";
 import { useShell } from "../shell/context";
 import { Header } from "../shell/header";
 import { SpecsIcon } from "../shell/icons";
@@ -19,6 +20,7 @@ import {
   scopeOf,
   stepTitle,
 } from "./reduce";
+import { reopenDraft, stepperOf, whyNotArmed } from "./reduce";
 import { insertRun, replaceRun, useSpecRuns } from "./runs";
 import { streamAuthoring } from "./stream";
 import { JEV_THRESHOLD_LABEL, type SpecRun, type SpecStatus, type TimelineStep } from "./types";
@@ -41,6 +43,19 @@ export function SpecsPage({ spec }: { spec?: string }) {
   const { metrics } = useShell();
   const selected = runs.find((run) => run.key === spec || run.specId === spec);
   const armed = runs.filter((run) => run.status === "armed");
+  const [cursor, setCursor] = useState(0);
+  const listing = !selected && armed.length > 0;
+  const openRun = (run: SpecRun | undefined) => {
+    if (run) void navigate({ to: "/specs", search: { spec: run.specId ?? run.key } });
+  };
+  useHotkeys(
+    {
+      j: { handler: () => setCursor((current) => Math.min(armed.length - 1, current + 1)), description: "Next armed spec" },
+      k: { handler: () => setCursor((current) => Math.max(0, current - 1)), description: "Previous armed spec" },
+      enter: { handler: () => openRun(armed[Math.min(cursor, armed.length - 1)]), description: "Open the armed spec" },
+    },
+    { scope: "Specs", enabled: listing },
+  );
   const meta = armed.length === 0 ? "None armed" : `${armed.length} armed`;
 
   const onNew = () => {
@@ -79,8 +94,16 @@ export function SpecsPage({ spec }: { spec?: string }) {
                 </tr>
               </thead>
               <tbody>
-                {armed.map((run) => (
-                  <tr key={run.key} data-testid="armed-row">
+                {armed.map((run, index) => (
+                  <tr
+                    key={run.key}
+                    data-testid="armed-row"
+                    className={index === cursor ? "is-selected" : undefined}
+                    aria-selected={index === cursor}
+                    ref={(node) => {
+                      if (node && index === cursor) node.scrollIntoView({ block: "nearest" });
+                    }}
+                  >
                     <td>
                       <button
                         type="button"
@@ -129,7 +152,49 @@ function SpecDetail({
   const scope = scopeOf(run.parameters);
   const segments = policySegments(run.sentence, run.clauses);
 
+  const confirm = useConfirm();
+  const toast = useToast();
+  const formRef = useRef<HTMLFormElement>(null);
+  const drafting = run.status === "drafting";
+  const why = whyNotArmed(run);
+  const prevStatus = useRef(run.status);
+
   useEffect(() => () => abortRef.current?.abort(), []);
+
+  const cancelRequest = () => {
+    abortRef.current?.abort();
+    abortRef.current = null;
+    setSentence(run.sentence);
+    replaceRun(queryClient, run.key, reopenDraft);
+    toast.push({ message: "Authoring cancelled. Your text is kept.", tone: "info" });
+  };
+
+  const editAndRetry = () => {
+    setSentence(run.sentence);
+    replaceRun(queryClient, run.key, reopenDraft);
+    window.setTimeout(() => document.getElementById("spec-policy")?.focus(), 0);
+  };
+
+  // Esc cancels the in-flight request. Capture phase so the shell's Esc does not also go back.
+  useEffect(() => {
+    if (!drafting) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      event.stopPropagation();
+      cancelRequest();
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [drafting, run.sentence]);
+
+  useEffect(() => {
+    if (prevStatus.current === "drafting" && run.status === "armed") {
+      toast.push({ message: `Armed ${run.patternId ?? "spec"}. Monitoring the live stream.`, tone: "success" });
+    }
+    prevStatus.current = run.status;
+  }, [run.status, run.patternId, toast]);
 
   const onSubmit = (event: FormEvent) => {
     event.preventDefault();
@@ -160,9 +225,15 @@ function SpecDetail({
       });
   };
 
-  const onOverride = () => {
+  const onOverride = async () => {
     const text = run.sentence.trim();
     if (text.length === 0 || run.status !== "held") return;
+    const ok = await confirm({
+      title: "Arm with override?",
+      body: "Some clauses were not confirmed. The monitor will run anyway, and results for the gap stay Inconclusive.",
+      confirmLabel: "Arm",
+    });
+    if (!ok) return;
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
@@ -198,7 +269,7 @@ function SpecDetail({
             <StatusChip status={run.status} />
           </div>
           {editable ? (
-            <form onSubmit={onSubmit}>
+            <form onSubmit={onSubmit} ref={formRef}>
               <label className="spec-label" htmlFor="spec-policy">
                 Policy
               </label>
@@ -209,9 +280,15 @@ function SpecDetail({
                 value={sentence}
                 placeholder="Write the policy in plain English"
                 onChange={(event) => setSentence(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+                    event.preventDefault();
+                    formRef.current?.requestSubmit();
+                  }
+                }}
               />
               <button type="submit" className="tool spec-submit" data-testid="draft-spec" disabled={run.status === "drafting"}>
-                Draft spec
+                Draft spec <kbd>⌘↵</kbd>
               </button>
             </form>
           ) : (
@@ -220,7 +297,7 @@ function SpecDetail({
                 <PolicyText sentence={run.sentence} segments={segments} />
               </p>
               {run.status === "held" ? (
-                <button type="button" className="tool spec-submit" data-testid="override-arm" onClick={onOverride}>
+                <button type="button" className="tool spec-submit" data-testid="override-arm" onClick={() => void onOverride()}>
                   Arm with override
                 </button>
               ) : null}
@@ -252,11 +329,60 @@ function SpecDetail({
             <Tab id="monitors" label="Monitors" current={tab} onSelect={setTab} />
             <Tab id="history" label="History" current={tab} onSelect={setTab} />
           </div>
+          <Stepper run={run} />
+          {why ? (
+            <div className="spec-why" data-testid="spec-why">
+              <p>{why}</p>
+              <button type="button" className="tool" data-testid="edit-retry" onClick={editAndRetry}>
+                Edit and retry
+              </button>
+            </div>
+          ) : null}
+          {drafting ? (
+            <p className="spec-cancel-hint">
+              Checking the draft. <button type="button" className="link-button" onClick={cancelRequest}>Cancel <kbd>Esc</kbd></button>
+            </p>
+          ) : null}
           {tab === "authoring" ? <Authoring run={run} /> : null}
           {tab === "monitors" ? <MonitorTable run={run} scope={scope} /> : null}
           {tab === "history" ? <HistoryTable runs={runs} currentKey={run.key} /> : null}
         </section>
       </div>
+    </div>
+  );
+}
+
+const STAGES = ["Drafting", "Checking"] as const;
+
+function Stepper({ run }: { run: SpecRun }) {
+  const state = stepperOf(run);
+  if (!state) return null;
+  const labels = [...STAGES, state.final ?? "Armed or Rejected"];
+  const announce = state.final
+    ? `${state.final}.`
+    : `${labels[state.current]}…`;
+  return (
+    <div className="stepper" data-testid="spec-stepper">
+      <ol aria-label="Authoring progress">
+        {labels.map((label, index) => {
+          const done = index < state.current || (state.final !== null && index <= state.current);
+          const active = index === state.current && state.final === null;
+          const tone = index === 2 && state.final ? `is-${state.final.replace(/\s+/g, "-").toLowerCase()}` : "";
+          return (
+            <li
+              key={label}
+              className={`stepper-step${done ? " is-done" : ""}${active ? " is-active" : ""} ${tone}`}
+              aria-current={active || (state.final && index === 2) ? "step" : undefined}
+            >
+              <span className="stepper-dot" aria-hidden="true" />
+              {label}
+            </li>
+          );
+        })}
+      </ol>
+      <p className="sr-only" role="status" aria-live="polite">
+        {announce}
+      </p>
     </div>
   );
 }

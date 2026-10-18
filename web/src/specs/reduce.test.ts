@@ -250,3 +250,21 @@ describe("authoring stream", () => {
     );
   });
 });
+
+import { composingRun as _c, beginDraft as _b, reopenDraft, stepperOf, whyNotArmed } from "./reduce";
+
+describe("authoring stepper", () => {
+  test("composing has no stepper, drafting starts at step one", () => {
+    expect(stepperOf(_c("k"))).toBeNull();
+    expect(stepperOf(_b(_c("k"), "Pay once"))?.current).toBe(0);
+  });
+  test("retry keeps the text and returns to the editor", () => {
+    const reopened = reopenDraft({ ..._b(_c("k"), "Pay once"), status: "rejected" });
+    expect(reopened.status).toBe("composing");
+    expect(reopened.sentence).toBe("Pay once");
+  });
+  test("an unfinished draft has no why-not", () => {
+    expect(whyNotArmed(_b(_c("k"), "x"))).toBeNull();
+    expect(whyNotArmed({ ..._c("k"), status: "held" })).toContain("Inconclusive");
+  });
+});

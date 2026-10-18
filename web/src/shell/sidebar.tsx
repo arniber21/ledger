@@ -28,7 +28,7 @@ const NAV = [
 ] as const;
 
 export function Sidebar() {
-  const { metrics, openPalette, reviewed, savedView } = useShell();
+  const { metrics, openPalette, reviewed, savedView, collapsed } = useShell();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const search = useRouterState({ select: (state) => state.location.search });
   const triage = useTriage();
@@ -51,7 +51,7 @@ export function Sidebar() {
   }, [workspaceOpen]);
 
   return (
-    <aside className="sidebar">
+    <aside className="sidebar" aria-label="Sidebar" hidden={collapsed}>
       <div className="workspace" ref={workspaceRef}>
         <button
           type="button"

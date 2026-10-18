@@ -8,6 +8,43 @@ import { Palette } from "./palette";
 import { ConfirmProvider, ShortcutsHelp, ToastProvider, useHotkeys } from "../ui";
 import { Sidebar } from "./sidebar";
 
+const TITLES: Record<string, string> = {
+  "/": "Dashboard",
+  "/inbox": "Inbox",
+  "/traces": "Traces",
+  "/taint": "Semantic",
+  "/specs": "Specs",
+  "/verdicts": "Verdicts",
+};
+
+export function titleFor(pathname: string): string {
+  const page = TITLES[pathname.length > 1 ? pathname.replace(/\/$/, "") : pathname];
+  return page ? `${page} · Ledger Sentinel` : "Not found · Ledger Sentinel";
+}
+
+const COLLAPSE_KEY = "ledger.sidebar.collapsed";
+
+function readCollapsed(): boolean {
+  try {
+    return window.localStorage.getItem(COLLAPSE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function writeCollapsed(value: boolean) {
+  try {
+    window.localStorage.setItem(COLLAPSE_KEY, value ? "1" : "0");
+  } catch {
+    // Storage can be blocked. The toggle still works for this session.
+  }
+}
+
+function focusMain(event: { preventDefault: () => void }) {
+  event.preventDefault();
+  document.getElementById("main")?.focus();
+}
+
 function isTyping(event: KeyboardEvent): boolean {
   const target = event.target;
   if (!(target instanceof HTMLElement)) return false;
@@ -30,6 +67,24 @@ export function Shell() {
   const [reviewed, setReviewed] = useState<ReadonlySet<string>>(() => new Set());
   const [inboxView, setInboxView] = useState<InboxView>("board");
   const feedRef = useRef<readonly string[]>([]);
+  const [collapsed, setCollapsedState] = useState<boolean>(readCollapsed);
+  const [everLive, setEverLive] = useState(false);
+
+  const setCollapsed = useCallback((next: boolean | ((current: boolean) => boolean)) => {
+    setCollapsedState((current) => {
+      const value = typeof next === "function" ? next(current) : next;
+      writeCollapsed(value);
+      return value;
+    });
+  }, []);
+
+  useEffect(() => {
+    if (metrics.connection === "live") setEverLive(true);
+  }, [metrics.connection]);
+
+  useEffect(() => {
+    document.title = titleFor(pathname);
+  }, [pathname]);
 
   const registerFeed = useCallback((ids: readonly string[]) => {
     feedRef.current = ids;
@@ -63,6 +118,9 @@ export function Shell() {
     inboxView,
     setInboxView,
     savedView,
+    collapsed,
+    setCollapsed,
+    everLive,
   };
 
   useEffect(() => {
@@ -71,15 +129,14 @@ export function Shell() {
     return () => window.clearTimeout(timer);
   }, [faultNotice]);
 
-  const go = (to: string) => void navigate({ to });
   useHotkeys(
     {
-      "g d": { handler: () => go("/"), description: "Go to Dashboard" },
-      "g i": { handler: () => go("/inbox"), description: "Go to Inbox" },
-      "g t": { handler: () => go("/traces"), description: "Go to Traces" },
-      "g p": { handler: () => go("/taint"), description: "Go to Taint" },
-      "g s": { handler: () => go("/specs"), description: "Go to Specs" },
-      "g v": { handler: () => go("/verdicts"), description: "Go to Verdicts" },
+      "g d": { handler: () => void navigate({ to: "/", search: { view: undefined, outcome: undefined } }), description: "Go to Dashboard" },
+      "g i": { handler: () => void navigate({ to: "/inbox" }), description: "Go to Inbox" },
+      "g t": { handler: () => void navigate({ to: "/traces", search: { trace: undefined } }), description: "Go to Traces" },
+      "g p": { handler: () => void navigate({ to: "/taint" }), description: "Go to Taint" },
+      "g s": { handler: () => void navigate({ to: "/specs", search: { spec: undefined } }), description: "Go to Specs" },
+      "g v": { handler: () => void navigate({ to: "/verdicts", search: { id: undefined } }), description: "Go to Verdicts" },
     },
     { scope: "Navigate", enabled: !paletteOpen },
   );
@@ -95,6 +152,8 @@ export function Shell() {
       if (isTyping(event) || paletteOpen) return;
 
       if (event.key === "Escape") {
+        // The fault menu on Traces handles its own Esc (back to the list).
+        if (event.target instanceof HTMLElement && event.target.closest(".faults")) return;
         if (shortcutsOpen) {
           setShortcutsOpen(false);
           return;
@@ -135,7 +194,7 @@ export function Shell() {
         return;
       }
 
-      if (key === "enter" && selectedId) {
+      if (key === "enter" && selectedId && pathname !== "/specs") {
         event.preventDefault();
         if (pathname === "/traces") {
           void navigate({ to: "/traces", search: { trace: selectedId } });
@@ -155,22 +214,34 @@ export function Shell() {
     return () => {
       window.removeEventListener("keydown", onKey);
     };
-  }, [navigate, paletteOpen, pathname, router.history, selectedId, shortcutsOpen, toggleReviewed]);
+  }, [navigate, setCollapsed, paletteOpen, pathname, router.history, selectedId, shortcutsOpen, toggleReviewed]);
 
   return (
     <ToastProvider>
     <ConfirmProvider>
     <ShellProvider value={value}>
       <div className="shell" data-testid="shell">
-        <div className="window">
+        <a className="skip-link" href="#main" onClick={focusMain}>
+          Skip to content
+        </a>
+        <div className={collapsed ? "window is-collapsed" : "window"}>
           <Sidebar />
-          <div className="main">
+          <div className="main" id="main" tabIndex={-1}>
             {faultNotice ? (
               <p className="notice" role="status">
                 {faultNotice}
               </p>
             ) : null}
-            <Outlet />
+            {metrics.connection === "offline" ? (
+              <p className="notice notice-stale" role="status" data-testid="stream-banner">
+                {everLive
+                  ? "Reconnecting… Showing the last data received. Numbers may be out of date."
+                  : "Connecting to the stream…"}
+              </p>
+            ) : null}
+            <div className="route-fade" key={pathname}>
+              <Outlet />
+            </div>
           </div>
         </div>
       </div>

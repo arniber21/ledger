@@ -30,7 +30,7 @@ export function EventsChart({ points }: { points: RatePoint[] }) {
   const last = points.at(-1);
 
   return (
-    <section className="chart" data-testid="chart-events">
+    <section className="chart" data-testid="chart-events" tabIndex={0} aria-label={`Events per second chart. ${points.length === 0 ? "No data yet." : `Latest ${formatTick(last?.agentLog ?? 0)} agent log, ${formatTick(last?.exchange ?? 0)} exchange, ${formatTick(last?.solana ?? 0)} Solana per second.`}`}>
       <div className="chart-head">
         <div className="chart-copy">
           <h2>Events per second</h2>
@@ -71,7 +71,7 @@ export function AttentionChart({ points }: { points: AttentionPoint[] }) {
   const max = Math.max(1, ...points.map((point) => point.violate + point.inconclusive));
 
   return (
-    <section className="chart" data-testid="chart-attention">
+    <section className="chart" data-testid="chart-attention" tabIndex={0} aria-label={points.length === 0 ? "Needs attention per minute chart. No data yet." : `Needs attention per minute chart. Latest minute: ${points.at(-1)?.violate ?? 0} needs review, ${points.at(-1)?.inconclusive ?? 0} inconclusive.`}>
       <div className="chart-head">
         <div>
           <h2>Needs attention per minute</h2>
@@ -114,7 +114,7 @@ export function MonitorsChart({ points }: { points: MonitorPoint[] }) {
   const last = points.at(-1);
 
   return (
-    <section className="chart" data-testid="chart-monitors">
+    <section className="chart" data-testid="chart-monitors" tabIndex={0} aria-label={last ? `Live monitors chart. ${last.withGc} with garbage collection, ${last.withoutGc} without.` : "Live monitors chart. No data yet."}>
       <div className="chart-head">
         <div className="chart-copy">
           <h2>Live monitors</h2>

@@ -8,7 +8,7 @@ import {
 } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { isOutcome, outcomeLabel } from "../stream/reduce";
 import type { SavedView, VerdictItem, VerdictOutcome } from "../stream/types";
 import { Calibration } from "./calibration-panel";
@@ -79,7 +79,8 @@ export function Dashboard({
   view?: SavedView;
   outcome?: VerdictOutcome;
 }) {
-  const { metrics, registerFeed, selectedId, setSelectedId, reviewed, openPalette } = useShell();
+  const { metrics, registerFeed, selectedId, setSelectedId, reviewed, openPalette, everLive } = useShell();
+  const loading = !everLive && metrics.verdicts.length === 0 && metrics.eventsIngested === 0;
   const navigate = useNavigate();
   const columnFilters = filtersFor(view, outcome);
 
@@ -117,6 +118,7 @@ export function Dashboard({
       <div className="content">
         <section className="metrics" aria-label="Metrics">
           <Metric
+            loading={loading}
             testId="metric-events"
             label="Events ingested"
             value={metrics.eventsIngested}
@@ -125,24 +127,28 @@ export function Dashboard({
             }`}
           />
           <Metric
+            loading={loading}
             testId="metric-monitors"
             label="Live monitors"
             value={metrics.liveMonitors}
             caption={monitorCaption(metrics.liveMonitors, metrics.monitors)}
           />
           <Metric
+            loading={loading}
             testId="metric-retired"
             label="Retired by GC"
             value={metrics.retiredByGc}
             caption={`Jev closed ${countFormat.format(metrics.jevClosedAmbiguous)} ambiguous`}
           />
           <Metric
+            loading={loading}
             testId="metric-settled"
             label="Settled on Solana"
             value={metrics.settledOnSolana}
             caption={`${countFormat.format(metrics.settlementsFailed)} failed`}
           />
           <Metric
+            loading={loading}
             testId="metric-jev"
             label="Jev judgments"
             value={metrics.jevJudgments}
@@ -183,6 +189,7 @@ export function Dashboard({
             rows={needsReview}
             selectedId={selectedId}
             reviewed={reviewed}
+            loading={loading}
             onOpen={open}
           />
           <Column
@@ -191,6 +198,7 @@ export function Dashboard({
             rows={inconclusive}
             selectedId={selectedId}
             reviewed={reviewed}
+            loading={loading}
             onOpen={open}
           />
           <Column
@@ -199,6 +207,7 @@ export function Dashboard({
             rows={satisfied}
             selectedId={selectedId}
             reviewed={reviewed}
+            loading={loading}
             onOpen={open}
           />
         </section>
@@ -233,22 +242,51 @@ function monitorCaption(
   return "From the stream";
 }
 
+/** True for a moment after the value changes, so the number can tick. */
+function useTick(value: number): boolean {
+  const previous = useRef(value);
+  const [ticking, setTicking] = useState(false);
+  useEffect(() => {
+    if (previous.current === value) return;
+    previous.current = value;
+    setTicking(true);
+    const timer = window.setTimeout(() => setTicking(false), 400);
+    return () => window.clearTimeout(timer);
+  }, [value]);
+  return ticking;
+}
+
 function Metric({
   testId,
   label,
   value,
   caption,
+  loading,
 }: {
   testId: string;
   label: string;
   value: number;
   caption: string;
+  loading: boolean;
 }) {
+  const ticking = useTick(value);
   return (
-    <article className="metric" data-testid={testId}>
+    <article
+      className="metric"
+      data-testid={testId}
+      tabIndex={0}
+      aria-busy={loading}
+      aria-label={loading ? `${label}, loading` : `${label}: ${countFormat.format(value)}. ${caption}`}
+    >
       <h2>{label}</h2>
-      <p className="metric-value">{countFormat.format(value)}</p>
-      <p className="metric-caption">{caption}</p>
+      {loading ? (
+        <p className="metric-value" aria-hidden="true">
+          <span className="skeleton-block skeleton-number" />
+        </p>
+      ) : (
+        <p className={ticking ? "metric-value is-tick" : "metric-value"}>{countFormat.format(value)}</p>
+      )}
+      <p className="metric-caption">{loading ? "Waiting for the stream" : caption}</p>
     </article>
   );
 }
@@ -259,6 +297,7 @@ function Column({
   rows,
   selectedId,
   reviewed,
+  loading,
   onOpen,
 }: {
   title: string;
@@ -266,6 +305,7 @@ function Column({
   rows: VerdictItem[];
   selectedId: string | null;
   reviewed: ReadonlySet<string>;
+  loading: boolean;
   onOpen: (id: string) => void;
 }) {
   const parentRef = useRef<HTMLDivElement>(null);
@@ -284,10 +324,15 @@ function Column({
       <h2 id={labelId}>
         <span className={`dot dot-${tone}`} />
         {title}
-        <span className="column-count">{rows.length}</span>
+        <span className="column-count">{loading ? "–" : rows.length}</span>
       </h2>
       <div className="column-scroll" ref={parentRef}>
-        {rows.length === 0 ? (
+        {rows.length === 0 && loading ? (
+          <div className="skeleton-list" aria-label="Loading verdicts" role="status">
+            <div className="skeleton-row" />
+            <div className="skeleton-row" />
+          </div>
+        ) : rows.length === 0 ? (
           <p className="column-empty">Nothing here</p>
         ) : (
           <div className="column-virtual" style={{ height: virtualizer.getTotalSize() }}>
