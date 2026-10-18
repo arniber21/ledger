@@ -1,0 +1,52 @@
+crates/ledger-core/src/live.rs
+  s_5379f84be8f4cc::t_a7216d54b568f8 15
+  s_5379f84be8f4cc::t_aeceb4d43b58e3 200
+  s_5379f84be8f4cc::t_ef0a70af5875a9 75
+  s_5379f84be8f4cc::t_30d23eecb17fa9 764-770
+  s_5379f84be8f4cc::t_48e9ace163e146 93,97-109
+  s_5379f84be8f4cc::t_bfe8b7a082ec65 110,757-763,771-772
+  s_5379f84be8f4cc::t_1f83140e786c27 111
+crates/ledger-jev/src/lib.rs
+  s_5379f84be8f4cc::t_8624a37b6a0c64 27-30
+  s_5379f84be8f4cc::t_677fbccff6d0cc 6-10
+  s_5379f84be8f4cc::t_c77ebe77123001 17
+crates/ledger-core/src/lib.rs
+  s_5379f84be8f4cc::t_ae9651702b2b8c 21
+  s_5379f84be8f4cc::t_4a201836cfcfeb 10
+crates/ledger-jev/src/close.rs
+  s_5379f84be8f4cc::t_4f4828e77acc4f 1-358,364-469
+  s_5379f84be8f4cc::t_e60d98ce4e1f43 359-363
+crates/ledger-core/src/gc.rs
+  s_5379f84be8f4cc::t_5187adbb26a14e 119
+  s_5379f84be8f4cc::t_892d433fe20cde 708-712
+  s_5379f84be8f4cc::t_ccff24a88a368d 745-749,751
+  s_5379f84be8f4cc::t_fff1f23656942a 657-671,675-679
+  s_5379f84be8f4cc::t_7c7f45a1ea244d 786-790,792-796
+  s_5379f84be8f4cc::t_4beb15bbc4d45a 1-118,120-184,186-237,239-241,243-554,567-600,602-622,624-656,672-674,680-707,713-744,750,752-762,768-771,776-785,791,797-806
+  s_5379f84be8f4cc::t_8bdac977502ab3 763-767,772-775
+  s_5379f84be8f4cc::t_b50ee59b824922 185
+  s_5379f84be8f4cc::t_c8e7b9cfa57bdf 555-566
+  s_5379f84be8f4cc::t_94c6fd2d4ba286 238
+  s_5379f84be8f4cc::t_2bf9e9e734492b 242
+  s_5379f84be8f4cc::t_100835ba4bcc3a 601
+  s_5379f84be8f4cc::t_6d0e59db530d0e 623
+crates/ledger-jev/src/memo.rs
+  s_5379f84be8f4cc::t_9c02a63538250d 148-151
+  s_5379f84be8f4cc::t_04d8f06fba1169 127,130
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6121e5e4fb5a57145bc23d98a500b16176143290",
+  "prompts": {},
+  "sessions": {
+    "s_5379f84be8f4cc": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "cf4c8273-6a01-4031-8a8d-ee0bfc202b72",
+        "model": "grok-4.7-high-fast"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    }
+  }
+}
