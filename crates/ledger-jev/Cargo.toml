@@ -6,6 +6,7 @@ publish.workspace = true
 
 [dependencies]
 ledger-core.workspace = true
+chrono.workspace = true
 reqwest = { version = "0.12", default-features = false, features = ["blocking", "rustls-tls"] }
 serde.workspace = true
 serde_json.workspace = true
