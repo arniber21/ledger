@@ -43,6 +43,22 @@ Other tasks: `just check`, `just test`, `just lint`, `just fmt`. Run `just` to l
 4. **Jev handles the ambiguous parts.** When code cannot decide, such as whether two vendor names refer to the same payee or whether a memo is instructing a payment, Jev returns a typed judgment that feeds the monitor. Deterministic checks run first, and an uncertain answer yields `Inconclusive`.
 5. **People review.** Verdicts land in an inbox (board, list or split view) with the evidence, the Solana transaction, and a link to the Sentry trace.
 
+## Window query
+
+`just window-query` counts stored events per minute over the last hour:
+
+```sql
+SELECT time_bucket('1 minute', observed_at) AS bucket,
+       source,
+       kind,
+       count(*) AS events
+FROM events
+WHERE observed_at >= now() - interval '1 hour'
+  AND observed_at < now()
+GROUP BY bucket, source, kind
+ORDER BY bucket, source, kind;
+```
+
 ## Tech stack
 
 - **Core** (Rust workspace, eight crates)

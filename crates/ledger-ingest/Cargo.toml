@@ -6,4 +6,18 @@ publish.workspace = true
 
 [dependencies]
 ledger-core.workspace = true
+ledger-store.workspace = true
+chrono = { workspace = true, features = ["clock"] }
+sentinel-model.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
 tracing.workspace = true
+tracing-subscriber.workspace = true
+
+[dev-dependencies]
+ledger-store.workspace = true
+chrono = { workspace = true, features = ["clock"] }
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true

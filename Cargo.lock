@@ -2218,6 +2218,7 @@ name = "ledger-exchange"
 version = "0.1.0"
 dependencies = [
  "ledger-core",
+ "ledger-ingest",
  "rust_decimal",
  "sentry",
  "solana-client",
@@ -2243,8 +2244,15 @@ dependencies = [
 name = "ledger-ingest"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "ledger-core",
+ "ledger-store",
+ "sentinel-model",
+ "serde_json",
+ "thiserror 2.0.21",
+ "tokio",
  "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
@@ -2267,7 +2275,7 @@ dependencies = [
  "sentinel-core",
  "sentinel-model",
  "serde_json",
- "thiserror",
+ "thiserror 2.0.21",
 ]
 
 [[package]]

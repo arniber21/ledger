@@ -17,10 +17,15 @@ fn main() {
     };
 
     let result = run();
-    drop(guard);
-
-    if let Err(err) = result {
+    let flushed = guard.close();
+    if let Err(err) = &result {
         eprintln!("order flow: {err}");
+    }
+    if let Err(err) = flushed {
+        eprintln!("ingest: {err}");
+        std::process::exit(1);
+    }
+    if result.is_err() {
         std::process::exit(1);
     }
 }
