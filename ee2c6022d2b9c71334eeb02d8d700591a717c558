@@ -1,0 +1,75 @@
+crates/ledger-core/src/lib.rs
+  s_61e0b0c14d18f7::t_e58a1afccc594a 1
+crates/ledger-store/Cargo.toml
+  s_61e0b0c14d18f7::t_e58a1afccc594a 1-8
+crates/ledger-jev/src/lib.rs
+  s_61e0b0c14d18f7::t_e58a1afccc594a 1
+crates/ledger-core/Cargo.toml
+  s_61e0b0c14d18f7::t_e58a1afccc594a 1-12
+crates/ledger-agents/Cargo.toml
+  s_61e0b0c14d18f7::t_e58a1afccc594a 1-9
+crates/ledger-exchange/src/lib.rs
+  s_61e0b0c14d18f7::t_e58a1afccc594a 1
+crates/ledger-spec/Cargo.toml
+  s_61e0b0c14d18f7::t_e58a1afccc594a 1-9
+crates/ledger-ingest/src/lib.rs
+  s_61e0b0c14d18f7::t_e58a1afccc594a 1
+crates/ledger-spec/src/lib.rs
+  s_61e0b0c14d18f7::t_e58a1afccc594a 1
+crates/ledger-ingest/Cargo.toml
+  s_61e0b0c14d18f7::t_e58a1afccc594a 1-9
+crates/ledger-exchange/Cargo.toml
+  s_61e0b0c14d18f7::t_e58a1afccc594a 1-9
+Cargo.toml
+  s_61e0b0c14d18f7::t_e58a1afccc594a 1-38
+.gitignore
+  s_f4e8ae91e14cbb::t_e1a93ec80ed0d8 1
+  s_61e0b0c14d18f7::t_69e65bfc6e1bd7 2-5
+crates/ledger-store/src/lib.rs
+  s_61e0b0c14d18f7::t_e58a1afccc594a 1
+crates/ledger-api/src/main.rs
+  s_61e0b0c14d18f7::t_e58a1afccc594a 1-3
+SPEC.md
+  s_f4e8ae91e14cbb::t_5bfccf88cce816 122
+  s_61e0b0c14d18f7::t_69e65bfc6e1bd7 3,157-167
+  s_f4e8ae91e14cbb::t_66a1e220c6ed8a 1,5-35,39-97,119-121,123-126,128,130-134,136-156
+  s_f4e8ae91e14cbb::t_19e1b5c246893b 127,129
+  s_f4e8ae91e14cbb::t_cfcc23c040e86a 135
+  s_f4e8ae91e14cbb::t_dd15ad06320ad2 98-118
+  s_f4e8ae91e14cbb::t_98691a56879186 36
+  s_61e0b0c14d18f7::t_99aeeaa03346ad 2,4,37-38
+crates/ledger-api/Cargo.toml
+  s_61e0b0c14d18f7::t_e58a1afccc594a 1-12
+README.md
+  s_61e0b0c14d18f7::t_69e65bfc6e1bd7 1-52
+crates/ledger-agents/src/lib.rs
+  s_61e0b0c14d18f7::t_e58a1afccc594a 1
+crates/ledger-jev/Cargo.toml
+  s_61e0b0c14d18f7::t_e58a1afccc594a 1-10
+Cargo.lock
+  s_61e0b0c14d18f7::t_66eb6ec30dc795 1-476
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ee2c6022d2b9c71334eeb02d8d700591a717c558",
+  "prompts": {},
+  "sessions": {
+    "s_61e0b0c14d18f7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c168cc53-67a2-4357-967a-c871924e2eec",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    },
+    "s_f4e8ae91e14cbb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a654f3ab-0e2e-4dcd-a8ed-c77f67592f46",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    }
+  }
+}
