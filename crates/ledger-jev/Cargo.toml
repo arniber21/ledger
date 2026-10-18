@@ -1,0 +1,10 @@
+[package]
+name = "ledger-jev"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+ledger-core.workspace = true
+serde.workspace = true
+serde_json.workspace = true

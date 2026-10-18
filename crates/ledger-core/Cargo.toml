@@ -1,0 +1,12 @@
+[package]
+name = "ledger-core"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+sentinel-model.workspace = true
+sentinel-compile.workspace = true
+sentinel-core.workspace = true
+serde.workspace = true
+thiserror.workspace = true

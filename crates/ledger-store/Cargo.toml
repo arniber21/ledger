@@ -1,0 +1,8 @@
+[package]
+name = "ledger-store"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+ledger-core.workspace = true

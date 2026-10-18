@@ -1,0 +1,38 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/ledger-core",
+    "crates/ledger-exchange",
+    "crates/ledger-agents",
+    "crates/ledger-ingest",
+    "crates/ledger-jev",
+    "crates/ledger-spec",
+    "crates/ledger-store",
+    "crates/ledger-api",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[workspace.dependencies]
+# Pre-existing Sentinel code, consumed by path (see README "Disclosure").
+sentinel-model = { path = "../../Desktop/emet/sentinel/model" }
+sentinel-compile = { path = "../../Desktop/emet/sentinel/compile" }
+sentinel-core = { path = "../../Desktop/emet/sentinel/core" }
+
+ledger-core = { path = "crates/ledger-core" }
+ledger-exchange = { path = "crates/ledger-exchange" }
+ledger-agents = { path = "crates/ledger-agents" }
+ledger-ingest = { path = "crates/ledger-ingest" }
+ledger-jev = { path = "crates/ledger-jev" }
+ledger-spec = { path = "crates/ledger-spec" }
+ledger-store = { path = "crates/ledger-store" }
+
+anyhow = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+tokio = { version = "1", features = ["full"] }
+tracing = "0.1"

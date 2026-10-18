@@ -1,0 +1,9 @@
+[package]
+name = "ledger-ingest"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+ledger-core.workspace = true
+tracing.workspace = true
