@@ -179,7 +179,11 @@ export function Shell() {
         const delta = movingDown ? 1 : -1;
         const nextIndex =
           index === -1 ? (delta > 0 ? 0 : ids.length - 1) : (index + delta + ids.length) % ids.length;
-        setSelectedId(ids[nextIndex] ?? null);
+        const next = ids[nextIndex] ?? null;
+        setSelectedId(next);
+        if (pathname === "/verdicts" && next) {
+          void navigate({ to: "/verdicts", search: { id: next } });
+        }
         return;
       }
 
