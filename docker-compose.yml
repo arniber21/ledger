@@ -4,13 +4,15 @@
 # `ledger_local` is a local-development password. Do not reuse it anywhere else.
 # The host port is 5433 so this does not collide with a Postgres already on 5432.
 
-name: ledger
+# `ledger` and host port 5433 when LEDGER_COMPOSE_PROJECT and LEDGER_DB_PORT are unset.
+# scripts/e2e-slot.sh sets both so a second harness does not attach to this project.
+name: ${LEDGER_COMPOSE_PROJECT:-ledger}
 
 services:
   timescaledb:
     image: timescale/timescaledb:2.30.2-pg16
     ports:
-      - "127.0.0.1:5433:5432"
+      - "127.0.0.1:${LEDGER_DB_PORT:-5433}:5432"
     environment:
       POSTGRES_USER: ledger
       POSTGRES_PASSWORD: ledger_local

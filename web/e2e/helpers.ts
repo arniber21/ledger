@@ -1,13 +1,15 @@
 import { expect, type APIRequestContext, type Page } from "@playwright/test";
 
+const sceneTimeout = 120_000;
+
 export async function reset(request: APIRequestContext): Promise<void> {
-  const response = await request.post("/api/test/reset");
+  const response = await request.post("/api/test/reset", { timeout: sceneTimeout });
   const body = await response.text();
   expect(response.ok(), body).toBeTruthy();
 }
 
 export async function runScene(request: APIRequestContext, name: string): Promise<void> {
-  const response = await request.post(`/api/test/scenes/${name}`);
+  const response = await request.post(`/api/test/scenes/${name}`, { timeout: sceneTimeout });
   const body = await response.text();
   expect(response.ok(), body).toBeTruthy();
 }
