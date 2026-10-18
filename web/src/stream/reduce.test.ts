@@ -161,6 +161,75 @@ describe("parseStreamData", () => {
     expect(snapshot.verdicts[0]?.timeline?.[0]?.source).toBe("agent.payer");
     expect(snapshot.verdicts[0]?.binding).toBe("bill-9");
     expect(snapshot.verdicts[0]?.title).toBe("needs review");
+    expect(snapshot.verdicts[0]?.comparison).toBeNull();
     expect(JSON.stringify(snapshot.verdicts[0])).not.toContain("fraud");
+  });
+
+  test("keeps a timeline step that has a role and no source", () => {
+    const event = parseStreamData(
+      JSON.stringify({
+        kind: "verdict",
+        verdict: {
+          id: "v-role",
+          outcome: "Violate",
+          title: "needs review",
+          timeline: [{ eventId: "pay-2", role: "second-payment", kind: "ledger.exchange.payment" }],
+        },
+      }),
+    );
+    expect(event?.kind).toBe("verdict");
+    if (event?.kind !== "verdict") return;
+    const snapshot = applyStreamEvent(emptySnapshot(), event);
+    expect(snapshot.verdicts[0]?.timeline).toEqual([
+      {
+        eventId: "pay-2",
+        observedAt: "",
+        source: "",
+        kind: "ledger.exchange.payment",
+        role: "second-payment",
+      },
+    ]);
+  });
+
+  test("keeps Same, Different, and Unknown and drops any other comparison", () => {
+    const kept = parseStreamData(
+      JSON.stringify({
+        kind: "verdict",
+        verdict: {
+          id: "v-bind",
+          outcome: "Inconclusive",
+          title: "inconclusive",
+          comparison: {
+            exact: "Different",
+            fuzzy: { outcome: "Same", reasonCode: "normalized-name" },
+            jev: "Unknown",
+          },
+        },
+      }),
+    );
+    expect(kept?.kind).toBe("verdict");
+    if (kept?.kind !== "verdict") return;
+    const snapshot = applyStreamEvent(emptySnapshot(), kept);
+    expect(snapshot.verdicts[0]?.comparison).toEqual({
+      exact: { outcome: "Different", reasonCode: null },
+      fuzzy: { outcome: "Same", reasonCode: "normalized-name" },
+      jev: { outcome: "Unknown", reasonCode: null },
+    });
+    expect(snapshot.verdicts[0]?.jevUnknown).toBe(true);
+
+    const dropped = parseStreamData(
+      JSON.stringify({
+        kind: "verdict",
+        verdict: {
+          id: "v-drop",
+          outcome: "Satisfy",
+          title: "satisfied",
+          comparison: { exact: "Fraud", fuzzy: "Fraud", jev: "Fraud" },
+        },
+      }),
+    );
+    expect(dropped?.kind).toBe("verdict");
+    if (dropped?.kind !== "verdict") return;
+    expect(applyStreamEvent(emptySnapshot(), dropped).verdicts[0]?.comparison).toBeNull();
   });
 });
