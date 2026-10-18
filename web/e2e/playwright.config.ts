@@ -25,11 +25,17 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"] },
     },
   ],
-  webServer: {
-    command: "just e2e-stack",
-    cwd: "../..",
-    url: ui,
-    reuseExistingServer: !process.env.CI,
-    timeout: 1_200_000,
-  },
+  // LEDGER_E2E_NO_STACK=1 skips `just e2e-stack` when the API and UI are
+  // already running (for example a slot stack started by hand).
+  ...(process.env.LEDGER_E2E_NO_STACK
+    ? {}
+    : {
+        webServer: {
+          command: "just e2e-stack",
+          cwd: "../..",
+          url: ui,
+          reuseExistingServer: !process.env.CI,
+          timeout: 1_200_000,
+        },
+      }),
 });

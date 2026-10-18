@@ -30,6 +30,13 @@ async function openVerdict(page: Page, specId: string): Promise<void> {
   await expect(page.getByTestId("verdict-detail")).toBeVisible();
 }
 
+/** Verdict rows for one binding spec, filtered by outcome. Other specs' rows are ignored. */
+function bindingRows(page: Page, scene: string, outcome: string) {
+  return page.locator(`[data-testid^='verdict-row-'][data-outcome='${outcome}']`, {
+    hasText: `ledger.binding.${scene}`,
+  });
+}
+
 function ys(points: string | null): number[] {
   if (!points) return [];
   return points
@@ -63,7 +70,7 @@ test("a catalogue miss is rejected with its reason and does not arm", async ({ p
   await draft(page, NOT_CATALOGUE);
   await expect(page.getByTestId("spec-status")).toHaveText("Rejected");
   await expect(page.getByTestId("timeline-event").last()).toContainText("Unknown pattern");
-  await expect(page.locator("[data-testid^='armed-spec-']")).toHaveCount(0);
+  await expect(page.locator("[data-testid^='armed-spec-ledger.authored.']")).toHaveCount(0);
   await page.getByTestId("spec-tab-monitors").click();
   await expect(page.getByText("No monitor is running for this spec.")).toBeVisible();
 });
@@ -75,7 +82,7 @@ test("a Jev Different check is rejected and does not arm", async ({ page, reques
   await expect(page.getByTestId("spec-status")).toHaveText("Rejected");
   await expect(page.getByTestId("timeline-event").last()).toContainText("Draft differs");
   await expect(page.getByTestId("timeline-event").filter({ hasText: "Jev checked the draft" })).toBeVisible();
-  await expect(page.locator("[data-testid^='armed-spec-']")).toHaveCount(0);
+  await expect(page.locator("[data-testid^='armed-spec-ledger.authored.']")).toHaveCount(0);
   await page.getByTestId("spec-tab-monitors").click();
   await expect(page.getByText("No monitor is running for this spec.")).toBeVisible();
 });
@@ -85,7 +92,7 @@ test("a missing draft fixture is rejected and does not arm", async ({ page, requ
   await draft(page, MISSING);
   await expect(page.getByTestId("spec-status")).toHaveText("Rejected");
   await expect(page.getByTestId("timeline-event").last()).toContainText("Draft unavailable");
-  await expect(page.locator("[data-testid^='armed-spec-']")).toHaveCount(0);
+  await expect(page.locator("[data-testid^='armed-spec-ledger.authored.']")).toHaveCount(0);
 });
 
 test("an uncovered clause blocks arming until override", async ({ page, request }) => {
@@ -95,7 +102,7 @@ test("an uncovered clause blocks arming until override", async ({ page, request 
   await expect(page.getByTestId("clause-uncovered")).toContainText("Keep a credit");
   await expect(page.getByTestId("clause-coverage")).toHaveText("1 uncovered");
   await expect(page.getByTestId("spec-status")).toHaveText("Needs review");
-  await expect(page.locator("[data-testid^='armed-spec-']")).toHaveCount(0);
+  await expect(page.locator("[data-testid^='armed-spec-ledger.authored.']")).toHaveCount(0);
   await page.getByTestId("override-arm").click();
   await expect(page.getByTestId("spec-status")).toHaveText("Armed");
   await expect(page.getByTestId("armed-spec-ledger.authored.absence.after-until")).toBeVisible();
@@ -116,8 +123,8 @@ test("recurring has no violation and the comparison explains why", async ({ page
   await runScene(request, "recurring");
   await page.goto("/verdicts");
   await expect(page.getByTestId("shell")).toBeVisible();
-  await expect(page.locator("[data-outcome='Violate']")).toHaveCount(0);
   await openVerdict(page, "ledger.binding.recurring");
+  await expect(page.locator("[data-outcome='Violate']")).toHaveCount(0);
   await expect(page.getByTestId("binding-exact")).toContainText("Different");
   await expect(page.getByTestId("binding-fuzzy")).toContainText("Same");
   await expect(page.getByTestId("binding-jev")).toContainText("Different");
@@ -131,8 +138,9 @@ test("Jev Unknown and timeout stay inconclusive", async ({ page, request }) => {
   await openVerdict(page, "ledger.binding.vendor-alias");
   await expect(page.getByTestId("binding-jev")).toContainText("Unknown");
   await expect(page.getByTestId("verdict-detail")).toContainText("Inconclusive");
-  await expect(page.locator("[data-outcome='Violate']")).toHaveCount(0);
-  await expect(page.locator("[data-outcome='Satisfy']")).toHaveCount(0);
+  await expect(bindingRows(page, "vendor-alias", "Violate")).toHaveCount(0);
+  await expect(bindingRows(page, "vendor-alias", "Satisfy")).toHaveCount(0);
+  await expect(bindingRows(page, "vendor-alias", "Inconclusive")).toHaveCount(1);
 
   await reset(request);
   await forceJev(request, "timeout");
@@ -141,8 +149,9 @@ test("Jev Unknown and timeout stay inconclusive", async ({ page, request }) => {
   await expect(page.getByTestId("binding-jev")).toContainText("Unknown");
   await expect(page.getByTestId("binding-jev")).toContainText("timeout");
   await expect(page.getByTestId("verdict-detail")).toContainText("Inconclusive");
-  await expect(page.locator("[data-outcome='Violate']")).toHaveCount(0);
-  await expect(page.locator("[data-outcome='Satisfy']")).toHaveCount(0);
+  await expect(bindingRows(page, "vendor-alias", "Violate")).toHaveCount(0);
+  await expect(bindingRows(page, "vendor-alias", "Satisfy")).toHaveCount(0);
+  await expect(bindingRows(page, "vendor-alias", "Inconclusive")).toHaveCount(1);
 });
 
 test("Jev Different suppresses the double-pay", async ({ page, request }) => {
@@ -151,9 +160,12 @@ test("Jev Different suppresses the double-pay", async ({ page, request }) => {
   await runScene(request, "double-pay");
   await page.goto("/verdicts");
   await expect(page.getByTestId("shell")).toBeVisible();
-  await expect(page.locator("[data-outcome='Violate']")).toHaveCount(0);
-  await expect(page.locator("[data-outcome='Satisfy']")).toHaveCount(0);
   await openVerdict(page, "ledger.binding.double-pay");
+  // Other specs may Satisfy in the same scene; only the double-pay binding counts.
+  await expect(bindingRows(page, "double-pay", "Violate")).toHaveCount(0);
+  await expect(bindingRows(page, "double-pay", "Satisfy")).toHaveCount(0);
+  await expect(bindingRows(page, "double-pay", "Inconclusive")).toHaveCount(1);
+  await expect(page.locator("[data-outcome='Violate']")).toHaveCount(0);
   await expect(page.getByTestId("binding-jev")).toContainText("Different");
   await expect(page.getByTestId("verdict-detail")).toContainText("keeps the second payment off this bill");
   await expect(page.getByTestId("verdict-detail")).toContainText("Inconclusive");
@@ -176,8 +188,15 @@ test("the soak chart stays flat and a later duplicate is needs review", async ({
   expect(grey[grey.length - 1]).toBeLessThan(grey[0]);
   expect(accent[accent.length - 1]).toBeGreaterThan(grey[grey.length - 1]);
 
-  await openVerdict(page, "ledger.bill.no-second-payment");
-  await expect(page.locator("[data-outcome='Violate']")).toHaveCount(1);
+  await page.goto("/verdicts");
+  await expect(page.getByTestId("shell")).toBeVisible();
+  // The soak also stores Satisfy verdicts for this spec; open the Violate row.
+  const violate = page.locator("[data-testid^='verdict-row-'][data-outcome='Violate']", {
+    hasText: "ledger.bill.no-second-payment",
+  });
+  await expect(violate).toHaveCount(1);
+  await violate.click();
+  await expect(page.getByTestId("verdict-detail")).toBeVisible();
   await expect(page.getByTestId("verdict-detail")).toContainText("Needs review");
   await expect(page.getByTestId("verdict-detail")).toContainText("monitor stayed live");
   await expect(page.getByText(/fraud/i)).toHaveCount(0);
