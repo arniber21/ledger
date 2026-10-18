@@ -1175,13 +1175,30 @@ impl Store {
                  (SELECT count(*) FROM events
                    WHERE observed_at > $2 AND observed_at <= $3
                      AND (source = 'exchange' OR source LIKE 'agent%'))::bigint AS events_last_minute,
-                 (SELECT count(*) FROM events
+                 (SELECT count(DISTINCT payload #>> '{attributes,tx.signature}') FROM events
                    WHERE observed_at <= $1
-                     AND payload->'attributes' ? 'tx.signature')::bigint AS settled_on_chain,
-                 (SELECT count(*) FROM verdict_rank)::bigint AS jev_judgments,
-                 (SELECT count(*) FROM verdict_rank
-                   WHERE money IS NULL AND evidence IS NULL
-                     AND ambiguity IS NULL AND intent IS NULL)::bigint AS jev_unknown",
+                     AND COALESCE(payload #>> '{attributes,tx.signature}', '') <> '')::bigint AS settled_on_chain,
+                 (SELECT count(DISTINCT source) FROM events
+                   WHERE observed_at <= $1
+                     AND (source = 'exchange' OR source LIKE 'agent%'))::bigint AS source_count,
+                 (
+                    (SELECT count(*) FROM verdict_rank)
+                    + (SELECT count(*) FROM verdicts v
+                        WHERE v.evidence #>> '{comparison,jev,outcome}' IS NOT NULL
+                          AND NOT EXISTS (
+                            SELECT 1 FROM verdict_rank r WHERE r.verdict_id = v.id
+                          ))
+                 )::bigint AS jev_judgments,
+                 (
+                    (SELECT count(*) FROM verdict_rank
+                      WHERE money IS NULL AND evidence IS NULL
+                        AND ambiguity IS NULL AND intent IS NULL)
+                    + (SELECT count(*) FROM verdicts v
+                        WHERE v.evidence #>> '{comparison,jev,outcome}' = 'Unknown'
+                          AND NOT EXISTS (
+                            SELECT 1 FROM verdict_rank r WHERE r.verdict_id = v.id
+                          ))
+                 )::bigint AS jev_unknown",
         )
         .bind(ceiling)
         .bind(now - chrono::Duration::minutes(1))
@@ -1298,11 +1315,13 @@ pub struct MetricTotals {
     pub events: i64,
     /// Trace events observed in the last minute.
     pub events_last_minute: i64,
-    /// Events that carry a Solana transaction signature.
+    /// Distinct Solana transaction signatures on stored events.
     pub settled_on_chain: i64,
-    /// Stored Jev scoring calls.
+    /// Distinct agent and exchange sources.
+    pub source_count: i64,
+    /// Stored Jev scores, plus comparison cards that have no score row.
     pub jev_judgments: i64,
-    /// Jev calls where no dimension came back as a number.
+    /// Jev calls with no numeric dimension, plus comparison cards of `Unknown`.
     pub jev_unknown: i64,
 }
 
@@ -1533,6 +1552,83 @@ mod tests {
             message.contains("verdicts_outcome_known"),
             "unexpected error: {message}"
         );
+    }
+
+    #[tokio::test]
+    async fn metric_totals_count_distinct_signatures_and_jev_cards() {
+        let admin = database_url();
+        let (store, name) = Store::create_scratch(&admin)
+            .await
+            .expect("scratch database");
+        let now = Utc::now();
+        let signature = "sig-repeat";
+        for (index, sig) in [signature, signature, "sig-other"].into_iter().enumerate() {
+            store
+                .insert_event(&Event {
+                    id: Uuid::new_v4(),
+                    observed_at: now,
+                    source: "exchange".to_owned(),
+                    kind: "ledger.exchange.settled".to_owned(),
+                    data_class: "tenant".to_owned(),
+                    payload: serde_json::json!({
+                        "attributes": {"tx.signature": sig, "n": index}
+                    }),
+                })
+                .await
+                .expect("insert settlement");
+        }
+        store
+            .insert_event(&Event {
+                id: Uuid::new_v4(),
+                observed_at: now,
+                source: "agent.payer".to_owned(),
+                kind: "ledger.agent.pay_bill".to_owned(),
+                data_class: "tenant".to_owned(),
+                payload: serde_json::json!({"attributes": {}}),
+            })
+            .await
+            .expect("insert payment");
+        store
+            .insert_verdict(&Verdict {
+                id: Uuid::new_v4(),
+                recorded_at: now,
+                outcome: VerdictOutcome::Inconclusive,
+                spec_id: "ledger.binding.vendor-alias".to_owned(),
+                reason_code: Some("binding-comparison".to_owned()),
+                evidence: serde_json::json!({
+                    "comparison": {
+                        "exact": {"outcome": "Different"},
+                        "fuzzy": {"outcome": "Different"},
+                        "jev": {"outcome": "Same"}
+                    }
+                }),
+            })
+            .await
+            .expect("insert same card");
+        store
+            .insert_verdict(&Verdict {
+                id: Uuid::new_v4(),
+                recorded_at: now,
+                outcome: VerdictOutcome::Inconclusive,
+                spec_id: "ledger.binding.vendor-alias".to_owned(),
+                reason_code: Some("binding-comparison".to_owned()),
+                evidence: serde_json::json!({
+                    "comparison": {"jev": {"outcome": "Unknown"}}
+                }),
+            })
+            .await
+            .expect("insert unknown card");
+
+        let totals = store.metric_totals(now).await.expect("totals");
+        assert_eq!(totals.settled_on_chain, 2, "{totals:?}");
+        assert_eq!(totals.source_count, 2, "{totals:?}");
+        assert_eq!(totals.events, 4, "{totals:?}");
+        assert_eq!(totals.jev_judgments, 2, "{totals:?}");
+        assert_eq!(totals.jev_unknown, 1, "{totals:?}");
+        store
+            .drop_scratch(&admin, &name)
+            .await
+            .expect("drop scratch");
     }
 
     #[tokio::test]

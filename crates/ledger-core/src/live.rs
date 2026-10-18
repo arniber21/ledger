@@ -725,6 +725,20 @@ mod tests {
     }
 
     #[test]
+    fn second_payment_of_the_same_bill_needs_review_without_a_settlement_span() {
+        let mut session = Session::new().expect("session");
+        push_all(
+            &mut session,
+            &[pay("pay", 10, &[]), pay("again", 30, &["pay"])],
+        );
+        let verdicts = session.verdicts().expect("verdicts");
+        let verdict = one(&verdicts, SPEC_ABSENCE);
+        assert_eq!(verdict.outcome, VerdictOutcome::Violate, "{verdict:?}");
+        assert_eq!(verdict.reason_code.as_deref(), Some("second-payment"));
+        assert!(!format!("{verdict:?}").to_lowercase().contains("fraud"));
+    }
+
+    #[test]
     fn second_payment_violates_with_a_timeline() {
         let mut session = Session::new().expect("session");
         push_all(
