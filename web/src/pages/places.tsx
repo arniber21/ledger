@@ -12,7 +12,6 @@ import {
   ListIcon,
   SpecsIcon,
   SplitIcon,
-  TracesIcon,
   VerdictsIcon,
 } from "../shell/icons";
 
@@ -153,24 +152,6 @@ function SplitDetail({ items, selectedId }: { items: VerdictItem[]; selectedId: 
       <p className={`outcome outcome-${item.outcome}`}>{outcomeLabel(item.outcome)}</p>
       <p>{item.evidence || "No evidence on this verdict."}</p>
     </article>
-  );
-}
-
-export function TracesPage({ traceId }: { traceId?: string }) {
-  return (
-    <>
-      <Header icon={<TracesIcon />} title="Traces" />
-      <div className="content content-fill">
-        <Empty
-          title={traceId ? "Trace is not on the stream" : "No traces yet"}
-          body={
-            traceId
-              ? `${traceId} has not arrived. Spans show up here when ingest is connected.`
-              : "Spans from the agents and the exchange show up here when ingest is connected."
-          }
-        />
-      </div>
-    </>
   );
 }
 
