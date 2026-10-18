@@ -7,10 +7,12 @@
 //! `agent.pay_bill` and the exchange ledger kinds become Sentinel events
 //! through [`adapt_trace`]. Other spans are stored as themselves.
 //!
-//! A causal edge is a span field whose name starts with `link.`. It becomes a
-//! Sentinel predecessor only when an earlier event in the same batch has that
-//! id. An unresolved link is stored and marked inconclusive. It is not treated
-//! as a pass.
+//! A causal edge is a span field whose name starts with `link.`. It resolves
+//! when an earlier span in the same batch has that id: the span's assigned id,
+//! its `event.id`, or, for `link.approval_id`, its `approval.id`. It becomes a
+//! Sentinel predecessor only when that earlier span is a ledger event. An
+//! unresolved link is stored and marked inconclusive. It is not treated as a
+//! pass.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -41,6 +43,7 @@ pub fn normalize(spans: &[CapturedSpan]) -> Vec<StoredEvent> {
         .map(|&index| assigned_id(&spans[index]))
         .collect();
     let mut drafts: Vec<Draft> = Vec::new();
+    let mut priors: Vec<Prior> = Vec::new();
     let mut links_by_position: Vec<Vec<Link>> = Vec::with_capacity(order.len());
     let mut blocked: Vec<Option<String>> = vec![None; order.len()];
     let mut seen = BTreeSet::new();
@@ -48,7 +51,7 @@ pub fn normalize(spans: &[CapturedSpan]) -> Vec<StoredEvent> {
     for (position, &index) in order.iter().enumerate() {
         let span = &spans[index];
         let id = ids[position];
-        let links = causal_links(span, &drafts);
+        let links = causal_links(span, &priors);
         links_by_position.push(links);
         if !seen.insert(id) {
             blocked[position] = Some("duplicate event id".to_owned());
@@ -59,6 +62,7 @@ pub fn normalize(spans: &[CapturedSpan]) -> Vec<StoredEvent> {
             Ok(None) => {}
             Err(reason) => blocked[position] = Some(reason),
         }
+        priors.push(prior_for(span, id));
     }
 
     let mut summaries: BTreeMap<String, Summary> = BTreeMap::new();
@@ -96,6 +100,26 @@ pub fn normalize(spans: &[CapturedSpan]) -> Vec<StoredEvent> {
 struct Draft {
     position: usize,
     event: LedgerEvent,
+}
+
+/// An earlier span a `link.*` field can name.
+///
+/// `aliases` holds the assigned event id and the identity fields ingest treats
+/// as that span. A business id such as `order.id` is not an alias: a link must
+/// name the event, except `link.approval_id`, which also names `approval.id`.
+struct Prior {
+    aliases: BTreeSet<String>,
+}
+
+fn prior_for(span: &CapturedSpan, event_id: Uuid) -> Prior {
+    let mut aliases = BTreeSet::from([event_id.to_string()]);
+    if let Some(id) = field(span, "event.id") {
+        aliases.insert(id.to_owned());
+    }
+    if let Some(approval) = field(span, "approval.id") {
+        aliases.insert(approval.to_owned());
+    }
+    Prior { aliases }
 }
 
 struct Link {
@@ -211,10 +235,7 @@ fn ledger_event(
     let Some(agent) = field(span, "agent.id") else {
         return Err("missing agent id".to_owned());
     };
-    let predecessors = causal_links(span, prior)
-        .into_iter()
-        .filter(|link| link.resolved)
-        .map(|link| link.target);
+    let predecessors = drafted_predecessors(span, prior);
     let occurred = nanos(span.started_at);
     let observed = nanos(span.closed_at);
     let event = LedgerEvent::new(
@@ -241,14 +262,29 @@ fn ledger_kind(name: &str) -> Option<LedgerKind> {
     }
 }
 
-fn causal_links(span: &CapturedSpan, prior: &[Draft]) -> Vec<Link> {
+fn causal_links(span: &CapturedSpan, priors: &[Prior]) -> Vec<Link> {
     span.fields
         .iter()
         .filter(|(key, _)| key.starts_with("link."))
         .map(|(attribute, target)| Link {
             attribute: attribute.clone(),
             target: target.clone(),
-            resolved: prior.iter().any(|draft| draft.event.id() == target),
+            resolved: priors.iter().any(|prior| prior.aliases.contains(target)),
+        })
+        .collect()
+}
+
+/// Sentinel predecessors are ledger events only. A resolved approval span that
+/// is stored as itself is not a predecessor id.
+fn drafted_predecessors(span: &CapturedSpan, drafts: &[Draft]) -> Vec<String> {
+    span.fields
+        .iter()
+        .filter(|(key, _)| key.starts_with("link."))
+        .filter_map(|(_, target)| {
+            drafts
+                .iter()
+                .find(|draft| draft.event.id() == target)
+                .map(|draft| draft.event.id().to_owned())
         })
         .collect()
 }
@@ -443,5 +479,75 @@ mod tests {
         assert_eq!(rows[1].payload["causal_links"][0]["resolved"], json!(true));
         assert_eq!(rows[1].payload["sentinel"]["predecessors"], json!([first]));
         assert_eq!(rows[1].payload["sentinel"]["tier"], json!("anchor"));
+    }
+
+    #[test]
+    fn approval_span_in_the_batch_resolves_the_payment_link() {
+        let approval = "33333333-3333-4333-8333-333333333333";
+        let rows = normalize(&[
+            span(
+                "agent.approve",
+                1,
+                1_900_000_040,
+                &[
+                    ("event.id", approval),
+                    ("approval.id", approval),
+                    ("agent.id", "approver"),
+                    ("bill.id", "bill-clean-1"),
+                ],
+            ),
+            span(
+                "agent.pay_bill",
+                2,
+                1_900_000_041,
+                &[
+                    ("agent.id", "payer"),
+                    ("bill.id", "bill-clean-1"),
+                    ("link.approval_id", approval),
+                ],
+            ),
+        ]);
+        assert_eq!(rows[0].kind, "agent.approve");
+        assert!(rows[0].payload.get("evidence").is_none());
+        let pay = &rows[1];
+        assert_eq!(pay.kind, "ledger.agent.pay_bill");
+        assert!(pay.payload.get("evidence").is_none());
+        assert_eq!(pay.payload["causal_links"][0]["resolved"], json!(true));
+        assert_eq!(pay.payload["causal_links"][0]["target"], json!(approval));
+        assert_eq!(pay.payload["sentinel"]["predecessors"], json!([]));
+    }
+
+    #[test]
+    fn live_approval_id_resolves_without_becoming_a_predecessor() {
+        let rows = normalize(&[
+            span(
+                "agent.approve",
+                1,
+                1_900_000_050,
+                &[
+                    ("approval.id", "approval-bill-open"),
+                    ("agent.id", "approver"),
+                    ("bill.id", "company-001/bill-open"),
+                ],
+            ),
+            span(
+                "agent.pay_bill",
+                2,
+                1_900_000_051,
+                &[
+                    ("agent.id", "payer"),
+                    ("bill.id", "company-001/bill-open"),
+                    ("link.approval_id", "approval-bill-open"),
+                ],
+            ),
+        ]);
+        let pay = &rows[1];
+        assert!(pay.payload.get("evidence").is_none());
+        assert_eq!(pay.payload["causal_links"][0]["resolved"], json!(true));
+        assert_eq!(
+            pay.payload["causal_links"][0]["target"],
+            json!("approval-bill-open")
+        );
+        assert_eq!(pay.payload["sentinel"]["predecessors"], json!([]));
     }
 }

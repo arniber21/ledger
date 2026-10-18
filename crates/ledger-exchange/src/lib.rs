@@ -8,7 +8,7 @@
 //! `exchange.settle` follow the caller's active tracing span. Pass a
 //! `sentry-trace` header to [`OrderBook::submit`] when that call is the root
 //! of a distributed trace. [`install_telemetry`] fans those spans out to
-//! Sentry and to ledger-ingest. Ingest is not sampled.
+//! ledger-ingest, and to Sentry when `SENTRY_DSN` is set. Ingest is not sampled.
 
 mod book;
 mod error;
