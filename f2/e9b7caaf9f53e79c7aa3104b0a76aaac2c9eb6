@@ -1,0 +1,35 @@
+crates/ledger-store/src/lib.rs
+  s_61e0b0c14d18f7::t_1722a089604c63 1210-1213,1215-1233,1350,1352-1354,1356,1589-1663
+  s_61e0b0c14d18f7::t_89ef466c7f873d 1664-1665
+crates/ledger-scene/src/play.rs
+  s_61e0b0c14d18f7::t_1722a089604c63 167,184,535-580
+  s_61e0b0c14d18f7::t_af74622864af8b 581-585
+crates/ledger-api/src/metrics.rs
+  s_61e0b0c14d18f7::t_1722a089604c63 5-6,16,111-114,120-152,210,240-275
+  s_61e0b0c14d18f7::t_c44f32365acfc3 276
+crates/ledger-api/src/test_api.rs
+  s_61e0b0c14d18f7::t_1722a089604c63 27,30
+crates/ledger-core/src/live.rs
+  s_61e0b0c14d18f7::t_1722a089604c63 728-740
+  s_61e0b0c14d18f7::t_e8e01da7d66289 727
+crates/ledger-api/src/http.rs
+  s_61e0b0c14d18f7::t_1722a089604c63 15,200,204-207
+web/e2e/faults.spec.ts
+  s_61e0b0c14d18f7::t_1722a089604c63 1-203
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f2e9b7caaf9f53e79c7aa3104b0a76aaac2c9eb6",
+  "prompts": {},
+  "sessions": {
+    "s_61e0b0c14d18f7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c168cc53-67a2-4357-967a-c871924e2eec",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    }
+  }
+}
