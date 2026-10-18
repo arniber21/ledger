@@ -31,6 +31,8 @@ pub struct CapturedEvent {
 pub struct CaptureState {
     pub spans: Vec<CapturedSpan>,
     pub events: Vec<CapturedEvent>,
+    /// Span ids in the order the spans closed. Ingest stamps `observed_at` at close.
+    pub closed: Vec<Id>,
 }
 
 #[derive(Clone, Default)]
@@ -81,6 +83,10 @@ where
         if let Some(span) = state.spans.iter_mut().find(|span| span.id == *id) {
             span.fields.extend(fields);
         }
+    }
+
+    fn on_close(&self, id: Id, _ctx: Context<'_, S>) {
+        self.inner.lock().expect("capture lock").closed.push(id);
     }
 
     fn on_event(&self, event: &Event<'_>, _ctx: Context<'_, S>) {

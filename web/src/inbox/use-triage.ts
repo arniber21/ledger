@@ -1,4 +1,5 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
+import { useOptimisticMutation } from "../ui";
 import { isUuid, parseTriagePayload, type Triage, type TriageStatus } from "./model";
 
 export const triageKey = ["inbox", "triage"] as const;
@@ -27,20 +28,24 @@ function upsert(rows: readonly Triage[], patch: TriagePatch): Triage[] {
   return next;
 }
 
-export function useTriage(): Triage[] {
-  const query = useQuery({
+export function useTriageQuery() {
+  return useQuery({
     queryKey: triageKey,
     queryFn: fetchTriage,
     retry: false,
     staleTime: 5_000,
   });
-  return query.data ?? [];
+}
+
+export function useTriage(): Triage[] {
+  return useTriageQuery().data ?? [];
 }
 
 export function useSetTriage() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (patch: TriagePatch) => {
+  return useOptimisticMutation<TriagePatch, Triage[], Triage[]>({
+    queryKey: triageKey,
+    apply: (current, patch) => upsert(current ?? [], patch),
+    mutationFn: async (patch) => {
       if (!isUuid(patch.verdictId)) {
         throw new Error("This verdict is not in the store, so its status was not saved.");
       }
@@ -58,18 +63,6 @@ export function useSetTriage() {
       }
       if (!response.ok) throw new Error("Status was not saved.");
       return parseTriagePayload({ items: [await response.json()] });
-    },
-    onMutate: async (patch) => {
-      await queryClient.cancelQueries({ queryKey: triageKey });
-      const previous = queryClient.getQueryData<Triage[]>(triageKey) ?? [];
-      queryClient.setQueryData(triageKey, upsert(previous, patch));
-      return { previous };
-    },
-    onError: (_error, _patch, context) => {
-      if (context) queryClient.setQueryData(triageKey, context.previous);
-    },
-    onSettled: async () => {
-      await queryClient.invalidateQueries({ queryKey: triageKey });
     },
   });
 }

@@ -143,7 +143,7 @@ fn with_taint(mut event: LedgerEvent, row: &StoredEvent) -> LedgerEvent {
     event
 }
 
-fn predecessors(row: &StoredEvent) -> Vec<String> {
+pub(crate) fn predecessors(row: &StoredEvent) -> Vec<String> {
     if let Some(ids) = string_list(row.payload.pointer("/sentinel/predecessors")) {
         if !ids.is_empty() {
             return ids;

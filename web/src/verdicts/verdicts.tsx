@@ -6,7 +6,8 @@ import {
   type ColumnDef,
 } from "@tanstack/react-table";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useHotkeys, useToast } from "../ui";
 import { amountLabel, scoreLabel } from "../inbox/model";
 import { outcomeLabel } from "../stream/reduce";
 import type { BindingComparison, BindingLine, VerdictItem } from "../stream/types";
@@ -66,6 +67,45 @@ export function VerdictsPage({ id }: { id?: string }) {
   const rows = table.getRowModel().rows.map((row) => row.original);
   const feedKey = rows.map((row) => row.id).join("|");
   const selected = id ? rows.find((item) => item.id === id) : undefined;
+  const toast = useToast();
+
+  function review() {
+    if (!selected || reviewed.has(selected.id)) return;
+    const target = selected.id;
+    toggleReviewed(target);
+    toast.push({
+      tone: "success",
+      message: "Marked reviewed",
+      undo: () => {
+        if (reviewedRef.current.has(target)) toggleReviewed(target);
+      },
+    });
+  }
+  const reviewedRef = useRef(reviewed);
+  reviewedRef.current = reviewed;
+
+  useHotkeys(
+    {
+      e: { handler: review, description: "Mark reviewed" },
+      "1": { handler: () => setTab("counterexample"), description: "Counterexample tab" },
+      "2": { handler: () => setTab("evidence"), description: "Evidence tab" },
+      "3": { handler: () => setTab("binding"), description: "Binding tab" },
+      "mod+enter": { handler: review, description: "Mark reviewed (also inside the note)" },
+      j: { passive: true, description: "Next verdict" },
+      k: { passive: true, description: "Previous verdict" },
+      escape: { passive: true, description: "Back" },
+    },
+    { scope: "Verdicts" },
+  );
+
+  useEffect(() => {
+    if (!id) return;
+    const node = document.querySelector(`[data-verdict-id="${CSS.escape(id)}"]`);
+    if (!(node instanceof HTMLElement)) return;
+    node.scrollIntoView({ block: "nearest" });
+    const focused = document.activeElement;
+    if (!focused || focused === document.body || focused.closest("[data-verdict-id]")) node.focus({ preventScroll: true });
+  }, [id, feedKey]);
 
   useEffect(() => {
     registerFeed(feedKey.length === 0 ? [] : feedKey.split("|"));
@@ -96,6 +136,7 @@ export function VerdictsPage({ id }: { id?: string }) {
         {verdicts.length === 0 ? (
           <Empty
             testId="verdicts-empty"
+            retry={metrics.connection === "offline" ? () => window.location.reload() : undefined}
             title={id ? "Verdict is not on the stream" : "No verdicts yet"}
             body={
               id
@@ -107,15 +148,18 @@ export function VerdictsPage({ id }: { id?: string }) {
           />
         ) : (
           <div className="verdict-layout">
-            <div className="verdict-feed" aria-label="Verdicts">
+            <div className="verdict-feed" role="listbox" aria-label="Verdicts" aria-live="off">
+              <p className="sr-only" role="status" aria-live="polite">{rows.length} {rows.length === 1 ? "verdict" : "verdicts"}</p>
               {rows.map((item) => (
                 <button
                   key={item.id}
                   type="button"
+                  role="option"
+                  aria-selected={item.id === id}
+                  data-verdict-id={item.id}
                   className={item.id === id ? "card is-selected" : "card"}
                   data-testid={`verdict-row-${item.id}`}
                   data-outcome={item.outcome}
-                  aria-current={item.id === id ? "true" : undefined}
                   onClick={() => open(item.id)}
                 >
                   <span className={`dot dot-${item.outcome}`} />
@@ -134,9 +178,7 @@ export function VerdictsPage({ id }: { id?: string }) {
                 reviewed={reviewed.has(selected.id)}
                 note={notes[selected.id] ?? ""}
                 onNote={(value) => setNotes((current) => ({ ...current, [selected.id]: value }))}
-                onReview={() => {
-                  if (!reviewed.has(selected.id)) toggleReviewed(selected.id);
-                }}
+                onReview={review}
                 events={traces.events}
               />
             ) : (
@@ -153,7 +195,7 @@ export function VerdictsPage({ id }: { id?: string }) {
         )}
       </div>
       <footer className="hintbar">
-        <span>J and K move between verdicts · Enter opens · E marks reviewed</span>
+        <span>J and K move between verdicts · Enter opens · E marks reviewed · Z undoes · 1, 2, 3 switch tab</span>
         <span>A violate is needs review</span>
       </footer>
     </>
@@ -256,6 +298,13 @@ function VerdictDetail({
           value={note}
           placeholder="Note for this review"
           onChange={(event) => onNote(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Escape") event.currentTarget.blur();
+            if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+              event.preventDefault();
+              onReview();
+            }
+          }}
         />
         <button
           type="button"
@@ -483,11 +532,16 @@ function Prop({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-function Empty({ title, body, testId }: { title: string; body: string; testId?: string }) {
+function Empty({ title, body, testId, retry }: { title: string; body: string; testId?: string; retry?: () => void }) {
   return (
     <div className="empty" data-testid={testId}>
       <h2>{title}</h2>
       <p>{body}</p>
+      {retry ? (
+        <button type="button" className="tool" onClick={retry}>
+          Retry
+        </button>
+      ) : null}
     </div>
   );
 }

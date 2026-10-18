@@ -693,6 +693,10 @@ impl DeskInner {
             memo_instruction: quote.memo_instruction,
         };
         drop(_entered);
+        // A span's observed time is when it closes. Close the payment before
+        // the exchange spans that link back to it, or the settlement would be
+        // observed before the payment it names.
+        drop(span);
         if matches!(settlement, Settlement::New) {
             self.emit_settlement(bill, quote_amount, &pay_event_id);
         }
@@ -719,6 +723,7 @@ impl DeskInner {
             settlement.kind = "simulated",
         );
         drop(settled.enter());
+        drop(settled);
         let credit = tracing::info_span!(
             "ledger.exchange.credit",
             sentry.name = "ledger.exchange.credit",
@@ -730,6 +735,7 @@ impl DeskInner {
             settlement.kind = "simulated",
         );
         drop(credit.enter());
+        drop(credit);
     }
 
     /// Replays the books record of a bill that was settled before this run:
@@ -759,6 +765,7 @@ impl DeskInner {
             pay.record("link.approval_id", approval);
         }
         drop(pay.enter());
+        drop(pay);
         let settled_id = self.alloc_event_id();
         let settled = tracing::info_span!(
             "ledger.exchange.settled",
@@ -772,6 +779,7 @@ impl DeskInner {
             "history.source" = "books",
         );
         drop(settled.enter());
+        drop(settled);
         settled_id
     }
 
