@@ -1,0 +1,26 @@
+.gitignore
+  s_61e0b0c14d18f7::t_f99231e89a632f 7
+Justfile
+  s_61e0b0c14d18f7::t_f99231e89a632f 35-37,39-41,45
+  s_61e0b0c14d18f7::t_f48f4c0fa7a07a 38,42-44
+CLAUDE.md
+  s_61e0b0c14d18f7::t_701d8546076a37 16
+README.md
+  s_61e0b0c14d18f7::t_e13671f932b7cd 47,57
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "59785caf7cbc7135c2bec8c1c86a43aabfadcefb",
+  "prompts": {},
+  "sessions": {
+    "s_61e0b0c14d18f7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c168cc53-67a2-4357-967a-c871924e2eec",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    }
+  }
+}
