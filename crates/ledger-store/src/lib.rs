@@ -334,6 +334,59 @@ impl Store {
         Ok(Self { pool })
     }
 
+    /// Creates an empty, migrated database named `ledger_scratch_*` on the same
+    /// server as `admin_url` and connects to it.
+    ///
+    /// Integration tests use this so that a running stack on the shared
+    /// database never sees their events. Without it, the live verdict engine
+    /// inserts the same deterministic verdict first and the test publishes
+    /// nothing. Pair it with [`Store::drop_scratch`].
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError`] when the server is unreachable, the database
+    /// cannot be created, or a migration fails.
+    pub async fn create_scratch(admin_url: &str) -> Result<(Self, String), StoreError> {
+        let name = format!("ledger_scratch_{}", Uuid::new_v4().simple());
+        let admin = Self::connect(admin_url).await?;
+        sqlx::query(&format!("CREATE DATABASE {name}"))
+            .execute(&admin.pool)
+            .await?;
+        admin.pool.close().await;
+        let options = PgConnectOptions::from_str(admin_url)?
+            .database(&name)
+            .application_name("ledger-store");
+        let pool = PgPoolOptions::new()
+            .max_connections(5)
+            .acquire_timeout(Duration::from_secs(5))
+            .connect_with(options)
+            .await?;
+        let store = Self { pool };
+        store.migrate().await?;
+        Ok((store, name))
+    }
+
+    /// Closes this pool and drops a database made by [`Store::create_scratch`].
+    /// Refuses any name without the `ledger_scratch_` prefix.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError::Database`] when the drop fails.
+    pub async fn drop_scratch(self, admin_url: &str, name: &str) -> Result<(), StoreError> {
+        if !name.starts_with("ledger_scratch_")
+            || !name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
+        {
+            return Ok(());
+        }
+        self.pool.close().await;
+        let admin = Self::connect(admin_url).await?;
+        sqlx::query(&format!("DROP DATABASE IF EXISTS {name} WITH (FORCE)"))
+            .execute(&admin.pool)
+            .await?;
+        admin.pool.close().await;
+        Ok(())
+    }
+
     /// Applies the embedded SQL migrations.
     ///
     /// Migrations create the `events` hypertable and the `verdicts` table.
