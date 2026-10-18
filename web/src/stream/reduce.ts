@@ -5,6 +5,7 @@ import {
   type RatePoint,
   type SavedView,
   type StreamEvent,
+  type TimelineStep,
   type VerdictInput,
   type VerdictItem,
   type VerdictOutcome,
@@ -83,7 +84,27 @@ function normalizeVerdict(input: VerdictInput): VerdictItem | null {
     assignedToMe: input.assignedToMe === true,
     jevUnknown: input.jevUnknown === true,
     recordedAt: typeof input.recordedAt === "string" ? input.recordedAt : "",
+    binding: typeof input.binding === "string" ? input.binding : "",
+    timeline: readTimeline(input.timeline),
   };
+}
+
+function readTimeline(value: unknown): TimelineStep[] {
+  if (!Array.isArray(value)) return [];
+  const steps: TimelineStep[] = [];
+  for (const entry of value) {
+    if (typeof entry !== "object" || entry === null) continue;
+    const step = entry as Record<string, unknown>;
+    if (typeof step.eventId !== "string" || typeof step.source !== "string") continue;
+    steps.push({
+      eventId: step.eventId,
+      observedAt: typeof step.observedAt === "string" ? step.observedAt : "",
+      source: step.source,
+      kind: typeof step.kind === "string" ? step.kind : "",
+      role: typeof step.role === "string" ? step.role : "",
+    });
+  }
+  return steps;
 }
 
 function applyCounters(snapshot: MetricsSnapshot, counters: CounterPatch): MetricsSnapshot {
@@ -206,10 +227,17 @@ export function parseStreamData(raw: string): StreamEvent | null {
     }
     case "hello": {
       if (!isRecord(value.snapshot) || !Array.isArray(value.snapshot.verdicts)) return null;
+      const verdicts: VerdictItem[] = [];
       for (const item of value.snapshot.verdicts) {
-        if (!isRecord(item) || !isOutcome(item.outcome) || typeof item.id !== "string") return null;
+        if (!isRecord(item)) return null;
+        const verdict = normalizeVerdict(item as VerdictInput);
+        if (!verdict) return null;
+        verdicts.push(verdict);
       }
-      return { kind: "hello", snapshot: value.snapshot as MetricsSnapshot };
+      return {
+        kind: "hello",
+        snapshot: { ...(value.snapshot as MetricsSnapshot), verdicts },
+      };
     }
     default:
       return null;

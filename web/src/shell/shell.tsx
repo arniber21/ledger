@@ -1,5 +1,7 @@
 import { Outlet, useNavigate, useRouter, useRouterState } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { inboxBridge } from "../inbox/bridge";
+import { mergeInboxSearch, rememberInboxView } from "../inbox/model";
 import { isSavedView } from "../stream/reduce";
 import type { InboxView, SavedView } from "../stream/types";
 import { useMetrics } from "../stream/use-metrics";
@@ -80,6 +82,17 @@ export function Shell() {
         setPaletteOpen(true);
         return;
       }
+      const inbox = pathname === "/inbox" ? inboxBridge.current : null;
+      if (inbox?.assignOpen) {
+        const assigning =
+          event.key === "Escape" ||
+          event.key === "Enter" ||
+          (!isTyping(event) && (event.key === "0" || event.key === "1"));
+        if (assigning) {
+          inbox.onAssignKey(event);
+          return;
+        }
+      }
       if (isTyping(event) || paletteOpen) return;
 
       if (event.key === "Escape") {
@@ -115,7 +128,7 @@ export function Shell() {
 
       if (chord) {
         chord = false;
-        const destination = { d: "/", t: "/traces", s: "/specs", v: "/verdicts" }[key];
+        const destination = { d: "/", i: "/inbox", t: "/traces", s: "/specs", v: "/verdicts" }[key];
         if (destination) {
           event.preventDefault();
           void navigate({ to: destination });
@@ -125,16 +138,45 @@ export function Shell() {
 
       if (pathname === "/inbox" && (key === "1" || key === "2" || key === "3")) {
         const view: InboxView = key === "1" ? "board" : key === "2" ? "list" : "split";
+        event.preventDefault();
+        rememberInboxView(view);
         setInboxView(view);
+        void navigate({ to: "/inbox", search: (previous) => mergeInboxSearch(previous, { view }) });
         return;
       }
 
-      if (key === "j" || key === "k") {
+      if (pathname === "/inbox" && event.key === "/") {
+        event.preventDefault();
+        inboxBridge.current?.focusFilter();
+        return;
+      }
+
+      if (pathname === "/inbox" && key === "d") {
+        event.preventDefault();
+        inboxBridge.current?.dismiss();
+        return;
+      }
+
+      if (pathname === "/inbox" && key === "a") {
+        event.preventDefault();
+        inboxBridge.current?.openAssign();
+        return;
+      }
+
+      if (pathname === "/inbox" && key === "e") {
+        event.preventDefault();
+        inboxBridge.current?.markReviewed();
+        return;
+      }
+
+      const movingDown = key === "j" || (pathname === "/inbox" && event.key === "ArrowDown");
+      const movingUp = key === "k" || (pathname === "/inbox" && event.key === "ArrowUp");
+      if (movingDown || movingUp) {
         const ids = feedRef.current;
         if (ids.length === 0) return;
         event.preventDefault();
         const index = selectedId ? ids.indexOf(selectedId) : -1;
-        const delta = key === "j" ? 1 : -1;
+        const delta = movingDown ? 1 : -1;
         const nextIndex =
           index === -1 ? (delta > 0 ? 0 : ids.length - 1) : (index + delta + ids.length) % ids.length;
         setSelectedId(ids[nextIndex] ?? null);
