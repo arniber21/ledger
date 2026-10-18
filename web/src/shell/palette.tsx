@@ -223,23 +223,6 @@ export function Palette() {
               </Command.Item>
             </Command.Group>
           ) : null}
-          {metrics.verdicts.length > 0 ? (
-            <Command.Group heading="Verdicts">
-              {metrics.verdicts.map((verdict) => (
-                <Command.Item
-                  key={verdict.id}
-                  value={`${verdict.id} ${verdict.title} ${verdict.outcome}`}
-                  data-testid="palette-result"
-                  onSelect={() => openVerdict(verdict.id)}
-                >
-                  <span className={`dot dot-${verdict.outcome}`} />
-                  <span className="mono palette-id">{verdict.id}</span>
-                  <span className="palette-title">{verdict.title}</span>
-                  <span className="palette-open">Open</span>
-                </Command.Item>
-              ))}
-            </Command.Group>
-          ) : null}
           {!query.trim() && recent.length > 0 ? (
             <Command.Group heading="Recent">
               {recent.map((id) => {
@@ -371,6 +354,23 @@ export function Palette() {
               );
             })}
           </Command.Group>
+          {metrics.verdicts.length > 0 ? (
+            <Command.Group heading="Verdicts">
+              {metrics.verdicts.slice(0, query.trim() ? 60 : 4).map((verdict) => (
+                <Command.Item
+                  key={verdict.id}
+                  value={`${verdict.id} ${verdict.title} ${verdict.outcome}`}
+                  data-testid="palette-result"
+                  onSelect={() => openVerdict(verdict.id)}
+                >
+                  <span className={`dot dot-${verdict.outcome}`} />
+                  <span className="mono palette-id">{verdict.id.slice(0, 8)}</span>
+                  <span className="palette-title">{verdict.title}</span>
+                  <span className="palette-open">Open</span>
+                </Command.Item>
+              ))}
+            </Command.Group>
+          ) : null}
         </Command.List>
       )}
       {lines.length > 0 ? (
