@@ -1,0 +1,99 @@
+web/src/vite-env.d.ts
+  s_df82158a885a35::t_ca9ac792173bcb 9-11
+web/e2e/helpers.ts
+  s_df82158a885a35::t_d95324778047c7 9-14
+crates/ledger-spec/src/replay_author.rs
+  s_df82158a885a35::t_e36c0646a68699 188
+  s_df82158a885a35::t_64e4dc6ddfa8f2 182-184,187,189-195,197,202,209,215,220,233,245-330,332-351,353-362
+  s_df82158a885a35::t_2adf6c025cbb2c 196,198-201,206-208,212-214,219,221-223,234-244
+  s_df82158a885a35::t_535e69f8d7178a 203-205,210-211,216-218,224-232
+  s_df82158a885a35::t_386e8d73a152a9 185-186
+  s_df82158a885a35::t_224a1708c9b959 1-73,75-181
+  s_61e0b0c14d18f7::t_8a8868a0678356 74,331,352
+crates/ledger-spec/src/lib.rs
+  s_df82158a885a35::t_a497d98a90bd02 18
+  s_df82158a885a35::t_1833ad98f8d014 31
+crates/ledger-api/src/http.rs
+  s_df82158a885a35::t_cc0ae62672ce54 6
+  s_df82158a885a35::t_3866e42564a0ae 14
+  s_df82158a885a35::t_9a8f37e1782291 119,126-127,129
+crates/ledger-api/src/lib.rs
+  s_df82158a885a35::t_375f562eda3ca7 31,33
+crates/ledger-api/src/test_api.rs
+  s_df82158a885a35::t_ceb3b04c7e0a04 55-57
+  s_df82158a885a35::t_1c415193434a82 58-59,62-66,70
+  s_df82158a885a35::t_b74dd7dfb8d241 328-332
+crates/ledger-api/src/author.rs
+  s_df82158a885a35::t_f6be0b94253b87 1-73
+crates/ledger-scene/src/play.rs
+  s_df82158a885a35::t_1aa2fa2cf19af0 446-529,630-631,916,1251,1257,1263,1269
+  s_df82158a885a35::t_139bb48666b715 882-885
+  s_df82158a885a35::t_6461e2e789e251 1282,1328-1333
+  s_df82158a885a35::t_ac2157bd088464 627-629
+  s_df82158a885a35::t_3f5218f5fea669 1181-1185,1205-1231,1274
+  s_df82158a885a35::t_08d127992eb33e 8-11,13-16
+  s_df82158a885a35::t_dfc7df69dc60f3 329-334
+  s_df82158a885a35::t_70e7824f6a4b49 166
+  s_df82158a885a35::t_20b72186005726 888,1118-1180,1186-1204,1232-1240,1284
+  s_df82158a885a35::t_3080a79c5bacbd 530-532,632,656,810-811,886-887,1241-1250,1252-1256,1258-1262,1264-1268,1270-1273,1275-1281,1283,1285-1288,1334-1335
+web/e2e/specs.spec.ts
+  s_df82158a885a35::t_02f8f530318dce 1-76,78-86,88-184
+  s_df82158a885a35::t_ac49d9a56d145a 87
+  s_df82158a885a35::t_c1d44d74570e9d 77
+crates/ledger-api/Cargo.toml
+  s_df82158a885a35::t_775b886b27f46d 12
+web/src/specs/stream.ts
+  s_df82158a885a35::t_019fbc5c3f5d18 10-13,17-19
+crates/ledger-api/src/main.rs
+  s_df82158a885a35::t_eca61229d8706b 41
+Cargo.lock
+  s_df82158a885a35::t_42d919cb100e82 2420
+fixtures/gemini/catalogue-reject-request.json
+  s_b9fd779d8065fc::t_34d733e33166b1 1
+fixtures/gemini/catalogue-reject.json
+  s_b9fd779d8065fc::t_294f10c5084640 1
+fixtures/gemini/two-clause-request.json
+  s_b9fd779d8065fc::t_8835a80e8ba85b 1
+fixtures/gemini/two-clause.json
+  s_b9fd779d8065fc::t_a8d71a4b0109b3 1
+fixtures/jev/two-clause-coverage-request.json
+  s_b9fd779d8065fc::t_48982405489edf 1
+fixtures/jev/two-clause-coverage.json
+  s_b9fd779d8065fc::t_8a0744dba4d633 1
+fixtures/jev/two-clause-match-request.json
+  s_b9fd779d8065fc::t_8c2f7942bb5232 1
+fixtures/jev/two-clause-match.json
+  s_b9fd779d8065fc::t_599c27cdc3d4d5 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ae2769c8867b5573f3b1e5dc218455b6b36b641c",
+  "prompts": {},
+  "sessions": {
+    "s_61e0b0c14d18f7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c168cc53-67a2-4357-967a-c871924e2eec",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    },
+    "s_b9fd779d8065fc": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "33568c46-fd28-4497-a298-e8fe87cce25a",
+        "model": "grok-4.7-high-fast"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    },
+    "s_df82158a885a35": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "fe6df841-3378-4377-b786-eb4d6b75529b",
+        "model": "grok-4.7-high-fast"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    }
+  }
+}
