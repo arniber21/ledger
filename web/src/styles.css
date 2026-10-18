@@ -1783,3 +1783,33 @@ a.tool { text-decoration: none; }
   text-align: left;
   cursor: pointer;
 }
+
+/* ---- shared interaction core (ui/) ---- */
+.toast-host { position: fixed; left: 50%; bottom: 1.5rem; transform: translateX(-50%); z-index: 60; display: flex; flex-direction: column; align-items: center; pointer-events: none; }
+.toast-live { display: flex; flex-direction: column; gap: 0.5rem; align-items: center; }
+.toast { pointer-events: auto; display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem 0.5rem 0.5rem 0.875rem; background: var(--ink); color: #fff; border-radius: var(--radius-control); font-size: 0.8125rem; box-shadow: 0 0.5rem 1.5rem rgba(34, 38, 43, 0.22); animation: toast-in 160ms ease-out; transition: transform 160ms ease, opacity 160ms ease; touch-action: pan-y; }
+.toast[data-leaving] { opacity: 0; transform: translateY(0.5rem); }
+.toast[data-tone="error"] { background: var(--violate); }
+.toast[data-tone="success"] { background: var(--ink); }
+.toast-action, .toast-close { border: 0; background: transparent; color: inherit; border-radius: 0.375rem; padding: 0.25rem 0.5rem; font-weight: 600; transition: background 120ms ease; }
+.toast-action:hover, .toast-close:hover { background: rgba(255, 255, 255, 0.16); }
+.toast-action:active, .toast-close:active { background: rgba(255, 255, 255, 0.26); }
+.toast-action:focus-visible, .toast-close:focus-visible { outline: 0.125rem solid #fff; outline-offset: 0; }
+.toast kbd { font-family: var(--mono); font-size: 0.6875rem; opacity: 0.7; margin-left: 0.25rem; }
+@keyframes toast-in { from { opacity: 0; transform: translateY(0.5rem); } to { opacity: 1; transform: none; } }
+.confirm { padding: 1.25rem; display: flex; flex-direction: column; gap: 0.5rem; }
+.confirm h2 { font-size: 1rem; color: var(--ink); }
+.confirm p { color: var(--muted); }
+.confirm-actions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.75rem; }
+.confirm-actions button { border: 1px solid var(--rule); background: var(--paper); border-radius: var(--radius-control); padding: 0.4375rem 0.75rem; transition: transform 120ms ease, background 120ms ease; }
+.confirm-actions button:hover { background: var(--window); }
+.confirm-actions button:active { transform: scale(0.97); }
+.confirm-actions button:focus-visible { outline: 0.125rem solid var(--accent); outline-offset: 0.125rem; }
+.confirm-actions .confirm-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.confirm-actions .confirm-primary[data-tone="danger"] { background: var(--violate); border-color: var(--violate); }
+.confirm kbd, .shortcuts-help kbd { font-family: var(--mono); font-size: 0.6875rem; opacity: 0.75; }
+.shortcuts-help { max-height: 80vh; overflow: auto; }
+.shortcuts-help h3 { margin: 0.75rem 1rem 0; font-size: 0.6875rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+@media (prefers-reduced-motion: reduce) {
+  .toast, .toast[data-leaving], .confirm-actions button, .toast-action, .toast-close { animation: none !important; transition: none !important; }
+}
