@@ -4,9 +4,9 @@
 //! order flow. Order-book methods only emit `tracing` spans; they do not
 //! install a subscriber.
 //!
-//! The same subscriber fans every span to Sentry and to ledger-ingest.
-//! Ingest has no sample rate. Sentry stays at `traces_sample_rate` 1.0 with
-//! `send_default_pii` false.
+//! The same subscriber fans every span to ledger-ingest, and to Sentry when
+//! `SENTRY_DSN` is set. Ingest has no sample rate. Sentry stays at
+//! `traces_sample_rate` 1.0 with `send_default_pii` false.
 //!
 //! Feature names were checked against the Sentry Rust docs for SDK 0.49
 //! (`https://docs.sentry.io/platforms/rust/logs/`):
@@ -25,7 +25,7 @@ use tracing_subscriber::prelude::*;
 #[must_use = "dropping the guard flushes ingest and Sentry and ends telemetry"]
 pub struct TelemetryGuard {
     worker: Option<IngestWorker>,
-    _client: sentry::ClientInitGuard,
+    _client: Option<sentry::ClientInitGuard>,
 }
 
 /// Why exchange telemetry could not start.
@@ -52,24 +52,68 @@ impl From<IngestError> for TelemetryError {
     }
 }
 
-/// Starts Sentry from `SENTRY_DSN` and forwards `tracing` spans and logs.
+/// Forwards `tracing` spans to ledger-ingest, and to Sentry when `SENTRY_DSN` is set.
 ///
-/// Sample rate is 1.0 so every order trace is sent. `send_default_pii` is
-/// false. The same subscriber forwards every span at info or above to
-/// ledger-ingest, which does not sample. Error-level events are captured as
-/// Sentry errors and as logs. Info and warn events, including order
-/// rejections, are logs and breadcrumbs, not error events.
+/// Ingest starts even when `SENTRY_DSN` is unset, so `agent.decide`,
+/// `agent.pay_bill`, and the exchange match, fill, and settle spans are still
+/// stored. Sentry's sample rate is 1.0 when the DSN is set. `send_default_pii`
+/// is false. Ingest does not sample. Error-level events are captured as Sentry
+/// errors and as logs. Info and warn events, including order rejections, are
+/// logs and breadcrumbs, not error events.
 ///
 /// # Errors
 ///
-/// Returns [`TelemetryError::MissingDsn`] when `SENTRY_DSN` is unset or blank,
-/// [`TelemetryError::Disabled`] when the SDK rejects the DSN, and
-/// [`TelemetryError::AlreadyInstalled`] when a tracing subscriber already exists.
+/// Returns [`TelemetryError::Disabled`] when `SENTRY_DSN` is set and the SDK
+/// rejects it, [`TelemetryError::Ingest`] when that same process cannot store
+/// spans, and [`TelemetryError::AlreadyInstalled`] when a tracing subscriber
+/// already exists. A missing DSN does not fail startup: ingest is attempted,
+/// and a fmt subscriber is installed when Timescale cannot be reached.
 pub fn install_telemetry() -> Result<TelemetryGuard, TelemetryError> {
-    if !dsn_is_set() {
-        return Err(TelemetryError::MissingDsn);
+    let client = start_sentry()?;
+    let ingest = IngestWorker::start();
+    let (ingest_layer, worker) = match ingest {
+        Ok((layer, worker)) => (Some(layer), Some(worker)),
+        Err(error) if client.is_some() => return Err(error.into()),
+        Err(_) => (None, None),
+    };
+
+    let filter = tracing_subscriber::filter::LevelFilter::INFO;
+    // The level gate is not a sampler. Ingest receives every span at info or
+    // above. Sentry's trace sample rate stays 1.0 when the client is on.
+    let installed = match (client.is_some(), ingest_layer) {
+        (true, Some(ingest_layer)) => {
+            let sentry_layer = sentry::integrations::tracing::layer().event_filter(event_filter);
+            tracing_subscriber::registry()
+                .with(tracing_subscriber::fmt::layer().with_filter(filter))
+                .with(sentry_layer.with_filter(filter))
+                .with(ingest_layer.with_filter(filter))
+                .try_init()
+        }
+        (false, Some(ingest_layer)) => tracing_subscriber::registry()
+            .with(tracing_subscriber::fmt::layer().with_filter(filter))
+            .with(ingest_layer.with_filter(filter))
+            .try_init(),
+        (_, None) => tracing_subscriber::registry()
+            .with(tracing_subscriber::fmt::layer().with_filter(filter))
+            .try_init(),
+    };
+    if installed.is_err() {
+        drop(worker);
+        return Err(TelemetryError::AlreadyInstalled);
     }
 
+    Ok(TelemetryGuard {
+        worker,
+        _client: client,
+    })
+}
+
+/// Starts Sentry when `SENTRY_DSN` is set. `Ok(None)` means Sentry is off and
+/// ingest should still run.
+fn start_sentry() -> Result<Option<sentry::ClientInitGuard>, TelemetryError> {
+    if !dsn_is_set() {
+        return Ok(None);
+    }
     let client = sentry::init(
         sentry::ClientOptions::new()
             .maybe_release(sentry::release_name!())
@@ -77,34 +121,13 @@ pub fn install_telemetry() -> Result<TelemetryGuard, TelemetryError> {
             .traces_sample_rate(1.0)
             .shutdown_timeout(Duration::from_secs(5)),
     );
-
     let enabled = sentry::Hub::current()
         .client()
         .is_some_and(|active| active.is_enabled());
     if !enabled {
         return Err(TelemetryError::Disabled);
     }
-
-    let (ingest_layer, worker) = IngestWorker::start()?;
-    let sentry_layer = sentry::integrations::tracing::layer().event_filter(event_filter);
-
-    let filter = tracing_subscriber::filter::LevelFilter::INFO;
-    // The level gate is not a sampler. Ingest and Sentry both receive every
-    // span at info or above. Sentry's trace sample rate stays 1.0.
-    let installed = tracing_subscriber::registry()
-        .with(tracing_subscriber::fmt::layer().with_filter(filter))
-        .with(sentry_layer.with_filter(filter))
-        .with(ingest_layer.with_filter(filter))
-        .try_init();
-    if installed.is_err() {
-        drop(worker);
-        return Err(TelemetryError::AlreadyInstalled);
-    }
-
-    Ok(TelemetryGuard {
-        worker: Some(worker),
-        _client: client,
-    })
+    Ok(Some(client))
 }
 
 impl TelemetryGuard {

@@ -6,7 +6,13 @@
 //! `closed_at`, `attributes`, `causal_links`, `adapted`, and, when present,
 //! `sentinel`, `evidence`, and `reason`. There is no trace-id column. The UI
 //! groups rows by `payload.parent_span_id`.
+//!
+//! The feed is span rows (`payload.span`), not every hypertable row. A page
+//! of the newest spans also includes the earlier spans on those traces
+//! (`agent.decide`, `exchange.match`, `exchange.fill`, `exchange.settle`,
+//! `agent.pay_bill`, `agent.settle`, and the same links the other way).
 
+use std::collections::{BTreeMap, BTreeSet};
 use std::convert::Infallible;
 use std::time::Duration;
 
@@ -16,7 +22,7 @@ use axum::response::sse::{Event, KeepAlive, Sse};
 use axum::response::IntoResponse;
 use axum::routing::{get, post};
 use axum::{Json, Router};
-use ledger_store::{Event as StoredEvent, EventCursor, Store};
+use ledger_store::{DateTime, Event as StoredEvent, EventCursor, Store, Utc, Uuid};
 use serde_json::{json, Value};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
@@ -28,11 +34,11 @@ use crate::stream::publish;
 /// How many hypertable rows a snapshot or a poll returns.
 const PAGE: i64 = 200;
 
-/// Rows observed after this are not traces. A bad clock must not fill the feed
-/// or move the stream cursor out of reach of real rows.
-fn ceiling() -> chrono::DateTime<chrono::Utc> {
-    chrono::Utc::now() + chrono::Duration::hours(1)
-}
+/// How far before the oldest seed to look for the rest of a trace.
+const TRACE_LOOKBACK: chrono::Duration = chrono::Duration::minutes(30);
+
+/// Parent/child hops from `agent.decide` through settle.
+const TRACE_HOPS: usize = 8;
 
 /// Shared store handle. `None` until Timescale accepts a connection.
 #[derive(Clone)]
@@ -54,8 +60,7 @@ async fn list_traces(State(state): State<AppState>) -> Result<Json<Value>, Statu
         .store
         .as_ref()
         .ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
-    let events = store
-        .recent_events_until(ceiling(), PAGE)
+    let events = trace_feed(store)
         .await
         .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
     Ok(Json(
@@ -134,12 +139,85 @@ async fn read_page(
     let result = match cursor {
         Some(cursor) => {
             connected
-                .events_after_until((cursor.observed_at, cursor.id), ceiling(), PAGE)
+                .span_events_after((cursor.observed_at, cursor.id), PAGE)
                 .await
         }
-        None => connected.recent_events_until(ceiling(), PAGE).await,
+        None => trace_feed(connected).await,
     };
     result.map_err(|_| ())
+}
+
+/// Newest spans, plus earlier spans that share their `span_id` chain.
+async fn trace_feed(store: &Store) -> Result<Vec<StoredEvent>, ledger_store::StoreError> {
+    let seeds = store.recent_span_events(PAGE).await?;
+    if seeds.is_empty() {
+        return Ok(seeds);
+    }
+    let oldest = seeds[0].observed_at;
+    let newest = seeds[seeds.len() - 1].observed_at;
+    let start = oldest.checked_sub_signed(TRACE_LOOKBACK).unwrap_or(oldest);
+    let end = newest + chrono::Duration::seconds(1);
+    let neighborhood = store.span_events_between(start, end, 2_000).await?;
+    Ok(assemble_feed(seeds, neighborhood))
+}
+
+/// Keeps `seeds` and any neighborhood span on the same parent chain.
+fn assemble_feed(seeds: Vec<StoredEvent>, neighborhood: Vec<StoredEvent>) -> Vec<StoredEvent> {
+    let mut included: BTreeMap<(DateTime<Utc>, Uuid), StoredEvent> = BTreeMap::new();
+    for event in seeds {
+        included.insert(event_key(&event), event);
+    }
+    let mut pool = included.clone();
+    for event in neighborhood {
+        pool.entry(event_key(&event)).or_insert(event);
+    }
+    let pool: Vec<StoredEvent> = pool.into_values().collect();
+
+    for _ in 0..TRACE_HOPS {
+        let span_ids = id_set(&included, "span_id");
+        let parent_ids = id_set(&included, "parent_span_id");
+        let mut grew = false;
+        for event in &pool {
+            let key = event_key(event);
+            if included.contains_key(&key) {
+                continue;
+            }
+            let span_id = payload_str(event, "span_id");
+            let parent_id = payload_str(event, "parent_span_id");
+            let linked = parent_id.is_some_and(|id| span_ids.contains(id))
+                || span_id.is_some_and(|id| parent_ids.contains(id));
+            if linked {
+                included.insert(key, event.clone());
+                grew = true;
+            }
+        }
+        if !grew {
+            break;
+        }
+    }
+
+    let mut events: Vec<_> = included.into_values().collect();
+    events.sort_by_key(event_key);
+    events
+}
+
+fn event_key(event: &StoredEvent) -> (DateTime<Utc>, Uuid) {
+    (event.observed_at, event.id)
+}
+
+fn id_set(events: &BTreeMap<(DateTime<Utc>, Uuid), StoredEvent>, key: &str) -> BTreeSet<String> {
+    events
+        .values()
+        .filter_map(|event| payload_str(event, key).map(str::to_owned))
+        .collect()
+}
+
+fn payload_str<'a>(event: &'a StoredEvent, key: &str) -> Option<&'a str> {
+    event
+        .payload
+        .get(key)
+        .and_then(Value::as_str)
+        .filter(|value| !value.is_empty())
 }
 
 fn hello(events: &[StoredEvent]) -> Value {
@@ -234,5 +312,100 @@ mod tests {
             .await
             .expect("response");
         assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+    }
+
+    #[test]
+    fn assemble_feed_keeps_the_rest_of_a_submit_trace() {
+        let at = DateTime::<Utc>::from_timestamp(1_900_000_000, 0).expect("time");
+        let decide = linked("agent.decide", "1", None, at);
+        let submit = linked(
+            "exchange.submit_order",
+            "2",
+            Some("1"),
+            at + chrono::Duration::milliseconds(1),
+        );
+        let matched = linked(
+            "exchange.match",
+            "3",
+            Some("2"),
+            at + chrono::Duration::milliseconds(2),
+        );
+        let fill = linked(
+            "exchange.fill",
+            "4",
+            Some("3"),
+            at + chrono::Duration::milliseconds(3),
+        );
+        let settled = linked(
+            "exchange.settle",
+            "5",
+            Some("4"),
+            at + chrono::Duration::milliseconds(4),
+        );
+        let agent_settled = linked(
+            "agent.settle",
+            "6",
+            Some("1"),
+            at + chrono::Duration::milliseconds(5),
+        );
+        let pay = linked(
+            "agent.pay_bill",
+            "7",
+            Some("1"),
+            at + chrono::Duration::milliseconds(6),
+        );
+        let unrelated = linked(
+            "exchange.tick",
+            "99",
+            None,
+            at + chrono::Duration::milliseconds(7),
+        );
+        let feed = assemble_feed(
+            vec![submit.clone()],
+            vec![
+                decide,
+                submit,
+                matched,
+                fill,
+                settled,
+                agent_settled,
+                pay,
+                unrelated,
+            ],
+        );
+        let names: Vec<_> = feed
+            .iter()
+            .map(|event| event.payload["span"].as_str().unwrap_or(""))
+            .collect();
+        assert_eq!(
+            names,
+            vec![
+                "agent.decide",
+                "exchange.submit_order",
+                "exchange.match",
+                "exchange.fill",
+                "exchange.settle",
+                "agent.settle",
+                "agent.pay_bill",
+            ]
+        );
+    }
+
+    fn linked(span: &str, span_id: &str, parent: Option<&str>, at: DateTime<Utc>) -> StoredEvent {
+        let mut payload = json!({
+            "span": span,
+            "span_id": span_id,
+        });
+        if let Some(parent) = parent {
+            payload["parent_span_id"] = json!(parent);
+        }
+        StoredEvent {
+            id: Uuid::new_v4(),
+            observed_at: at,
+            source: "exchange".to_owned(),
+            kind: span.to_owned(),
+            data_class: "tenant".to_owned(),
+            payload,
+        }
     }
 }
