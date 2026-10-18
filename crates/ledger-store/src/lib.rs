@@ -794,6 +794,96 @@ impl Store {
         Ok(events)
     }
 
+    /// The latest `limit` ingested spans, oldest first.
+    ///
+    /// A span row has `payload.span`. Reviews, judgments, and rows inserted
+    /// with an empty payload are not spans. `observed_at` must be no more than
+    /// five minutes ahead of the database clock, so a fixture dated years
+    /// ahead cannot fill this page.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError::Database`] when the query fails.
+    pub async fn recent_span_events(&self, limit: i64) -> Result<Vec<Event>, StoreError> {
+        let events = sqlx::query_as::<_, Event>(
+            "SELECT id, observed_at, source, kind, data_class, payload
+             FROM (
+                 SELECT id, observed_at, source, kind, data_class, payload
+                 FROM events
+                 WHERE payload ? 'span'
+                   AND observed_at <= now() + interval '5 minutes'
+                 ORDER BY observed_at DESC, id DESC
+                 LIMIT $1
+             ) AS recent
+             ORDER BY observed_at ASC, id ASC",
+        )
+        .bind(clamp_limit(limit))
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(events)
+    }
+
+    /// Span rows strictly after `(observed_at, id)`, oldest first.
+    ///
+    /// The same span predicate as [`Self::recent_span_events`].
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError::Database`] when the query fails.
+    pub async fn span_events_after(
+        &self,
+        after: (DateTime<Utc>, Uuid),
+        limit: i64,
+    ) -> Result<Vec<Event>, StoreError> {
+        let events = sqlx::query_as::<_, Event>(
+            "SELECT id, observed_at, source, kind, data_class, payload
+             FROM events
+             WHERE payload ? 'span'
+               AND observed_at <= now() + interval '5 minutes'
+               AND (observed_at, id) > ($1, $2)
+             ORDER BY observed_at ASC, id ASC
+             LIMIT $3",
+        )
+        .bind(after.0)
+        .bind(after.1)
+        .bind(clamp_limit(limit))
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(events)
+    }
+
+    /// Span rows in `[start, end)`.
+    ///
+    /// Used to pick up the rest of a trace whose parent closed inside the
+    /// feed page and whose children closed earlier.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError::Database`] when the query fails.
+    pub async fn span_events_between(
+        &self,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+        limit: i64,
+    ) -> Result<Vec<Event>, StoreError> {
+        let limit = limit.clamp(1, 2_000);
+        let events = sqlx::query_as::<_, Event>(
+            "SELECT id, observed_at, source, kind, data_class, payload
+             FROM events
+             WHERE payload ? 'span'
+               AND observed_at >= $1
+               AND observed_at < $2
+             ORDER BY observed_at ASC, id ASC
+             LIMIT $3",
+        )
+        .bind(start)
+        .bind(end)
+        .bind(limit)
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(events)
+    }
+
     /// Reads the next page of events after `(observed_at, id)`.
     ///
     /// `None` starts at the oldest row. Ordering matches [`Self::events_in_span`].

@@ -49,12 +49,6 @@ async fn run() -> Result<(), AgentError> {
 fn install_tracing() -> Result<Option<TelemetryGuard>, AgentError> {
     match install_telemetry() {
         Ok(guard) => Ok(Some(guard)),
-        Err(TelemetryError::MissingDsn) => {
-            let _ = tracing_subscriber::fmt()
-                .with_max_level(tracing::Level::INFO)
-                .try_init();
-            Ok(None)
-        }
         Err(TelemetryError::AlreadyInstalled) => Ok(None),
         Err(_) => Err(AgentError::TelemetryDisabled),
     }
