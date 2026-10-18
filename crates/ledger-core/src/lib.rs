@@ -10,6 +10,8 @@ mod event;
 mod judge;
 mod source;
 
+pub mod dataset;
+
 pub use adapt::{adapt_trace, AdaptedTrace, WithheldSource};
 pub use error::AdapterError;
 pub use event::{AgentId, BillId, LedgerEvent, LedgerKind, Times};

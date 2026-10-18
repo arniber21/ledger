@@ -46,13 +46,22 @@ Tasks run through [`just`](https://github.com/casey/just); `just` lists them. Re
 ```
 just data         # download company-001 (gitignored)
 just check
-just db-up        # TimescaleDB
+just db-up        # TimescaleDB on localhost:5433
+just migrate      # events hypertable and verdicts table
 just validator    # local Solana validator (own terminal)
 just demo         # everything, once #19 lands
 ```
+
+`docker-compose.yml` runs `timescale/timescaledb`. The password in that file (`ledger_local`) is for this local database only. `just test` includes a store insert/read round-trip and needs the database up (`just db-up`).
 
 ## Disclosure
 
 - **Sentinel is pre-existing code** (`sentinel-model`, `sentinel-compile`, `sentinel-core`), consumed as a path dependency from `/Users/arnabghosh/Desktop/emet/sentinel` (absolute, so git worktrees build too) and not copied into this repo. All code in this repository is new work with a dated commit history.
 - **Dataset:** QuickBooks-Hackathon-2026 (HuggingFace `CL251215/QuickBooks-Hackathon-2026`), synthetic, fetched by `just data` and not redistributed in this repo. Any modification to it will be listed here. The `hidden/` ground truth is not used.
 - **Jev:** thresholds are fixed before looking at results; probabilities are scores, not calibrated confidence. Failures and timeouts become `Inconclusive`. Any Jev failures observed will be listed here.
+
+## Jev
+
+One live System One call: `POST https://api.typesafe.ai/v1/systemone`, requested model `jev-latest`, response model `jev-1.13.0`. Question id `same_obligation` asked whether two bill records are the same obligation (Choice `same` or `different`): vendor "Acme Industrial Supply", invoice `INV-1044`, amount `1250.00` USD, versus vendor "Acme Ind. Supply", invoice `1044`, same amount, different memo wording. Raw response: `fixtures/jev/same-obligation.json`. Request body: `crates/ledger-jev/smoke_request.json`.
+
+Thresholds were fixed in `crates/ledger-jev/src/lib.rs` before that response was read. `P(same) >= 0.80` maps to `Same`. `P(different) >= 0.80` maps to `Different`. A timeout (30s), an error, a score below its threshold, or a contradiction maps to `Unknown`. The model was not asked for explanation text.

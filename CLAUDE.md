@@ -3,7 +3,7 @@
 Ledger Sentinel: live runtime verification of simulated financial agents. Read `SPEC.md` (esp. section 10) and the GitHub issue you were given; issues on `arniber21/ledger` are the source of truth for scope, "Blocked by" lines are real.
 
 ## Rules
-- Rust workspace under `crates/`; web UI under `web/` (Vite + React, bun). Use `just` for tasks (`just check`, `just test`, `just lint`).
+- Rust workspace under `crates/`; web UI under `web/` (Vite + React + TanStack Router/Query/Table, bun). Use `just` for tasks (`just check`, `just test`, `just lint`).
 - Sentinel (`/Users/arnabghosh/Desktop/emet/sentinel`) is pre-existing, proprietary, consumed by path. Never copy it into this repo; never edit it. Use the incremental `Evaluator::step` + `seal` path.
 - Secrets live in gitignored `.env` (`GEMINI_API_KEY`, `TYPESAFE_API_KEY` = Jev, `SENTRY_DSN`). Never print, log or commit values.
 - Never read the dataset's `hidden/` directory.
