@@ -347,6 +347,126 @@ impl Store {
         Ok(())
     }
 
+    /// Deletes events, verdicts, triage, and ranks.
+    ///
+    /// The schema stays. The next scene starts from an empty hypertable.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError::Database`] when the truncate fails.
+    pub async fn truncate_runtime(&self) -> Result<(), StoreError> {
+        sqlx::query("TRUNCATE TABLE verdict_rank, verdict_triage, verdicts, events")
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
+
+    /// Deletes one scene's events and the verdicts for `bindings`.
+    ///
+    /// Events match `payload.attributes.scene`. Verdicts match `evidence.scene`
+    /// or `evidence.binding`. Other scenes stay.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError::Database`] when a delete fails.
+    pub async fn clear_scene(&self, scene: &str, bindings: &[String]) -> Result<(), StoreError> {
+        let verdicts = "SELECT id FROM verdicts
+            WHERE evidence->>'scene' = $1
+               OR evidence->>'binding' = ANY($2)";
+        sqlx::query(&format!(
+            "DELETE FROM verdict_rank WHERE verdict_id IN ({verdicts})"
+        ))
+        .bind(scene)
+        .bind(bindings)
+        .execute(&self.pool)
+        .await?;
+        sqlx::query(&format!(
+            "DELETE FROM verdict_triage WHERE verdict_id IN ({verdicts})"
+        ))
+        .bind(scene)
+        .bind(bindings)
+        .execute(&self.pool)
+        .await?;
+        sqlx::query(&format!("DELETE FROM verdicts WHERE id IN ({verdicts})"))
+            .bind(scene)
+            .bind(bindings)
+            .execute(&self.pool)
+            .await?;
+        sqlx::query(
+            "DELETE FROM events
+             WHERE payload->'attributes'->>'scene' = $1
+                OR payload->>'scene' = $1",
+        )
+        .bind(scene)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    /// Reads up to `limit` events of `kind`, in observation order.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError::Database`] when the query fails.
+    pub async fn events_by_kind(&self, kind: &str, limit: i64) -> Result<Vec<Event>, StoreError> {
+        let events = sqlx::query_as::<_, Event>(
+            "SELECT id, observed_at, source, kind, data_class, payload
+             FROM events
+             WHERE kind = $1
+             ORDER BY observed_at ASC, id ASC
+             LIMIT $2",
+        )
+        .bind(kind)
+        .bind(limit)
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(events)
+    }
+
+    /// Merges `signatures` into a verdict's evidence document.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError::Database`] when the update fails.
+    /// Sets `payload.predecessors` so a later poll can see the causal edge.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError::Database`] when the update fails.
+    pub async fn set_predecessors(
+        &self,
+        id: Uuid,
+        predecessors: &[String],
+    ) -> Result<(), StoreError> {
+        sqlx::query(
+            "UPDATE events
+             SET payload = jsonb_set(payload, '{predecessors}', $2::jsonb, true)
+             WHERE id = $1",
+        )
+        .bind(id)
+        .bind(serde_json::json!(predecessors))
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    pub async fn attach_signatures(
+        &self,
+        id: Uuid,
+        signatures: &[String],
+    ) -> Result<(), StoreError> {
+        sqlx::query(
+            "UPDATE verdicts
+             SET evidence = evidence || jsonb_build_object('signatures', $2::jsonb)
+             WHERE id = $1",
+        )
+        .bind(id)
+        .bind(serde_json::json!(signatures))
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
     /// Inserts one event.
     ///
     /// # Errors

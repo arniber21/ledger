@@ -9,6 +9,7 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode, type RefObject } from "react";
 import { outcomeLabel } from "../stream/reduce";
+import type { BindingLine } from "../stream/types";
 import { useShell } from "../shell/context";
 import { Header } from "../shell/header";
 import { BoardIcon, CheckIcon, FilterIcon, InboxIcon, ListIcon, SplitIcon } from "../shell/icons";
@@ -908,9 +909,9 @@ function Split({
           <Timeline steps={preview.verdict.timeline ?? []} />
           <h3 className="prop-label">Binding comparison</h3>
           <dl className="props">
-            <Prop label="Exact" value="Not stored" />
-            <Prop label="Fuzzy" value="Not stored" />
-            <Prop label="Jev" value="Not stored" />
+            <Prop label="Exact" value={bindingLine(preview.verdict.comparison?.exact)} />
+            <Prop label="Fuzzy" value={bindingLine(preview.verdict.comparison?.fuzzy)} />
+            <Prop label="Jev" value={bindingLine(preview.verdict.comparison?.jev)} />
           </dl>
         </article>
       ) : null}
@@ -991,6 +992,10 @@ function Prop({ label, value }: { label: string; value: string }) {
       <dd>{value}</dd>
     </div>
   );
+}
+
+function bindingLine(line: BindingLine | null | undefined): string {
+  return line?.outcome ?? "Not stored";
 }
 
 function Timeline({ steps }: { steps: readonly { eventId: string; observedAt: string; source: string; kind: string; role: string }[] }) {

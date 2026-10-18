@@ -90,9 +90,38 @@ pub struct StreamVerdict {
     pub recorded_at: DateTime<Utc>,
     /// Evidence events in observation order.
     pub timeline: Vec<StreamEntry>,
+    /// Exact, fuzzy, and Jev lines. Absent when this verdict is not a binding.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub comparison: Option<StreamComparison>,
+    /// Solana signatures on the counterexample, when the scene recorded them.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub signatures: Vec<String>,
     /// Stored raw scores. Absent until Jev has been asked.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub rank: Option<StreamRank>,
+}
+
+/// One exact, fuzzy, or Jev line on the comparison card.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct StreamBindingLine {
+    /// `Same`, `Different`, or `Unknown`.
+    pub outcome: String,
+    /// Stable reason code. No model prose.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reason_code: Option<String>,
+}
+
+/// The three baselines stored with a binding verdict.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct StreamComparison {
+    /// Exact-match baseline.
+    pub exact: StreamBindingLine,
+    /// Fuzzy baseline.
+    pub fuzzy: StreamBindingLine,
+    /// Mapped Jev verdict.
+    pub jev: StreamBindingLine,
 }
 
 /// One step on the counterexample timeline.
@@ -120,6 +149,12 @@ struct StoredBody {
     timeline: Vec<StreamEntry>,
     #[serde(default)]
     amount_cents: Option<i64>,
+    #[serde(default)]
+    comparison: Option<StreamComparison>,
+    #[serde(default)]
+    signatures: Vec<String>,
+    #[serde(default)]
+    scene: Option<String>,
 }
 
 /// Reads events and publishes verdicts.
@@ -207,8 +242,23 @@ impl Engine {
     /// than missing evidence.
     pub async fn poll_once(&mut self) -> Result<Vec<StreamVerdict>, ApiError> {
         let now = Utc::now();
-        let start = now - Duration::hours(6);
-        let end = now + Duration::minutes(1);
+        self.poll_window(now - Duration::hours(6), now + Duration::minutes(1))
+            .await
+    }
+
+    /// Steps events in `[start, end)`, in `observed_at` order.
+    ///
+    /// Scenes pass a fixed clock here so a replay does not depend on wall time.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when a query fails or a seal fails for a reason other
+    /// than missing evidence.
+    pub async fn poll_window(
+        &mut self,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+    ) -> Result<Vec<StreamVerdict>, ApiError> {
         let mut published = Vec::new();
         let mut after = None;
         for _ in 0..50 {
@@ -320,6 +370,9 @@ impl Engine {
                 evidence: frame.evidence.clone(),
                 timeline: frame.timeline.clone(),
                 amount_cents: frame.amount_cents,
+                comparison: frame.comparison.clone(),
+                signatures: frame.signatures.clone(),
+                scene: None,
             })
             .unwrap_or_else(|_| serde_json::json!({})),
         };
@@ -368,6 +421,8 @@ impl Engine {
                 kind: row.kind.clone(),
                 role: "evidence".to_owned(),
             }],
+            comparison: None,
+            signatures: Vec::new(),
             rank: None,
         };
         if self.emitted.insert(id) {
@@ -383,6 +438,9 @@ impl Engine {
                     evidence: frame.evidence.clone(),
                     timeline: frame.timeline.clone(),
                     amount_cents: frame.amount_cents,
+                    comparison: None,
+                    signatures: Vec::new(),
+                    scene: None,
                 })
                 .unwrap_or_else(|_| serde_json::json!({})),
             };
@@ -414,6 +472,8 @@ pub fn verdict_from_stored(verdict: &Verdict) -> Option<StreamVerdict> {
         amount_cents: body.amount_cents,
         recorded_at: verdict.recorded_at,
         timeline: body.timeline,
+        comparison: body.comparison,
+        signatures: body.signatures,
         rank: None,
     })
 }
@@ -457,6 +517,8 @@ fn stream_verdict(
         amount_cents,
         recorded_at: Utc::now(),
         timeline,
+        comparison: None,
+        signatures: Vec::new(),
         rank: None,
     }
 }

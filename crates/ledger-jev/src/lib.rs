@@ -26,6 +26,7 @@ mod memo;
 mod obligation;
 mod panel;
 mod rank;
+mod replay;
 mod request;
 mod resolve;
 mod schedule;
@@ -53,6 +54,7 @@ pub use rank::{
     map_ranking_body, map_ranking_exchange, no_second_payment_subject, priority, ranking_request,
     DimensionScore, RankScore, RankStep, RankSubject, RankWeights, RANK_TOP_LEVEL,
 };
+pub use replay::{ReplayCatalog, ReplayError};
 pub use request::binding_request;
 pub use resolve::{resolve, BindingEffect, CallFault, Resolution};
 pub use schedule::{

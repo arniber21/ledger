@@ -90,7 +90,20 @@ window-query: migrate
 
 # --- demo ---
 
+# Stop agents, truncate Timescale, recreate the validator ledger, clear .ledger state.
+reset:
+    bash scripts/reset.sh
+
+# Run one scene in replay mode. LEDGER_JEV=live calls System One instead.
+scene name:
+    LEDGER_JEV="${LEDGER_JEV:-replay}" cargo run -p ledger-scene -- {{name}}
+
+# Reset, then run every scene in order. Each scene prints the verdicts it expects.
+demo:
+    just reset
+    LEDGER_JEV=replay cargo run -p ledger-scene -- --all
+
 # Start TimescaleDB, the Solana validator, the API, the buying agents, and the UI.
 # Ctrl-C stops the processes this command started. See docs/demo.md.
-demo:
+up:
     bash scripts/demo.sh

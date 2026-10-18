@@ -9,6 +9,7 @@ members = [
     "crates/ledger-spec",
     "crates/ledger-store",
     "crates/ledger-api",
+    "crates/ledger-scene",
 ]
 # Nested workspace. Cargo rejects a workspace inside a workspace, so the
 # vendored Sentinel tree keeps its own [workspace] and is not a member here.
@@ -28,6 +29,7 @@ sentinel-core = { path = "vendor/sentinel/core" }
 ledger-core = { path = "crates/ledger-core" }
 ledger-exchange = { path = "crates/ledger-exchange" }
 ledger-agents = { path = "crates/ledger-agents" }
+ledger-api = { path = "crates/ledger-api" }
 ledger-ingest = { path = "crates/ledger-ingest" }
 ledger-jev = { path = "crates/ledger-jev" }
 ledger-spec = { path = "crates/ledger-spec" }
