@@ -6,3 +6,16 @@ publish.workspace = true
 
 [dependencies]
 ledger-core.workspace = true
+chrono = "0.4"
+serde_json.workspace = true
+sqlx = { version = "0.8", features = [
+    "chrono",
+    "json",
+    "migrate",
+    "postgres",
+    "runtime-tokio-rustls",
+    "uuid",
+] }
+thiserror.workspace = true
+tokio.workspace = true
+uuid = { version = "1", features = ["v4"] }

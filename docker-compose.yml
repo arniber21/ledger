@@ -1,0 +1,29 @@
+# Local TimescaleDB for Ledger Sentinel.
+# Adapted from https://docs.timescale.com/self-hosted/latest/install/installation-docker/
+#
+# `ledger_local` is a local-development password. Do not reuse it anywhere else.
+# The host port is 5433 so this does not collide with a Postgres already on 5432.
+
+name: ledger
+
+services:
+  timescaledb:
+    image: timescale/timescaledb:2.30.2-pg16
+    ports:
+      - "127.0.0.1:5433:5432"
+    environment:
+      POSTGRES_USER: ledger
+      POSTGRES_PASSWORD: ledger_local
+      POSTGRES_DB: ledger
+      TIMESCALEDB_TELEMETRY: "off"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ledger -d ledger"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+    volumes:
+      - timescaledb:/var/lib/postgresql/data
+
+volumes:
+  timescaledb:
