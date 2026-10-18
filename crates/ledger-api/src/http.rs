@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 use std::convert::Infallible;
 use std::net::SocketAddr;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use axum::extract::State;
@@ -11,7 +11,7 @@ use axum::response::sse::{Event, KeepAlive, Sse};
 use axum::routing::get;
 use axum::Router;
 use futures::stream::{self, Stream};
-use ledger_jev::SystemOne;
+use ledger_jev::{ForcedOutcome, SystemOne};
 use ledger_store::{Store, Uuid, VerdictRank};
 use tokio::net::TcpListener;
 use tokio::sync::{broadcast, watch};
@@ -123,18 +123,19 @@ pub async fn serve_with_ranker(
             store: store.clone(),
             tx,
         });
+    let force = Arc::new(Mutex::new(None::<ForcedOutcome>));
     let mut app = verdicts
         .merge(crate::inbox::router(store.clone()))
         .merge(crate::calibration::router(store.clone()))
         .merge(crate::metrics::router(store.clone(), monitor_stats))
         .merge(crate::specs::router())
-        .merge(crate::author::router())
         .merge(crate::traces::router(crate::traces::AppState {
             store: Some(store.clone()),
         }))
-        .merge(crate::quick::router_from_env());
+        .merge(crate::quick::router_from_env())
+        .merge(crate::author::router(force.clone()));
     if crate::test_api::enabled(&std::env::var("LEDGER_TEST").unwrap_or_default()) {
-        app = app.merge(crate::test_api::router(Some(store)));
+        app = app.merge(crate::test_api::router_with_force(Some(store), force));
     }
     let mut stop = shutdown.subscribe();
     let join = tokio::spawn(async move {

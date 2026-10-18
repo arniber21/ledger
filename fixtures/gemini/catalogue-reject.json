@@ -1,0 +1,1 @@
+{"model":"gemini-3.8-flash","object":"interaction","status":"completed","steps":[{"content":[{"text":"{\"pattern_id\":\"not-a-pattern\"}","type":"text"}],"type":"model_output"}]}

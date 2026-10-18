@@ -15,6 +15,7 @@ mod clause;
 mod draft;
 mod monitor;
 mod reason;
+mod replay_author;
 
 pub use author::{author, AuthoringInput, AuthoringOutcome, AuthoringStep, DraftFailure};
 pub use check::{match_request, DRAFT_MATCH_QUESTION};
@@ -27,3 +28,4 @@ pub use draft::{
 };
 pub use monitor::{MonitorError, RunningMonitor};
 pub use reason::{CatalogueCode, RejectReason};
+pub use replay_author::{author_replay, CATALOGUE_REJECT_POLICY, TWO_CLAUSE_POLICY};

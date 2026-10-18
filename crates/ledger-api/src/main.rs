@@ -38,6 +38,7 @@ async fn run() -> Result<(), ledger_api::ApiError> {
     println!("calibration at http://{}/api/calibration", server.addr);
     println!("traces at http://{}/api/traces", server.addr);
     println!("quick actions at http://{}/api/quick-actions", server.addr);
+    println!("spec authoring at http://{}/api/specs/author", server.addr);
     if std::env::var("LEDGER_TEST").ok().as_deref() == Some("1") {
         println!("test api at http://{}/api/test", server.addr);
     }

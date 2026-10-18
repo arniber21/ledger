@@ -11,17 +11,25 @@
 //! environment and never written to a response or a log.
 //!
 //! The pipeline runs to the end and the frames are sent together.
+//!
+//! When `LEDGER_JEV=replay`, Gemini and Jev come from `fixtures/` through
+//! `ledger_spec::author_replay` and nothing calls out. A missing fixture is a
+//! failed call (rejection or Unknown). When `LEDGER_TEST=1`, a forced outcome
+//! from `POST /api/test/jev` replaces the Jev fixtures for the next run.
 
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
+
+use axum::extract::State;
 
 use axum::http::{header, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::routing::post;
 use axum::{Json, Router};
 use ledger_core::AgentId;
-use ledger_jev::{JevCallFailure, SystemOne, SystemOneClient};
+use ledger_jev::{ForcedOutcome, JevCallFailure, SystemOne, SystemOneClient};
 use ledger_spec::{
-    author, coverage_request, draft_from_interaction, draft_request, match_request, split_clauses,
+    author, author_replay, coverage_request, draft_from_interaction, draft_request, match_request, split_clauses,
     AuthoringInput, DraftFailure,
 };
 use serde::Deserialize;
@@ -30,8 +38,14 @@ const GEMINI_URL: &str = "https://generativelanguage.googleapis.com/v1beta/inter
 const GEMINI_TIMEOUT: Duration = Duration::from_secs(60);
 
 /// Route for spec authoring.
-pub fn router() -> Router {
-    Router::new().route("/api/specs/author", post(run))
+pub fn router(force: Arc<Mutex<Option<ForcedOutcome>>>) -> Router {
+    Router::new()
+        .route("/api/specs/author", post(run))
+        .with_state(force)
+}
+
+fn replay_mode() -> bool {
+    std::env::var("LEDGER_JEV").is_ok_and(|mode| mode.trim() == "replay")
 }
 
 #[derive(Deserialize)]
@@ -41,14 +55,28 @@ struct Incoming {
     override_coverage: bool,
 }
 
-async fn run(Json(body): Json<Incoming>) -> Response {
-    let frames =
-        tokio::task::spawn_blocking(move || stream_for(&body.sentence, body.override_coverage))
-            .await;
+async fn run(
+    State(force): State<Arc<Mutex<Option<ForcedOutcome>>>>,
+    Json(body): Json<Incoming>,
+) -> Response {
+    let forced = *force.lock().unwrap_or_else(|error| error.into_inner());
+    let frames = tokio::task::spawn_blocking(move || {
+        if replay_mode() {
+            replay_for(&body.sentence, body.override_coverage, forced)
+        } else {
+            stream_for(&body.sentence, body.override_coverage)
+        }
+    })
+    .await;
     match frames {
         Ok(text) => ([(header::CONTENT_TYPE, "text/event-stream")], text).into_response(),
         Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
     }
+}
+
+fn replay_for(sentence: &str, override_coverage: bool, forced: Option<ForcedOutcome>) -> String {
+    let agent = AgentId::new("payer").expect("literal agent id");
+    author_replay(sentence, &agent, override_coverage, forced).encode_sse()
 }
 
 /// Runs every call and returns the encoded frames. Blocking.

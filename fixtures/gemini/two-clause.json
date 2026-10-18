@@ -1,0 +1,1 @@
+{"model":"gemini-3.8-flash","object":"interaction","status":"completed","steps":[{"content":[{"text":"{\"after\":\"ledger.agent.pay_bill\",\"binding_attribute\":\"ledger.bill.id\",\"pattern_id\":\"absence.after-until\",\"until\":\"ledger.exchange.credit\",\"veto\":\"ledger.exchange.payment\"}","type":"text"}],"type":"model_output"}]}

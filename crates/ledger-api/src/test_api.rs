@@ -53,15 +53,22 @@ pub fn enabled(flag: &str) -> bool {
 }
 
 /// Routes for reset, scenes, and a forced Jev outcome.
-pub fn router(store: Option<Store>) -> Router {
-    router_with_bin(store, scene_binary())
+///
+/// `force` is shared with spec authoring so `POST /api/test/jev` applies to
+/// the next authoring run as well as the next scene.
+pub fn router_with_force(store: Option<Store>, force: Arc<Mutex<Option<ForcedOutcome>>>) -> Router {
+    router_with_bin(store, scene_binary(), force)
 }
 
-fn router_with_bin(store: Option<Store>, scene_bin: PathBuf) -> Router {
+fn router_with_bin(
+    store: Option<Store>,
+    scene_bin: PathBuf,
+    force: Arc<Mutex<Option<ForcedOutcome>>>,
+) -> Router {
     let state = TestApi {
         store,
         scene_bin,
-        force: Arc::new(Mutex::new(None)),
+        force,
     };
     Router::new()
         .route("/api/test", get(status))
@@ -319,7 +326,11 @@ mod tests {
     }
 
     fn app() -> Router {
-        router_with_bin(None, PathBuf::from("/nonexistent/ledger-scene"))
+        router_with_bin(
+            None,
+            PathBuf::from("/nonexistent/ledger-scene"),
+            Arc::new(Mutex::new(None)),
+        )
     }
 
     #[test]
