@@ -186,23 +186,48 @@ mod tests {
     static SOCKET_SEQ: AtomicU64 = AtomicU64::new(0);
 
     #[tokio::test(flavor = "current_thread")]
-    async fn toggle_line_enables_the_fault_for_the_next_payment() {
+    async fn toggle_double_pay_records_a_needs_review_second_payment() {
         let desk = fixture_desk();
         let outcome = apply_line(&desk, "toggle double-pay\n")
             .await
             .expect("toggle");
         assert!(outcome.enabled);
         assert!(desk.fault_enabled(Fault::DoublePay));
-        let _ = desk.approve_bill("bill-settled");
-        let paid = desk.pay_bill("bill-settled");
-        let crate::PayOutcome::Paid(payment) = paid else {
-            panic!("expected a second payment, got {paid:?}");
-        };
+        let payment = outcome
+            .report
+            .payments
+            .iter()
+            .find(|payment| payment.bill_local == "bill-settled")
+            .expect("rig cycle should pay the settled bill a second time");
+        assert_eq!(payment.amount, money("50.00"));
         assert!(payment.faults.contains(&Fault::DoublePay));
         assert!(payment.needs_review);
+        assert!(payment.id.ends_with("-again"));
+        let approval = outcome
+            .report
+            .approvals
+            .iter()
+            .find(|approval| approval.bill_local == "bill-settled")
+            .expect("rig approver should approve the settled bill");
+        assert_eq!(payment.approval_id.as_deref(), Some(approval.id.as_str()));
+        assert!(outcome.report.inconclusive.iter().all(|item| {
+            item.bill_local.as_deref() != Some("bill-settled")
+                || !item.reason.contains("bill has no approval")
+        }));
         assert!(!format!("{payment:?}")
             .to_ascii_lowercase()
             .contains("fraud"));
+
+        let stopped = apply_line(&desk, "toggle double-pay\n")
+            .await
+            .expect("toggle off");
+        assert!(!stopped.enabled);
+        assert!(!desk.fault_enabled(Fault::DoublePay));
+        assert!(stopped
+            .report
+            .payments
+            .iter()
+            .all(|payment| payment.bill_local != "bill-settled"));
     }
 
     #[tokio::test(flavor = "current_thread")]

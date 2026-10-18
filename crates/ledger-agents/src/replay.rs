@@ -38,13 +38,22 @@ pub fn serve() -> String {
 }
 
 fn body_for(request: &str) -> String {
-    // The payer prompt is the only request that says "Pay the open bill".
-    // The approver's tool text mentions the pay_bill name and must not take
-    // this body. A later turn carries functionResponse and closes with text.
-    let name = if request.contains("functionResponse") || !request.contains("Pay the open bill") {
+    // A later turn carries functionResponse and closes with text.
+    // The approver's double-pay prompt asks to approve the settled bill. The
+    // payer's double-pay prompt asks to pay it. Those sentences are the ones
+    // `approver_prompt` and `payer_prompt` append while the fault is on.
+    // The clean payer prompt is the only other request that says "Pay the open bill".
+    // The approver's tool text mentions pay_bill and must not take that body.
+    let name = if request.contains("functionResponse") {
         "text.json"
-    } else {
+    } else if request.contains("Also call approve_bill once with the settled bill id") {
+        "approve-settled-call.json"
+    } else if request.contains("Also call pay_bill once with the settled bill id") {
+        "pay-settled-call.json"
+    } else if request.contains("Pay the open bill") {
         "pay-bill-call.json"
+    } else {
+        "text.json"
     };
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("fixtures/gemini")

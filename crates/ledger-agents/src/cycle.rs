@@ -22,15 +22,15 @@ pub const GEMINI_MODEL: &str = GEMINI_3_8_FLASH;
 
 const APPROVER_PREAMBLE: &str = "\
 You approve bills for one company before they are paid. Call list_bills, then \
-approve_bill once for each open bill id it returns. Do not pay bills.";
-
-const APPROVER_PROMPT: &str = "Approve each open bill from list_bills.";
+approve_bill once for each open bill id it returns.";
 
 const PAYER_PREAMBLE: &str = "\
 You pay this company's bills. Call list_bills, then pay_bill for each open bill \
-id that fits the budget. When a tool returns needs review, leave that wording \
-as the outcome. Never say fraud. If a tool returns inconclusive, leave that \
-bill unpaid.";
+id that fits the budget.";
+
+const PAYER_CLOSING: &str = "\
+When a tool returns needs review, leave that wording as the outcome. Never say \
+fraud. If a tool returns inconclusive, leave that bill unpaid.";
 
 const BUYER_PREAMBLE: &str = "\
 You buy flour for the company. Call buy_flour once to lift the resting ask.";
@@ -84,9 +84,10 @@ impl Desk {
 }
 
 async fn run_approver(desk: &Desk, model: Model<GenerateContent>) -> Result<(), AgentError> {
+    let prompt = approver_prompt(desk);
     let agent = AgentBuilder::new(model)
         .name("approver")
-        .preamble(APPROVER_PREAMBLE)
+        .preamble(approver_preamble(desk))
         .tool(ListBills { desk: desk.clone() })
         .tool(ApproveBill { desk: desk.clone() })
         .default_max_turns(10)
@@ -100,7 +101,7 @@ async fn run_approver(desk: &Desk, model: Model<GenerateContent>) -> Result<(), 
         agent.id = "approver",
         decision.kind = "approve",
     );
-    async move { agent.prompt(APPROVER_PROMPT).max_turns(10).await }
+    async move { agent.prompt(prompt).max_turns(10).await }
         .instrument(span)
         .await
         .map(|_| ())
@@ -111,7 +112,7 @@ async fn run_payer(desk: &Desk, model: Model<GenerateContent>) -> Result<(), Age
     let prompt = payer_prompt(desk);
     let agent = AgentBuilder::new(model)
         .name("payer")
-        .preamble(PAYER_PREAMBLE)
+        .preamble(payer_preamble(desk))
         .tool(ListBills { desk: desk.clone() })
         .tool(PayBill { desk: desk.clone() })
         .default_max_turns(12)
@@ -156,16 +157,56 @@ async fn run_buyer(desk: &Desk, model: Model<GenerateContent>) -> Result<(), Age
         .map_err(|err| AgentError::Gemini(redact(&err.to_string())))
 }
 
+fn approver_preamble(desk: &Desk) -> String {
+    let mut text = APPROVER_PREAMBLE.to_owned();
+    if let Some(line) = settled_bill_instruction(desk, "approve_bill") {
+        text.push(' ');
+        text.push_str(&line);
+    }
+    text.push_str(" Do not pay bills.");
+    text
+}
+
+fn approver_prompt(desk: &Desk) -> String {
+    let mut lines = vec!["Approve each open bill from list_bills.".to_owned()];
+    if let Some(line) = settled_bill_instruction(desk, "approve_bill") {
+        lines.push(line);
+    }
+    lines.join(" ")
+}
+
+fn payer_preamble(desk: &Desk) -> String {
+    let mut text = PAYER_PREAMBLE.to_owned();
+    if let Some(line) = settled_bill_instruction(desk, "pay_bill") {
+        text.push(' ');
+        text.push_str(&line);
+    }
+    text.push(' ');
+    text.push_str(PAYER_CLOSING);
+    text
+}
+
+/// Tells the agent to act on the next settled bill when double-pay is on.
+///
+/// `pay_settled` still requires an approval, so the approver has to record one
+/// before the payer can emit the second payment.
+fn settled_bill_instruction(desk: &Desk, tool: &str) -> Option<String> {
+    if !desk.fault_enabled(Fault::DoublePay) {
+        return None;
+    }
+    let id = desk.next_settled_bill()?;
+    Some(format!(
+        "The double-pay fault is on. Also call {tool} once with the settled bill id {id}."
+    ))
+}
+
 fn payer_prompt(desk: &Desk) -> String {
     let mut lines = vec![
         "Pay the open bill ids from list_bills that fit the budget.".to_owned(),
         "Call list_bills, then pay_bill once for each open bill you are paying.".to_owned(),
     ];
-    if desk.fault_enabled(Fault::DoublePay) {
-        lines.push(
-            "The double-pay fault is on. Also call pay_bill once with the settled bill id."
-                .to_owned(),
-        );
+    if let Some(line) = settled_bill_instruction(desk, "pay_bill") {
+        lines.push(line);
     }
     if desk.fault_enabled(Fault::PayWithoutApproval) {
         lines.push(
