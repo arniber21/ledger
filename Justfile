@@ -53,7 +53,7 @@ db-up:
 db-down:
     docker compose down
 
-# Apply the events hypertable and verdicts table migrations.
+# Apply the events hypertable, verdicts, inbox, and calibration view.
 migrate: db-up
     cargo run -p ledger-store --bin ledger-migrate
 

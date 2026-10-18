@@ -11,6 +11,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef } from "react";
 import { isOutcome, outcomeLabel } from "../stream/reduce";
 import type { SavedView, VerdictItem, VerdictOutcome } from "../stream/types";
+import { Calibration } from "./calibration-panel";
 import { AttentionChart, EventsChart, MonitorsChart } from "./charts";
 import { useShell } from "../shell/context";
 import { DashboardIcon } from "../shell/icons";
@@ -156,6 +157,8 @@ export function Dashboard({
           <AttentionChart points={metrics.attention} />
           <MonitorsChart points={metrics.monitors} />
         </section>
+
+        <Calibration />
 
         {chip ? (
           <div className="chips">

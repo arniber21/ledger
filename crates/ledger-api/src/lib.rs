@@ -23,7 +23,9 @@
 //! `GET /api/traces` and `GET /api/traces/stream` read ingested spans.
 //! `POST /api/faults/{name}` toggles a fault on the running desk.
 //! `GET` and `POST /api/inbox/triage` read and write inbox status.
+//! `GET /api/calibration` counts stored inbox reviews by Jev score band.
 
+mod calibration;
 mod decode;
 mod engine;
 mod fault;
