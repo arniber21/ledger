@@ -1,0 +1,116 @@
+crates/ledger-jev/src/lib.rs
+  s_b8698e7abcece5::t_8a30416a06cadc 1-2
+  s_b8698e7abcece5::t_d980e288e0c2e7 21
+  s_b8698e7abcece5::t_fb3fd296a8a076 34-39
+crates/ledger-core/src/event.rs
+  s_b8698e7abcece5::t_0c203475a3cf82 120-123
+  s_b8698e7abcece5::t_1f77655307dddf 3-4
+  s_b8698e7abcece5::t_4a650374c5374f 174-175
+  s_b8698e7abcece5::t_f3ce94b6c9122a 260-261
+  s_b8698e7abcece5::t_419e8578ca67b0 224-225
+  s_b8698e7abcece5::t_d795041d50f34b 284-285
+  s_b8698e7abcece5::t_b9174114288ff5 239-240
+  s_b8698e7abcece5::t_37884faed6c6da 191
+  s_b8698e7abcece5::t_acb81c60f404db 155,157-158
+  s_b8698e7abcece5::t_dff533a49e1045 208-209
+  s_b8698e7abcece5::t_2d71a6d6ba8c00 409,413-434
+  s_b8698e7abcece5::t_cb7964112b95ed 435
+crates/ledger-core/src/specs.rs
+  s_b8698e7abcece5::t_90dc1f42a55713 37-38
+  s_b8698e7abcece5::t_98a5d1e12e847f 28
+  s_b8698e7abcece5::t_6ed1ec87b0e9b6 149-214
+  s_b8698e7abcece5::t_246a70a4714041 1
+web/src/taint/taint.tsx
+  s_b8698e7abcece5::t_34f390a4acc69e 1-127
+crates/ledger-agents/src/tools.rs
+  s_b8698e7abcece5::t_dc8854835ef9c2 15
+  s_b8698e7abcece5::t_21f22f4f5b3d22 142-145
+web/src/router.tsx
+  s_b8698e7abcece5::t_5672a69ac65122 81-88
+  s_b8698e7abcece5::t_c6f7fc1d35cb92 8
+  s_b8698e7abcece5::t_ff73c64f5cc7ec 51-56
+crates/ledger-core/src/adapt.rs
+  s_b8698e7abcece5::t_267905424b90ad 248-253
+crates/ledger-core/src/live.rs
+  s_b8698e7abcece5::t_fab8ffc7cb1750 15,17-18
+  s_b8698e7abcece5::t_9503471ea603a5 290,323,492-506
+  s_b8698e7abcece5::t_a5317f8cd99323 136
+  s_b8698e7abcece5::t_f1ad35f8468ed3 145
+  s_b8698e7abcece5::t_4df71da3d1853e 57
+  s_b8698e7abcece5::t_35825e03239042 344,351
+  s_b8698e7abcece5::t_fc185e8deed5c3 424
+  s_b8698e7abcece5::t_96899b7e29457c 286-289,291-322,324-336
+crates/ledger-core/src/source.rs
+  s_b8698e7abcece5::t_ddf1659a064414 37-53
+web/src/shell/icons.tsx
+  s_b8698e7abcece5::t_45463e52c67658 147-155
+crates/ledger-jev/src/panel.rs
+  s_b8698e7abcece5::t_ff999881b7faa2 376-438
+  s_b8698e7abcece5::t_3c3b64fa972935 1-375,439-612
+  s_b8698e7abcece5::t_f7328b2b6bd56f 613-625
+crates/ledger-agents/src/predicate.rs
+  s_b8698e7abcece5::t_8307075b813664 7
+  s_b8698e7abcece5::t_af2d317265e3a6 9,14-22,36
+crates/ledger-ingest/src/normalize.rs
+  s_b8698e7abcece5::t_c7b24d64a1350d 235-236
+crates/ledger-agents/src/desk.rs
+  s_b8698e7abcece5::t_9f23c3627ef801 873-960
+  s_b8698e7abcece5::t_8548ca95717849 65-67
+  s_b8698e7abcece5::t_724827722f6e24 610-613,628-629,632-635
+  s_b8698e7abcece5::t_53d9b0f7198315 971-992,994
+  s_b8698e7abcece5::t_c5fb0193448663 170-171
+  s_b8698e7abcece5::t_6fdfe6243d07c1 15-18
+  s_b8698e7abcece5::t_761352f8d70835 1256-1262
+  s_b8698e7abcece5::t_8c229786475fe0 218-250
+  s_b8698e7abcece5::t_3cac65c16b2d17 636-637,961-962,993,1252-1253
+web/src/shell/sidebar.tsx
+  s_b8698e7abcece5::t_12727ce378de6f 15,25
+crates/ledger-core/src/lib.rs
+  s_b8698e7abcece5::t_1514029abab996 28-30,32
+crates/ledger-spec/src/draft.rs
+  s_b8698e7abcece5::t_48b6037c5f009d 122-123
+crates/ledger-jev/src/memo.rs
+  s_b8698e7abcece5::t_8336c3835b7693 23-32
+  s_b8698e7abcece5::t_37a67e8319c922 144-151,153,156,160,163-165
+  s_b8698e7abcece5::t_e695694c200be1 79,81-82
+web/src/taint/recorded.ts
+  s_b8698e7abcece5::t_fbd4c59b7628b5 1-17,19-25,43,46
+  s_b8698e7abcece5::t_0e73879e45dec7 18,26-42,44-45,47-88
+web/src/shell/shell.tsx
+  s_b8698e7abcece5::t_5318c441e2aac5 131-138
+web/src/shell/palette.tsx
+  s_b8698e7abcece5::t_2f5f5d5be97602 21
+  s_b8698e7abcece5::t_be6a7b216eef68 11
+crates/ledger-api/src/decode.rs
+  s_b8698e7abcece5::t_3991761bdba500 126-141
+  s_b8698e7abcece5::t_6fde22ac5379dc 51-53
+  s_b8698e7abcece5::t_3fc972fb33a509 142-145
+fixtures/jev/panel-benign-request.json
+  s_b8698e7abcece5::t_0fa27827e16466 1
+fixtures/jev/panel-benign.json
+  s_b8698e7abcece5::t_e01d8fb9226f92 1
+fixtures/jev/panel-instructs-request.json
+  s_b8698e7abcece5::t_c9abcbbd901685 1
+fixtures/jev/panel-instructs.json
+  s_b8698e7abcece5::t_d3a4e0a1006e6c 1
+fixtures/jev/panel-rationale-request.json
+  s_b8698e7abcece5::t_86af2e2fbaf8b5 1
+fixtures/jev/panel-rationale.json
+  s_b8698e7abcece5::t_b23ca3571beca0 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f1a6b340aff567f01c13d5f123b12221cd603447",
+  "prompts": {},
+  "sessions": {
+    "s_b8698e7abcece5": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "1dc2559c-0648-4eb4-b550-cb8ac840d274",
+        "model": "grok-4.7-high-fast"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    }
+  }
+}
