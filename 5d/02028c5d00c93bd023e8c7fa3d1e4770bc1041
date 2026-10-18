@@ -1,0 +1,72 @@
+README.md
+  s_edd7362cef362a::t_6beefb5adcf720 46
+crates/ledger-jev/src/matchers.rs
+  s_edd7362cef362a::t_8cd20076664ac3 37
+  s_edd7362cef362a::t_1cfc844fe3b0d1 1-20,22-36,38-191
+  s_edd7362cef362a::t_0762b3a6c82fd2 21
+crates/ledger-jev/src/request.rs
+  s_edd7362cef362a::t_d4c383ced9ad7f 1-103
+crates/ledger-jev/src/resolve.rs
+  s_edd7362cef362a::t_6208a281139d9d 219
+  s_edd7362cef362a::t_9e23fbf2bc77ef 282-309
+  s_edd7362cef362a::t_2d375421aebda7 1-218,220-281,310-454
+  s_edd7362cef362a::t_7b5b311c6baf17 455-475
+crates/ledger-jev/src/obligation.rs
+  s_edd7362cef362a::t_dd4b60be55f23a 1-128
+  s_edd7362cef362a::t_5555d848ea5076 129-132
+crates/ledger-jev/src/baseline.rs
+  s_edd7362cef362a::t_2c9d54574ddba1 196-226
+  s_edd7362cef362a::t_90cfac670b5fd6 13
+  s_edd7362cef362a::t_17aefa7e06149f 187
+  s_edd7362cef362a::t_736e4cf99274eb 188
+  s_edd7362cef362a::t_d615d842d9addd 1-12,14-186,189-195,227
+crates/ledger-jev/src/lib.rs
+  s_edd7362cef362a::t_f538b38313725f 13-28
+  s_edd7362cef362a::t_5c66f85b71aa6a 60
+  s_edd7362cef362a::t_593be075ab8e0a 3-8
+crates/ledger-jev/Cargo.toml
+  s_edd7362cef362a::t_788a90b5932ce1 9
+crates/ledger-jev/tests/bindings.rs
+  s_edd7362cef362a::t_1bf8b5814e4e73 8
+  s_edd7362cef362a::t_a54a97d5ec9791 87-132
+  s_edd7362cef362a::t_7ebcdaa823f19f 1-7,9-64,66-78,80-86
+  s_edd7362cef362a::t_2e8fea98c77e78 79
+  s_edd7362cef362a::t_fe61bfec02d504 65
+crates/ledger-jev/src/client.rs
+  s_edd7362cef362a::t_412193d9e4372f 1-55,57-101
+  s_edd7362cef362a::t_3eea8981eb548d 102-114
+  s_edd7362cef362a::t_2ca553601fc6f2 56
+crates/ledger-jev/src/guard.rs
+  s_edd7362cef362a::t_cd90c7cc852121 36
+  s_edd7362cef362a::t_3b8c6bfbed0ec3 1-35,37-156
+Cargo.lock
+  s_edd7362cef362a::t_1543833812c354 2491
+fixtures/jev/bindings/abbreviated-vendor-request.json
+  s_edd7362cef362a::t_ef1d2e7d272618 1
+fixtures/jev/bindings/abbreviated-vendor-response.json
+  s_edd7362cef362a::t_bc1c192926e141 1
+fixtures/jev/bindings/different-bills-request.json
+  s_edd7362cef362a::t_7e5256601fa59b 1
+fixtures/jev/bindings/different-bills-response.json
+  s_edd7362cef362a::t_c9e59479b4ba8f 1
+fixtures/jev/bindings/recurring-rent-request.json
+  s_edd7362cef362a::t_d1c3ac9c70ca57 1
+fixtures/jev/bindings/recurring-rent-response.json
+  s_edd7362cef362a::t_be4ec4db6bb1e6 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5d02028c5d00c93bd023e8c7fa3d1e4770bc1041",
+  "prompts": {},
+  "sessions": {
+    "s_edd7362cef362a": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "49870766-a3c6-4d36-9f7b-6c6f99bdab3e",
+        "model": "grok-4.7-high-fast"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    }
+  }
+}
