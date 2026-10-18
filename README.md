@@ -34,7 +34,7 @@ just demo         # agents, API and UI together
 just ui           # web UI alone, on port 5173
 ```
 
-The dev server proxies `GET /v1/verdicts/stream`. Metrics and the inbox stay empty until that stream sends verdicts. Set `VITE_SENTINEL_SSE` to use a different stream URL.
+The dev server proxies `GET /v1/verdicts/stream`. Metrics, the inbox, and the Verdicts timeline stay empty until that stream sends verdicts. Set `VITE_SENTINEL_SSE` to use a different stream URL.
 
 Other tasks: `just check`, `just test`, `just lint`, `just fmt`. Run `just` to list everything. `just test` includes a database round-trip and needs `just db-up` first.
 
