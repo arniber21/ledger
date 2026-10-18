@@ -585,6 +585,8 @@ kbd {
 
 .card-title { font-family: var(--sans); font-size: 0.9375rem; font-weight: 500; letter-spacing: 0; }
 
+/* Plain-language line under an outcome title. */
+.card-subtitle { color: var(--muted); font-size: 0.8125rem; }
 .card-evidence, .row-meta { color: var(--muted); font-size: 0.8125rem; }
 
 .empty {

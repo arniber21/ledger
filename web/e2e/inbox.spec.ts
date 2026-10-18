@@ -142,7 +142,7 @@ test("priority weights reorder stored scores without calling Jev", async ({ page
 
   await page.getByTestId("inbox-sort").selectOption("amount");
   await expect(page).toHaveURL(/sort=amount/);
-  await expect(page.getByTestId("inbox-split").locator("[data-inbox-id]").first()).toContainText("inconclusive");
+  await expect(page.getByTestId("inbox-split").locator("[data-inbox-id]").first()).toContainText(/inconclusive/i);
   const byAmount = await splitOrder(page);
 
   await page.getByTestId("rank-weights").click();
@@ -153,7 +153,7 @@ test("priority weights reorder stored scores without calling Jev", async ({ page
   await setSlider(page, "rank-weight-ambiguity", 0);
   await setSlider(page, "rank-weight-intent", 0);
   await expect(page).toHaveURL(/sort=priority/);
-  await expect(page.getByTestId("inbox-split").locator("[data-inbox-id]").first()).toContainText("needs review");
+  await expect(page.getByTestId("inbox-split").locator("[data-inbox-id]").first()).toContainText(/needs review/i);
   const byPriority = await splitOrder(page);
   await page.waitForTimeout(500);
   jev.stop();

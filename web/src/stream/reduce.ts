@@ -90,7 +90,8 @@ function normalizeVerdict(input: VerdictInput): VerdictItem | null {
     reasonCode: typeof input.reasonCode === "string" ? input.reasonCode : null,
     amountCents: typeof amount === "number" && Number.isFinite(amount) ? amount : null,
     assignedToMe: input.assignedToMe === true,
-    jevUnknown: input.jevUnknown === true || comparison?.jev?.outcome === "Unknown",
+    // Only real Jev data counts: a missing-evidence verdict never asked Jev.
+    jevUnknown: comparison?.jev?.outcome === "Unknown",
     recordedAt: typeof input.recordedAt === "string" ? input.recordedAt : "",
     binding: typeof input.binding === "string" ? input.binding : "",
     timeline: readTimeline(input.timeline),

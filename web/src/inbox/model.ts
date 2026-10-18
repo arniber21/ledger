@@ -310,7 +310,7 @@ export function toInboxItem(verdict: VerdictItem, triage: readonly Triage[]): In
 }
 
 function haystack(item: InboxItem): string {
-  return [item.verdict.id, item.verdict.title, item.verdict.specId, item.agent, item.verdict.evidence]
+  return [item.verdict.id, item.verdict.title, cardSubtitle(item.verdict), item.verdict.specId, item.agent, item.verdict.evidence]
     .join(" ")
     .toLowerCase();
 }
@@ -554,12 +554,73 @@ export function bindingLabel(verdict: VerdictItem): string | null {
   return binding.replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, (id) => id.slice(0, 8));
 }
 
+/** Capitalised outcome title. The spec's finding goes in the subtitle, see [`cardSubtitle`]. */
+export function outcomeTitle(outcome: VerdictOutcome): string {
+  switch (outcome) {
+    case "Violate":
+      return "Needs Review";
+    case "Inconclusive":
+      return "Inconclusive";
+    case "Satisfy":
+      return "Satisfied";
+  }
+}
+
+/** What a monitor found when it did not hold, by spec. */
+const FINDINGS: Record<string, string> = {
+  "ledger.bill.approval-before-payment": "Payment without approval",
+  "ledger.bill.no-second-payment": "Second payment on a bill",
+  "ledger.order.fill-or-cancel": "Order not filled or cancelled",
+  "ledger.bill.tainted-memo-needs-approval": "Memo instructed a payment",
+  "no-second-payment": "Second payment on a bill",
+};
+
+/** What the monitor saw when the spec held, by spec. */
+const SATISFIED: Record<string, string> = {
+  "ledger.bill.approval-before-payment": "Approved before payment",
+  "ledger.bill.no-second-payment": "No second payment",
+  "ledger.order.fill-or-cancel": "Order filled or cancelled",
+  "ledger.bill.tainted-memo-needs-approval": "Memo payment was approved",
+  "no-second-payment": "No second payment",
+};
+
+/** Why a verdict is Inconclusive, by reason code. */
+const INCONCLUSIVE_REASONS: Record<string, string> = {
+  "missing-evidence": "Evidence missing",
+  "prefix-uncertainty": "Not enough seen yet",
+  "observational-uncertainty": "Evidence incomplete",
+  "binding-comparison": "Match could not be confirmed",
+  "memo-panel-unknown": "Memo check returned Unknown",
+};
+
 /**
- * Card title: what happened. Vendor is not on the verdict, so it is not
- * shown. The bill or order is on its own line, see [`bindingLabel`].
+ * Plain-language line under the title. Needs Review names the finding,
+ * Inconclusive names why the monitor could not decide, Satisfied names what
+ * held. Never says "fraud".
  */
+export function cardSubtitle(verdict: VerdictItem): string {
+  switch (verdict.outcome) {
+    case "Violate":
+      return FINDINGS[verdict.specId] ?? specName(verdict.specId);
+    case "Satisfy":
+      return SATISFIED[verdict.specId] ?? specName(verdict.specId);
+    case "Inconclusive": {
+      const reason = verdict.reasonCode ? INCONCLUSIVE_REASONS[verdict.reasonCode] : undefined;
+      if (reason) {
+        if (verdict.reasonCode === "prefix-uncertainty" && verdict.specId === "ledger.bill.approval-before-payment") {
+          return "Approval not seen yet";
+        }
+        return reason;
+      }
+      if (verdict.specId === "ledger.bill.approval-before-payment") return "Approval not seen yet";
+      return "Evidence missing";
+    }
+  }
+}
+
+/** Card title: the outcome, so a Satisfied card never reads like a violation. */
 export function cardTitle(verdict: VerdictItem): string {
-  return specName(verdict.specId);
+  return outcomeTitle(verdict.outcome);
 }
 
 /** Friendly source: `agent.payer-<uuid>` is "payer", `exchange` is "Exchange". */
@@ -579,9 +640,9 @@ export function sourceLabel(verdict: VerdictItem): string {
 
 /** One chip for the Jev scores. Null is Unknown, not a low score. */
 export function jevChip(verdict: VerdictItem, weights: RankWeights): string | null {
-  if (!verdict.rank) return null;
+  if (!verdict.rank) return verdict.jevUnknown ? "Jev unknown" : null;
   const priority = priorityOf(verdict.rank, weights);
-  if (priority == null) return "Jev unknown";
+  if (priority == null) return verdict.jevUnknown ? "Jev unknown" : null;
   return `Jev ${priority.toFixed(2)}`;
 }
 

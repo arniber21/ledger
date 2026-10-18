@@ -13,7 +13,7 @@ import { isOutcome, outcomeLabel } from "../stream/reduce";
 import type { SavedView, VerdictItem, VerdictOutcome } from "../stream/types";
 import { Calibration } from "./calibration-panel";
 import { AttentionChart, EventsChart, MonitorsChart } from "./charts";
-import { ageLabel, amountLabel, bindingLabel, cardTitle, shortId, sourceLabel } from "../inbox/model";
+import { ageLabel, amountLabel, bindingLabel, cardSubtitle, cardTitle, shortId, sourceLabel } from "../inbox/model";
 import { useShell } from "../shell/context";
 import { DashboardIcon } from "../shell/icons";
 import { Header } from "../shell/header";
@@ -315,6 +315,7 @@ function Column({
                       {bindingLabel(verdict) ? ` · ${bindingLabel(verdict)}` : ""}
                     </span>
                     <span className="card-title">{cardTitle(verdict)}</span>
+                    <span className="card-subtitle">{cardSubtitle(verdict)}</span>
                     <span className="card-facts">
                       <span>{sourceLabel(verdict)}</span>
                       <span>{amountLabel(verdict.amountCents)}</span>

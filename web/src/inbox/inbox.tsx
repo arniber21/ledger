@@ -20,6 +20,7 @@ import {
   agentOf,
   amountLabel,
   bindingLabel,
+  cardSubtitle,
   cardTitle,
   DEFAULT_RANK_WEIGHTS,
   jevChip,
@@ -704,6 +705,7 @@ function Card({
         {bindingLabel(item.verdict) ? ` · ${bindingLabel(item.verdict)}` : ""}
       </span>
       <span className="card-title">{cardTitle(item.verdict)}</span>
+      <span className="card-subtitle">{cardSubtitle(item.verdict)}</span>
       <span className="card-facts">
         <span>{sourceLabel(item.verdict)}</span>
         <span>{amountLabel(item.verdict.amountCents)}</span>
@@ -814,7 +816,7 @@ function InboxList({
                 <span className={`dot dot-${item.verdict.outcome}`} title={outcomeLabel(item.verdict.outcome)} />
                 <span className="mono" title={item.verdict.id}>{shortId(item.verdict.id)}</span>
                 <span className="row-title">{cardTitle(item.verdict)}</span>
-                <span className="card-evidence">{item.verdict.specId || "—"}</span>
+                <span className="card-evidence">{cardSubtitle(item.verdict)}</span>
                 <span className="card-evidence">{sourceLabel(item.verdict)}</span>
                 <span className="card-evidence">{amountLabel(item.verdict.amountCents)}</span>
                 <span className="card-evidence">{ageLabel(item.verdict.recordedAt, now)}</span>
@@ -883,7 +885,7 @@ function Split({
               <span className={`dot dot-${item.verdict.outcome}`} />
               <span className="mono">{shortId(item.verdict.id)}</span>
               <span className="row-title">{cardTitle(item.verdict)}</span>
-              <span className="row-meta">{item.status}</span>
+              <span className="row-meta">{cardSubtitle(item.verdict)} · {item.status}</span>
             </button>
           </li>
         ))}
@@ -892,6 +894,7 @@ function Split({
         <article className="split-detail" data-testid="split-detail">
           <p className="mono">{preview.verdict.id}</p>
           <h2 className="title-case">{cardTitle(preview.verdict)}</h2>
+          <p className="card-subtitle">{cardSubtitle(preview.verdict)}</p>
           <p className={`outcome outcome-${preview.verdict.outcome}`}>{outcomeLabel(preview.verdict.outcome)}</p>
           <div className="inbox-actions">
             <button type="button" className="primary" onClick={onReview}>

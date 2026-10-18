@@ -143,7 +143,7 @@ describe("verdict detail", () => {
   });
 
   test("does not display the word fraud as a title", () => {
-    expect(verdictTitle(verdict({ id: "v", outcome: "Violate", title: "Fraud" }))).toBe("needs review");
-    expect(verdictTitle(verdict({ id: "v", outcome: "Violate", title: "needs review" }))).toBe("needs review");
+    expect(verdictTitle(verdict({ id: "v", outcome: "Violate", title: "Fraud" }))).toBe("Needs Review");
+    expect(verdictTitle(verdict({ id: "v", outcome: "Satisfy", title: "satisfied" }))).toBe("Satisfied");
   });
 });

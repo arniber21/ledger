@@ -3,6 +3,7 @@ import type { VerdictItem } from "../stream/types";
 import {
   ageLabel,
   bindingLabel,
+  cardSubtitle,
   cardTitle,
   DEFAULT_RANK_WEIGHTS,
   jevChip,
@@ -30,11 +31,21 @@ function verdict(partial: Partial<VerdictItem>): VerdictItem {
 const NOW = Date.parse("2026-10-18T12:00:00Z");
 
 describe("inbox card fields", () => {
-  test("titles come from the spec, not the generic outcome title", () => {
-    expect(cardTitle(verdict({ specId: "ledger.bill.approval-before-payment" }))).toBe("Payment without approval");
-    expect(cardTitle(verdict({ specId: "ledger.order.fill-or-cancel" }))).toBe("Order not filled or cancelled");
-    expect(cardTitle(verdict({ specId: "ledger.authored.cap-spend" }))).toBe("Cap spend");
-    expect(cardTitle(verdict({ specId: "" }))).toBe("Verdict");
+  test("titles follow the outcome and subtitles say why, in plain words", () => {
+    const approval = "ledger.bill.approval-before-payment";
+    expect(cardTitle(verdict({ outcome: "Violate", specId: approval }))).toBe("Needs Review");
+    expect(cardSubtitle(verdict({ outcome: "Violate", specId: approval }))).toBe("Payment without approval");
+    expect(cardTitle(verdict({ outcome: "Satisfy", specId: approval }))).toBe("Satisfied");
+    expect(cardSubtitle(verdict({ outcome: "Satisfy", specId: approval }))).toBe("Approved before payment");
+    expect(cardSubtitle(verdict({ outcome: "Satisfy", specId: "ledger.bill.no-second-payment" }))).toBe("No second payment");
+    expect(cardSubtitle(verdict({ outcome: "Satisfy", specId: "ledger.order.fill-or-cancel" }))).toBe("Order filled or cancelled");
+    expect(cardTitle(verdict({ outcome: "Inconclusive" }))).toBe("Inconclusive");
+    expect(cardSubtitle(verdict({ outcome: "Inconclusive", specId: approval, reasonCode: "prefix-uncertainty" }))).toBe("Approval not seen yet");
+    expect(
+      cardSubtitle(verdict({ outcome: "Inconclusive", specId: "ledger.bill.no-second-payment", reasonCode: "missing-evidence" })),
+    ).toBe("Evidence missing");
+    expect(cardSubtitle(verdict({ outcome: "Violate", specId: "ledger.authored.cap-spend" }))).toBe("Cap spend");
+    expect(cardSubtitle(verdict({ outcome: "Violate", specId: "" }))).toBe("Verdict");
   });
 
   test("binding label shortens ids and drops generic names", () => {
@@ -61,7 +72,8 @@ describe("inbox card fields", () => {
   test("an unscored verdict has no chip and unknown scores are not zero", () => {
     expect(jevChip(verdict({}), DEFAULT_RANK_WEIGHTS)).toBeNull();
     const unknown = verdict({ rank: { money: null, evidence: 1, ambiguity: null, intent: null } });
-    expect(jevChip(unknown, DEFAULT_RANK_WEIGHTS)).toBe("Jev unknown");
+    expect(jevChip(unknown, DEFAULT_RANK_WEIGHTS)).toBeNull();
+    expect(jevChip({ ...unknown, jevUnknown: true }, DEFAULT_RANK_WEIGHTS)).toBe("Jev unknown");
     const scored = verdict({ rank: { money: 4, evidence: 4, ambiguity: 4, intent: 4 } });
     expect(jevChip(scored, DEFAULT_RANK_WEIGHTS)).toBe("Jev 1.00");
   });
