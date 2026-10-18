@@ -557,6 +557,7 @@ kbd {
   top: 0;
   left: 0;
   right: 0;
+  padding-bottom: 10px;
 }
 
 .card, .row {
