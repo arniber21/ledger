@@ -1,0 +1,97 @@
+crates/ledger-api/src/lib.rs
+  s_71df5dfa9701ea::t_7107dcbc80ae0b 39
+crates/ledger-jev/src/rerank.rs
+  s_71df5dfa9701ea::t_6a9d74e4243690 1-6,12-17,19-250,255-301,303,308,311-332,334-490,522-568,570-572,576,584,586-658
+  s_71df5dfa9701ea::t_0050606b7717c2 569,573-575,577-583,585
+  s_71df5dfa9701ea::t_0d08cb74b680f4 7-11
+  s_71df5dfa9701ea::t_4c7547ddecd98a 491-492
+  s_71df5dfa9701ea::t_c23cf95644b64b 251-254
+  s_71df5dfa9701ea::t_555fe6a0d6d654 493-521
+  s_71df5dfa9701ea::t_6fbebf6eb648f9 302,304-307,309-310
+  s_71df5dfa9701ea::t_13e26346ab5dcb 333
+  s_71df5dfa9701ea::t_a43a59ad6300d5 18
+  s_71df5dfa9701ea::t_8c0c9a313d9301 659-667
+crates/ledger-api/src/engine.rs
+  s_71df5dfa9701ea::t_a5c20341d1ff67 166
+  s_71df5dfa9701ea::t_f1f6ccd9d4240b 363-365
+  s_71df5dfa9701ea::t_585dcfdc2c801a 380-382
+  s_71df5dfa9701ea::t_47ab5dd7ac7807 148-153
+  s_71df5dfa9701ea::t_fb63e54e0a8431 81-83,85-120
+  s_71df5dfa9701ea::t_ec12d1c7f0cf55 7,10-14,18,23-24
+  s_71df5dfa9701ea::t_ef4ff55a225b35 176-191,201
+  s_71df5dfa9701ea::t_4a2637c240c8f0 316-325,332-333
+  s_71df5dfa9701ea::t_63e6a6f6e74ef8 413-415,419-423
+  s_71df5dfa9701ea::t_878ff6f7725283 465-594,596-600
+  s_71df5dfa9701ea::t_4ac3b7c62ef630 424,647-719,726-727
+  s_71df5dfa9701ea::t_45909cdb38c2fb 25,425,720-725,728
+crates/ledger-jev/src/memo.rs
+  s_71df5dfa9701ea::t_af2acbf90c2a4e 144-145
+  s_71df5dfa9701ea::t_e3d3398de52481 134-143,146-172,174,177,180-183,186,189-192,195,197,200,203,206,209,216,219-222,224,227,229,234,237,239,241
+web/src/stream/reduce.ts
+  s_71df5dfa9701ea::t_4040958b714c71 105-133
+  s_71df5dfa9701ea::t_118a566fe925a5 11-13
+  s_71df5dfa9701ea::t_a7ee72aae1552e 96-98
+crates/ledger-core/src/live.rs
+  s_71df5dfa9701ea::t_d4ad82c947d496 37-41
+  s_71df5dfa9701ea::t_17dbb98536b721 467
+  s_71df5dfa9701ea::t_00b69402de4ac8 476-477,504-506,508
+  s_71df5dfa9701ea::t_8981afd86a28f5 663,665-675
+  s_71df5dfa9701ea::t_3d605470806f96 680-703,716-718
+  s_71df5dfa9701ea::t_cb27db6dd0472f 416,471-475,478-503,507,509-510
+  s_71df5dfa9701ea::t_4455d4cd86e9ec 396,403,407-415
+  s_71df5dfa9701ea::t_9943beeb93148c 704-715
+  s_71df5dfa9701ea::t_f466c5c7f47a08 168-193
+  s_71df5dfa9701ea::t_3c16a0a0e3f1ae 679,719-752,754-758
+  s_71df5dfa9701ea::t_fc18997729a899 664
+  s_71df5dfa9701ea::t_5a5762f3079d17 417,753
+crates/ledger-jev/src/lib.rs
+  s_71df5dfa9701ea::t_f2c872108a2f1d 27
+  s_71df5dfa9701ea::t_cc20a9bd18af46 45-49
+  s_71df5dfa9701ea::t_f871a28c5643ee 7-14
+crates/ledger-api/src/http.rs
+  s_71df5dfa9701ea::t_7716911cf4772e 64-96,104
+  s_71df5dfa9701ea::t_c154a441f44ad0 5
+  s_71df5dfa9701ea::t_4d49338a02394f 21-22
+  s_71df5dfa9701ea::t_527a5dc8f3bcb4 20
+crates/ledger-api/src/main.rs
+  s_71df5dfa9701ea::t_ce83105a987d3e 28
+  s_71df5dfa9701ea::t_54e4b630b97d77 5
+web/src/stream/types.ts
+  s_71df5dfa9701ea::t_6a69a834f9fc5e 26-42
+  s_71df5dfa9701ea::t_786e560d1b7ddd 73-77
+  s_71df5dfa9701ea::t_061edbb6b8e261 163-165
+web/src/verdicts/model.ts
+  s_71df5dfa9701ea::t_e4511c757cefdd 36-73
+  s_71df5dfa9701ea::t_5d47419339ed44 9
+web/src/styles.css
+  s_71df5dfa9701ea::t_d11a7c499d61ae 1284-1301
+web/src/verdicts/verdicts.tsx
+  s_71df5dfa9701ea::t_228e0c48de38f2 21,25,27
+  s_71df5dfa9701ea::t_6c78a23b93ada2 273-278,286-370
+  s_71df5dfa9701ea::t_47a200bf15b118 239
+web/src/verdicts/model.test.ts
+  s_71df5dfa9701ea::t_5d63c4b64b9b28 91-98,101-104,106-144
+  s_71df5dfa9701ea::t_76485582f7677a 4
+  s_71df5dfa9701ea::t_b358fea68b6b12 22-25
+  s_71df5dfa9701ea::t_eb96f74a698c75 99-100,105
+fixtures/jev/rerank-double-pay-request.json
+  s_71df5dfa9701ea::t_773a1cb717bbd5 1
+fixtures/jev/rerank-double-pay.json
+  s_71df5dfa9701ea::t_7f2a4d9b329a27 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1fe61e1b70fbfc14beeec6ad1ca97121b3f67f99",
+  "prompts": {},
+  "sessions": {
+    "s_71df5dfa9701ea": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "307f46c4-986c-451e-a408-7939fafb2fc1",
+        "model": "grok-4.7-high-fast"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    }
+  }
+}
