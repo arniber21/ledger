@@ -1,0 +1,23 @@
+Justfile
+  s_61e0b0c14d18f7::t_3b04532915f5ec 1-76
+.gitignore
+  s_61e0b0c14d18f7::t_0068d6ae29b434 6
+README.md
+  s_61e0b0c14d18f7::t_b5ce5dcc725b4a 44-45,47-50
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c7fa3299c9252e8b7a2f20222a860bbf168c4c0a",
+  "prompts": {},
+  "sessions": {
+    "s_61e0b0c14d18f7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c168cc53-67a2-4357-967a-c871924e2eec",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    }
+  }
+}
