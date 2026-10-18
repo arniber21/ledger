@@ -135,7 +135,7 @@ Cut order if time runs short: Solana polish, then Tiger Data, then Fetch. Keep I
 - **Sentry:** Logs + Tracing on Jev calls, the adapter, ingest and (required) the exchange; the same spans feed our ingest via OTel dual export; show one real failure found and fixed. Do not fake an incident.
 - **MLH Tiger Data:** real hypertable for live events and a substantive time-window SQL query visible in the demo or README.
 - **Gemini:** spec drafting.
-- Confirm Devpost rules before assuming multi-track eligibility.
+- Devpost rules checked 2026-10-18. See `docs/devpost.md` before assuming multi-track eligibility.
 
 ## 8. Non-goals
 
@@ -153,7 +153,7 @@ Cut order if time runs short: Solana polish, then Tiger Data, then Fetch. Keep I
 - Agentverse / ASI:One account and a public endpoint for the ACP agent.
 - `solana-test-validator` installed?
 - Sentinel `Event` field-by-field mapping from ledger events (first real code task).
-- Devpost: confirm multi-track rules and that pre-existing Sentinel code is allowed.
+- Devpost (checked 2026-10-18, `docs/devpost.md`): pick one thematic track; sponsor prizes are separate checkboxes on the submit form. Pre-existing Sentinel is not confirmed as allowed. `vendor/sentinel` is marked `license = "Proprietary"`, and the rules allow pre-existing work only when it is open source.
 
 ## 10. Decisions of 2026-10-18 (grill session)
 
