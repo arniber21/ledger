@@ -8,6 +8,7 @@ const GO = [
   { to: "/", label: "Dashboard", keys: "G D" },
   { to: "/inbox", label: "Inbox", keys: "" },
   { to: "/traces", label: "Traces", keys: "G T" },
+  { to: "/taint", label: "Semantic", keys: "G P" },
   { to: "/specs", label: "Specs", keys: "G S" },
   { to: "/verdicts", label: "Verdicts", keys: "G V" },
 ] as const;
@@ -17,7 +18,7 @@ export function Palette() {
     useShell();
   const navigate = useNavigate();
 
-  const go = (to: "/" | "/inbox" | "/traces" | "/specs" | "/verdicts") => {
+  const go = (to: "/" | "/inbox" | "/traces" | "/taint" | "/specs" | "/verdicts") => {
     closePalette();
     void navigate({ to });
   };

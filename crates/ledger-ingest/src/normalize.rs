@@ -232,6 +232,8 @@ fn ledger_event(
 fn ledger_kind(name: &str) -> Option<LedgerKind> {
     match name {
         "agent.pay_bill" | "ledger.agent.pay_bill" => Some(LedgerKind::AgentPayBill),
+        "agent.memo" | "ledger.agent.memo" => Some(LedgerKind::BillMemo),
+        "agent.decision" | "ledger.agent.decision" => Some(LedgerKind::AgentDecision),
         "ledger.exchange.settled" => Some(LedgerKind::ObligationSettled),
         "ledger.exchange.payment" => Some(LedgerKind::ExtraPayment),
         "ledger.exchange.credit" => Some(LedgerKind::Credit),
