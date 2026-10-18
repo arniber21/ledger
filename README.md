@@ -45,20 +45,40 @@ Other tasks: `just check`, `just test`, `just lint`, `just fmt`. Run `just` to l
 
 ## Tech stack
 
-| Layer | Technology | What it does here |
-| --- | --- | --- |
-| Language | Rust, Tokio | The exchange, agents, ingest, verification and API are one Cargo workspace of eight crates. |
-| Verification engine | Sentinel core (`vendor/sentinel`) | Compiles specs (precedence, response, absence-after, scoped per bill) and evaluates event streams incrementally. Verdicts carry reason codes and the matched evidence. |
-| Semantic judgments | **Jev**, TypeSafe's System One model | Typed yes/no and choice judgments on short structured inputs: vendor and bill identity resolution, memo predicates, checking a drafted spec against its sentence, and deciding when a monitor can be retired. Every input and output is stored and shown in the UI. |
-| Spec drafting | **Gemini** | Turns a plain-English policy into a draft pattern. Jev checks the draft against the sentence, and only valid patterns are accepted. |
-| Exchange | Rust limit-order book, `rust_decimal` | Order submission, matching and fills for a flour/USD pair. |
-| Settlement | **Solana** (`solana-test-validator`), SPL token transfers | Every fill settles as a token transfer on a local validator, and the transaction signature is attached to the trace. |
-| Observability | **Sentry** (Rust SDK, tracing and logs), OpenTelemetry | Traces, logs and error capture across the exchange, agents, ingest and Jev calls. One trace covers decision, order, fill and settlement. |
-| Storage | **TimescaleDB** (Postgres 16) via `sqlx` | Events live in a hypertable. The dashboard charts come from `time_bucket` queries. Verdicts and review status sit alongside. |
-| Data | **QuickBooks Hackathon 2026** (Intuit), company-001 | The real bills, vendors and payments the agents work through. Synthetic data, fetched by `just data`. |
-| API | HTTP and Server-Sent Events | Streams spans, spec-authoring steps and verdicts to the UI as they happen. |
-| Web UI | React, Vite, TypeScript, TanStack Router, Query and Table, `cmdk`, bun | Dashboard, inbox with three view modes, trace and verdict detail, live spec authoring, and a ⌘K command palette. |
-| Tooling | `just`, Docker Compose | Task runner and the local database. |
+- **Core** (Rust workspace, eight crates)
+  - Rust, Tokio
+  - `rust_decimal` for money, `serde` and `serde_yaml` for data
+- **Agents** (`ledger-agents`)
+  - Scripted buying agents for company-001
+  - Live fault injection: double payment, missing approval, budget breach, swapped vendor, hidden memo instruction
+- **Exchange** (`ledger-exchange`)
+  - Rust limit-order book for a flour/USD pair
+  - Solana: `solana-test-validator`, one SPL token transfer per fill
+  - Sentry tracing and logs on submit, match, fill and settlement
+- **Telemetry and ingest** (`ledger-ingest`)
+  - OpenTelemetry spans from agents and exchange
+  - Sentry (Rust SDK with tracing and logs) as one destination, our ingest as the other
+  - Normalization into events with source and causal links
+- **Verification** (`ledger-core`, `vendor/sentinel`)
+  - Sentinel core: compiles specs and evaluates event streams incrementally
+  - Spec patterns: precedence, response, absence-after, scoped per bill
+  - Verdicts: `Satisfy`, `Violate`, `Inconclusive`
+- **Semantic judgments** (`ledger-jev`, `ledger-spec`)
+  - Jev (TypeSafe System One): vendor and bill identity, memo predicates, spec-versus-sentence checks, monitor retirement
+  - Gemini: drafts specs from plain-English policies
+- **Storage** (`ledger-store`)
+  - TimescaleDB (Postgres 16): events hypertable, `time_bucket` queries
+  - `sqlx`
+- **API** (`ledger-api`)
+  - HTTP and Server-Sent Events
+- **Web UI** (`web/`)
+  - React, Vite, TypeScript, bun
+  - TanStack Router, Query and Table
+  - `cmdk` command palette
+- **Data**
+  - QuickBooks Hackathon 2026 (Intuit), company-001 bills, vendors and payments
+- **Tooling**
+  - `just`, Docker Compose
 
 ## Data
 
