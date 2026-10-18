@@ -24,9 +24,10 @@ use tokio::io::{AsyncRead, AsyncReadExt};
 use tokio::process::Command;
 
 /// Scenes `ledger-scene` accepts, in run-of-show order.
-const SCENES: [&str; 7] = [
+const SCENES: [&str; 8] = [
     "clean",
     "double-pay",
+    "no-approval",
     "hidden-memo",
     "vendor-alias",
     "recurring",
