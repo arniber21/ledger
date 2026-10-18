@@ -1,0 +1,35 @@
+web/src/shell/shell.tsx
+  s_61e0b0c14d18f7::t_54126565c0ef5e 10,76-87,89,206-207,223,225-226
+web/src/styles.css
+  s_61e0b0c14d18f7::t_464565c23fc360 1786-1815
+web/src/ui/confirm.tsx
+  s_61e0b0c14d18f7::t_a8188037195f05 1-117
+web/src/ui/hotkeys.test.ts
+  s_61e0b0c14d18f7::t_7d27f37ea95c02 1-8
+web/src/ui/hotkeys.ts
+  s_61e0b0c14d18f7::t_f28261a0728b22 1-156
+web/src/ui/index.ts
+  s_61e0b0c14d18f7::t_527100e812f3cf 1-5
+web/src/ui/optimistic.ts
+  s_61e0b0c14d18f7::t_94212d8c7aa2d0 1-38
+web/src/ui/shortcuts-help.tsx
+  s_61e0b0c14d18f7::t_bc41ff1c03521c 1-54
+web/src/ui/toast.tsx
+  s_61e0b0c14d18f7::t_90d42c8ada8907 1-149
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8a82fc72dcd63c0cd2fa6ec52efb762fb5e67a30",
+  "prompts": {},
+  "sessions": {
+    "s_61e0b0c14d18f7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c168cc53-67a2-4357-967a-c871924e2eec",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    }
+  }
+}
