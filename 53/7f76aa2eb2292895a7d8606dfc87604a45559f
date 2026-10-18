@@ -1,0 +1,21 @@
+CLAUDE.md
+  s_61e0b0c14d18f7::t_88429d5d89ce6c 17
+Cargo.toml
+  s_61e0b0c14d18f7::t_b1b50dcd2def3e 23
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "537f76aa2eb2292895a7d8606dfc87604a45559f",
+  "prompts": {},
+  "sessions": {
+    "s_61e0b0c14d18f7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c168cc53-67a2-4357-967a-c871924e2eec",
+        "model": "unknown"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    }
+  }
+}
