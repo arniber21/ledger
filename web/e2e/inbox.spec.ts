@@ -241,8 +241,8 @@ test("keyboard triage reviews, dismisses, and assigns without the pointer", asyn
   await page.keyboard.press("a");
   const menu = page.getByTestId("assign-menu");
   await expect(menu).toBeVisible();
-  await expect(menu.getByRole("button", { name: /Unassigned/ })).toBeVisible();
-  await expect(menu.getByRole("button", { name: /^ME\s*Me/ })).toBeVisible();
+  await expect(menu.getByRole("option", { name: /Unassigned/ })).toBeVisible();
+  await expect(menu.getByRole("option", { name: /^ME\s*Me/ })).toBeVisible();
   await expect(menu.locator("kbd", { hasText: "0" })).toBeVisible();
   await expect(menu.locator("kbd", { hasText: "1" })).toBeVisible();
   await page.keyboard.press("1");

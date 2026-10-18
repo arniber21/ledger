@@ -1,13 +1,11 @@
 import { Outlet, useNavigate, useRouter, useRouterState } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { inboxBridge } from "../inbox/bridge";
-import { mergeInboxSearch, rememberInboxView } from "../inbox/model";
 import { isSavedView } from "../stream/reduce";
 import type { InboxView, SavedView } from "../stream/types";
 import { useMetrics } from "../stream/use-metrics";
 import { ShellProvider, type ShellContextValue } from "./context";
 import { Palette } from "./palette";
-import { Shortcuts } from "./shortcuts";
+import { ConfirmProvider, ShortcutsHelp, ToastProvider, useHotkeys } from "../ui";
 import { Sidebar } from "./sidebar";
 
 function isTyping(event: KeyboardEvent): boolean {
@@ -73,26 +71,26 @@ export function Shell() {
     return () => window.clearTimeout(timer);
   }, [faultNotice]);
 
-  useEffect(() => {
-    let chord = false;
-    let timer = 0;
+  const go = (to: string) => void navigate({ to });
+  useHotkeys(
+    {
+      "g d": { handler: () => go("/"), description: "Go to Dashboard" },
+      "g i": { handler: () => go("/inbox"), description: "Go to Inbox" },
+      "g t": { handler: () => go("/traces"), description: "Go to Traces" },
+      "g p": { handler: () => go("/taint"), description: "Go to Taint" },
+      "g s": { handler: () => go("/specs"), description: "Go to Specs" },
+      "g v": { handler: () => go("/verdicts"), description: "Go to Verdicts" },
+    },
+    { scope: "Navigate", enabled: !paletteOpen },
+  );
 
+  useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
+      if (event.defaultPrevented) return;
       if (event.key === "k" && (event.metaKey || event.ctrlKey)) {
         event.preventDefault();
         setPaletteOpen(true);
         return;
-      }
-      const inbox = pathname === "/inbox" ? inboxBridge.current : null;
-      if (inbox?.assignOpen) {
-        const assigning =
-          event.key === "Escape" ||
-          event.key === "Enter" ||
-          (!isTyping(event) && (event.key === "0" || event.key === "1"));
-        if (assigning) {
-          inbox.onAssignKey(event);
-          return;
-        }
       }
       if (isTyping(event) || paletteOpen) return;
 
@@ -117,71 +115,7 @@ export function Shell() {
 
       if (shortcutsOpen) return;
 
-      if (event.key === "?") {
-        event.preventDefault();
-        setShortcutsOpen(true);
-        return;
-      }
-
       const key = event.key.toLowerCase();
-      if (key === "g" && !event.metaKey && !event.ctrlKey && !event.altKey) {
-        chord = true;
-        window.clearTimeout(timer);
-        timer = window.setTimeout(() => {
-          chord = false;
-        }, 1500);
-        return;
-      }
-
-      if (chord) {
-        chord = false;
-        const destination = {
-          d: "/",
-          i: "/inbox",
-          t: "/traces",
-          p: "/taint",
-          s: "/specs",
-          v: "/verdicts",
-        }[key];
-        if (destination) {
-          event.preventDefault();
-          void navigate({ to: destination });
-        }
-        return;
-      }
-
-      if (pathname === "/inbox" && (key === "1" || key === "2" || key === "3")) {
-        const view: InboxView = key === "1" ? "board" : key === "2" ? "list" : "split";
-        event.preventDefault();
-        rememberInboxView(view);
-        setInboxView(view);
-        void navigate({ to: "/inbox", search: (previous) => mergeInboxSearch(previous, { view }) });
-        return;
-      }
-
-      if (pathname === "/inbox" && event.key === "/") {
-        event.preventDefault();
-        inboxBridge.current?.focusFilter();
-        return;
-      }
-
-      if (pathname === "/inbox" && key === "d") {
-        event.preventDefault();
-        inboxBridge.current?.dismiss();
-        return;
-      }
-
-      if (pathname === "/inbox" && key === "a") {
-        event.preventDefault();
-        inboxBridge.current?.openAssign();
-        return;
-      }
-
-      if (pathname === "/inbox" && key === "e") {
-        event.preventDefault();
-        inboxBridge.current?.markReviewed();
-        return;
-      }
 
       const movingDown = key === "j" || (pathname === "/inbox" && event.key === "ArrowDown");
       const movingUp = key === "k" || (pathname === "/inbox" && event.key === "ArrowUp");
@@ -220,11 +154,12 @@ export function Shell() {
     window.addEventListener("keydown", onKey);
     return () => {
       window.removeEventListener("keydown", onKey);
-      window.clearTimeout(timer);
     };
   }, [navigate, paletteOpen, pathname, router.history, selectedId, shortcutsOpen, toggleReviewed]);
 
   return (
+    <ToastProvider>
+    <ConfirmProvider>
     <ShellProvider value={value}>
       <div className="shell" data-testid="shell">
         <div className="window">
@@ -240,7 +175,9 @@ export function Shell() {
         </div>
       </div>
       <Palette />
-      <Shortcuts />
+      <ShortcutsHelp />
     </ShellProvider>
+    </ConfirmProvider>
+    </ToastProvider>
   );
 }

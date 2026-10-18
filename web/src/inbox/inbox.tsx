@@ -13,7 +13,6 @@ import type { BindingLine } from "../stream/types";
 import { useShell } from "../shell/context";
 import { Header } from "../shell/header";
 import { BoardIcon, CheckIcon, FilterIcon, InboxIcon, ListIcon, SplitIcon } from "../shell/icons";
-import { inboxBridge } from "./bridge";
 import {
   TRIAGE_STATUSES,
   ageLabel,
@@ -50,7 +49,8 @@ import {
   type ItemGroup,
   type TriageStatus,
 } from "./model";
-import { useSetTriage, useTriage } from "./use-triage";
+import { useConfirm, useHotkeys, useToast } from "../ui";
+import { useSetTriage, useTriageQuery, type TriagePatch } from "./use-triage";
 
 const features = tableFeatures({
   columnFilteringFeature,
@@ -81,16 +81,37 @@ const WeightsContext = createContext(DEFAULT_RANK_WEIGHTS);
 export function InboxPage({ search }: { search: InboxSearch }) {
   const navigate = useNavigate();
   const { metrics, openPalette, setInboxView, selectedId, setSelectedId, registerFeed } = useShell();
-  const triage = useTriage();
+  const triageQuery = useTriageQuery();
+  const triage = useMemo(() => triageQuery.data ?? [], [triageQuery.data]);
   const setTriage = useSetTriage();
+  const toast = useToast();
+  const confirm = useConfirm();
+  const [checked, setChecked] = useState<ReadonlySet<string>>(() => new Set());
+  const [known, setKnown] = useState<ReadonlySet<string> | null>(null);
+  const [fresh, setFresh] = useState<ReadonlySet<string>>(() => new Set());
+  const [announce, setAnnounce] = useState("");
+  const assignRef = useRef<HTMLInputElement>(null);
+  const [assignIndex, setAssignIndex] = useState(0);
   const query = queryFromSearch(search);
   const [sliders, setSliders] = useState<RankSliders>(() => storedRankSliders());
   const [weightsOpen, setWeightsOpen] = useState(false);
   const weights = useMemo(() => weightsFromSliders(sliders), [sliders]);
-  const prepared = useMemo(
+  const full = useMemo(
     () => prepareInbox(metrics.verdicts, triage, query, weights),
     [metrics.verdicts, triage, query, weights],
   );
+  // While a cursor is active, verdicts that arrive live wait behind an "N new" pill so the
+  // list does not move under the cursor. With no cursor they join at once and flash.
+  const frozen = known !== null && selectedId !== null;
+  const prepared = useMemo(
+    () =>
+      frozen && known
+        ? prepareInbox(metrics.verdicts.filter((verdict) => known.has(verdict.id)), triage, query, weights)
+        : full,
+    [frozen, known, metrics.verdicts, triage, query, weights, full],
+  );
+  const pendingNew = frozen && known ? full.items.filter((item) => !known.has(item.verdict.id)).length : 0;
+  const fullIdKey = full.items.map((item) => item.verdict.id).join("|");
   const view = search.view ?? storedInboxView() ?? "board";
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(() => new Set());
   const [adding, setAdding] = useState(false);
@@ -98,7 +119,6 @@ export function InboxPage({ search }: { search: InboxSearch }) {
   const [assignQuery, setAssignQuery] = useState("");
   const [anchor, setAnchor] = useState({ top: 120, left: 280 });
   const [dropStatus, setDropStatus] = useState<TriageStatus | null>(null);
-  const [statusError, setStatusError] = useState<string | null>(null);
   const filterRef = useRef<HTMLInputElement>(null);
   const addRef = useRef<HTMLDivElement>(null);
   const weightsRef = useRef<HTMLDivElement>(null);
@@ -109,6 +129,32 @@ export function InboxPage({ search }: { search: InboxSearch }) {
   const active = items.find((item) => item.verdict.id === selectedId) ?? null;
   const calm = prepared.attention === 0 && !search.dismissed && !hasInboxFilters(search);
   const feedKey = orderedIds(view, items, groups, collapsed).join("|");
+
+  useEffect(() => {
+    if (metrics.verdicts.length === 0 && known === null) return;
+    if (known === null) {
+      setKnown(new Set(full.items.map((item) => item.verdict.id)));
+      return;
+    }
+    if (!frozen) {
+      const arrived = full.items.map((item) => item.verdict.id).filter((id) => !known.has(id));
+      if (arrived.length === 0) return;
+      setKnown(new Set(full.items.map((item) => item.verdict.id)));
+      setFresh(new Set(arrived));
+      const timer = window.setTimeout(() => setFresh(new Set()), 2600);
+      return () => window.clearTimeout(timer);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fullIdKey, frozen]);
+
+  function showNew() {
+    if (!known) return;
+    const arrived = full.items.map((item) => item.verdict.id).filter((id) => !known.has(id));
+    setKnown(new Set(full.items.map((item) => item.verdict.id)));
+    setFresh(new Set(arrived));
+    window.setTimeout(() => setFresh(new Set()), 2600);
+    setAnnounce(`${arrived.length} new ${arrived.length === 1 ? "verdict" : "verdicts"} added`);
+  }
 
   const agents = useMemo(() => {
     const names = new Set<string>();
@@ -135,15 +181,24 @@ export function InboxPage({ search }: { search: InboxSearch }) {
   }, [feedKey, registerFeed]);
 
   useEffect(() => {
-    if (!statusError) return;
-    const timer = window.setTimeout(() => setStatusError(null), 4000);
-    return () => window.clearTimeout(timer);
-  }, [statusError]);
-
-  useEffect(() => {
     if (!selectedId) return;
-    document.querySelector(`[data-inbox-id="${CSS.escape(selectedId)}"]`)?.scrollIntoView({ block: "nearest" });
-  }, [selectedId, view]);
+    const node = document.querySelector(`[data-inbox-id="${CSS.escape(selectedId)}"]`);
+    if (!(node instanceof HTMLElement)) return;
+    node.scrollIntoView({ block: "nearest" });
+    const focused = document.activeElement;
+    const free = !focused || focused === document.body || focused.closest("[data-inbox-id]") !== null;
+    if (free) node.focus({ preventScroll: true });
+  }, [selectedId, view, feedKey]);
+
+  // Drop checked ids that left the list. The cursor itself survives refreshes.
+  useEffect(() => {
+    setChecked((current) => {
+      if (current.size === 0) return current;
+      const live = new Set(full.items.map((item) => item.verdict.id));
+      const next = new Set([...current].filter((id) => live.has(id)));
+      return next.size === current.size ? current : next;
+    });
+  }, [fullIdKey]);
 
   useEffect(() => {
     if (!adding && !weightsOpen) return;
@@ -174,36 +229,109 @@ export function InboxPage({ search }: { search: InboxSearch }) {
     patchSearch({ view: next });
   }
 
-  function write(item: InboxItem, status: TriageStatus, assignee: string | null) {
-    if (!isUuid(item.verdict.id)) {
-      setStatusError("This verdict is not in the store, so its status was not saved.");
+  function targets(): InboxItem[] {
+    if (checked.size > 0) return items.filter((item) => checked.has(item.verdict.id));
+    return active ? [active] : [];
+  }
+
+  function nextSelection(acted: readonly InboxItem[]): string | null {
+    const ids = feedKey.length === 0 ? [] : feedKey.split("|");
+    const gone = new Set(acted.map((item) => item.verdict.id));
+    const anchorIndex = Math.max(...acted.map((item) => ids.indexOf(item.verdict.id)));
+    const after = ids.slice(anchorIndex + 1).find((id) => !gone.has(id));
+    return after ?? [...ids].reverse().find((id) => !gone.has(id)) ?? null;
+  }
+
+  async function apply(
+    acted: readonly InboxItem[],
+    change: (item: InboxItem) => { status: TriageStatus; assignee: string | null },
+    message: (count: number) => string,
+    advance: boolean,
+  ) {
+    if (acted.length === 0) return;
+    const unsaved = acted.find((item) => !isUuid(item.verdict.id));
+    if (unsaved) {
+      toast.push({ tone: "error", message: "This verdict is not in the store, so its status was not saved." });
       return;
     }
-    setTriage.mutate(
-      { verdictId: item.verdict.id, status, assignee },
-      {
-        onError: (error) => {
-          setStatusError(error instanceof Error ? error.message : "Status was not saved.");
-        },
+    if (acted.length > 5) {
+      const ok = await confirm({
+        title: message(acted.length),
+        body: `This changes ${acted.length} verdicts at once. You can undo it afterwards.`,
+        confirmLabel: "Apply",
+      });
+      if (!ok) return;
+    }
+    const patches: TriagePatch[] = acted.map((item) => ({ verdictId: item.verdict.id, ...change(item) }));
+    const before: TriagePatch[] = acted.map((item) => ({
+      verdictId: item.verdict.id,
+      status: item.status,
+      assignee: item.assignee,
+    }));
+    const next = advance ? nextSelection(acted) : null;
+    for (const patch of patches) setTriage.mutate(patch);
+    setChecked(new Set());
+    if (advance) setSelectedId(next);
+    setAnnounce(message(acted.length));
+    toast.push({
+      tone: "success",
+      message: message(acted.length),
+      undo: () => {
+        for (const patch of before) setTriage.mutate(patch);
+        if (acted[0]) setSelectedId(acted[0].verdict.id);
       },
-    );
+    });
   }
 
   function markReviewed() {
-    if (!active) return;
-    write(active, "Confirmed", active.assignee);
+    void apply(targets(), (item) => ({ status: "Confirmed", assignee: item.assignee }), (n) => (n === 1 ? "Marked reviewed" : `Marked ${n} reviewed`), true);
   }
 
   function dismiss() {
-    if (!active) return;
-    write(active, "Dismissed", active.assignee);
+    void apply(targets(), (item) => ({ status: "Dismissed", assignee: item.assignee }), (n) => (n === 1 ? "Dismissed" : `Dismissed ${n}`), true);
   }
 
   function assignTo(assignee: string | null) {
-    if (!active) return;
-    write(active, active.status, assignee);
+    const acted = targets();
     setAssignOpen(false);
     setAssignQuery("");
+    void apply(
+      acted,
+      (item) => ({ status: item.status, assignee }),
+      (n) => `${assignee ? "Assigned to " + assignee : "Unassigned"}${n === 1 ? "" : ` (${n})`}`,
+      false,
+    );
+    refocusActive();
+  }
+
+  function refocusActive() {
+    window.setTimeout(() => {
+      if (selectedId) document.querySelector<HTMLElement>(`[data-inbox-id="${CSS.escape(selectedId)}"]`)?.focus({ preventScroll: true });
+    }, 0);
+  }
+
+  function toggleChecked(id: string) {
+    setChecked((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function extend(delta: 1 | -1) {
+    const ids = feedKey.length === 0 ? [] : feedKey.split("|");
+    if (ids.length === 0) return;
+    const index = selectedId ? ids.indexOf(selectedId) : -1;
+    const target = ids[Math.min(ids.length - 1, Math.max(0, index === -1 ? 0 : index + delta))];
+    if (!target) return;
+    setChecked((current) => {
+      const next = new Set(current);
+      if (selectedId) next.add(selectedId);
+      next.add(target);
+      return next;
+    });
+    setSelectedId(target);
   }
 
   function openAssignAt(item: InboxItem, node: HTMLElement) {
@@ -225,49 +353,90 @@ export function InboxPage({ search }: { search: InboxSearch }) {
     }
   }
 
-  function onAssignKey(event: KeyboardEvent) {
+  const assignOptions: { id: string; label: string; value: string | null; key: string; avatar: string }[] = [
+    { id: "none", label: "Unassigned", value: null, key: "0", avatar: "—" },
+    { id: "me", label: "Me", value: "me", key: "1", avatar: "ME" },
+  ].filter((option) => {
+    const text = assignQuery.trim().toLowerCase();
+    return text.length === 0 || option.label.toLowerCase().includes(text);
+  });
+
+  function onAssignKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
+    event.stopPropagation();
     if (event.key === "Escape") {
       event.preventDefault();
       setAssignOpen(false);
-      return;
-    }
-    if (event.key === "Enter") {
+      refocusActive();
+    } else if (event.key === "ArrowDown" || (event.key === "n" && event.ctrlKey)) {
       event.preventDefault();
-      const queryText = assignQuery.trim().toLowerCase();
-      assignTo(queryText.length === 0 || "me".includes(queryText) ? "me" : null);
-      return;
-    }
-    if (event.key === "0") {
+      setAssignIndex((i) => (assignOptions.length === 0 ? 0 : (i + 1) % assignOptions.length));
+    } else if (event.key === "ArrowUp" || (event.key === "p" && event.ctrlKey)) {
       event.preventDefault();
-      assignTo(null);
-      return;
-    }
-    if (event.key === "1") {
+      setAssignIndex((i) => (assignOptions.length === 0 ? 0 : (i - 1 + assignOptions.length) % assignOptions.length));
+    } else if (event.key === "Enter") {
       event.preventDefault();
-      assignTo("me");
+      const option = assignOptions[Math.min(assignIndex, assignOptions.length - 1)];
+      if (option) assignTo(option.value);
+    } else if (assignQuery === "" && (event.key === "0" || event.key === "1")) {
+      event.preventDefault();
+      assignTo(event.key === "0" ? null : "me");
     }
   }
 
-  // The bridge is restored in the effect. A render-only write is cleared by
-  // Strict Mode's simulated unmount, and Esc back to the inbox would then ignore e, d, and a.
   useEffect(() => {
-    inboxBridge.current = {
-      assignOpen,
-      onAssignKey,
-      markReviewed,
-      dismiss,
-      openAssign,
-      focusFilter: () => filterRef.current?.focus(),
+    if (assignOpen) {
+      setAssignIndex(0);
+      assignRef.current?.focus();
+    }
+  }, [assignOpen]);
+
+  useEffect(() => setAssignIndex(0), [assignQuery]);
+
+  useEffect(() => {
+    if (!assignOpen) return;
+    const onPointer = (event: PointerEvent) => {
+      if (!(event.target as HTMLElement).closest(".assign-menu")) setAssignOpen(false);
     };
-    return () => {
-      inboxBridge.current = null;
-    };
-  });
+    window.addEventListener("pointerdown", onPointer);
+    return () => window.removeEventListener("pointerdown", onPointer);
+  }, [assignOpen]);
+
+  const noSelection = !active && checked.size === 0;
+  useHotkeys(
+    {
+      e: { handler: markReviewed, description: "Mark reviewed (selection or checked)" },
+      d: { handler: dismiss, description: "Dismiss" },
+      a: { handler: () => (noSelection ? undefined : openAssign()), description: "Assign" },
+      x: { handler: () => active && toggleChecked(active.verdict.id), description: "Check item for bulk action" },
+      "shift+j": { handler: () => extend(1), description: "Extend checked range down" },
+      "shift+k": { handler: () => extend(-1), description: "Extend checked range up" },
+      "mod+a": { handler: () => setChecked(new Set(feedKey.length === 0 ? [] : feedKey.split("|"))), description: "Check everything" },
+      ...(checked.size > 0
+        ? {
+            "!escape": {
+              handler: () => {
+                setChecked(new Set());
+                setAnnounce("Selection cleared");
+              },
+              hidden: true,
+            },
+          }
+        : {}),
+      "1": { handler: () => selectView("board"), description: "Board view" },
+      "2": { handler: () => selectView("list"), description: "List view" },
+      "3": { handler: () => selectView("split"), description: "Split view" },
+      "/": { handler: () => filterRef.current?.focus(), description: "Focus the filter" },
+      j: { passive: true, description: "Move down" },
+      k: { passive: true, description: "Move up" },
+      enter: { passive: true, description: "Open the selected verdict" },
+      escape: { passive: true, description: "Clear checks, then selection" },
+    },
+    { scope: "Inbox", enabled: !assignOpen },
+  );
 
   const meta = calm ? "Nothing needs attention" : `${prepared.attention} need attention`;
   const chips = filterChips(search);
-  const showMe = assignQuery.trim().length === 0 || "me".includes(assignQuery.trim().toLowerCase());
-
+  
   return (
     <WeightsContext.Provider value={weights}>
       <Header
@@ -297,10 +466,30 @@ export function InboxPage({ search }: { search: InboxSearch }) {
           </div>
         }
       />
-      {statusError ? (
-        <p className="notice" role="status">
-          {statusError}
+      <p className="sr-only" role="status" aria-live="polite" data-testid="inbox-live">
+        {announce || `${items.length} ${items.length === 1 ? "verdict" : "verdicts"}${checked.size ? `, ${checked.size} checked` : ""}`}
+      </p>
+      {triageQuery.isError ? (
+        <p className="notice" role="alert">
+          Status is unavailable, so changes may not show.{" "}
+          <button type="button" className="tool" onClick={() => void triageQuery.refetch()}>
+            Retry
+          </button>
         </p>
+      ) : null}
+      {pendingNew > 0 ? (
+        <button type="button" className="new-pill" data-testid="new-pill" onClick={showNew}>
+          {pendingNew} new
+        </button>
+      ) : null}
+      {checked.size > 0 ? (
+        <div className="bulk-bar" data-testid="bulk-bar" role="toolbar" aria-label="Bulk actions">
+          <span>{checked.size} checked</span>
+          <button type="button" className="tool" onClick={markReviewed}>Mark reviewed <kbd>E</kbd></button>
+          <button type="button" className="tool" onClick={dismiss}>Dismiss <kbd>D</kbd></button>
+          <button type="button" className="tool" onClick={openAssign}>Assign <kbd>A</kbd></button>
+          <button type="button" className="tool" onClick={() => setChecked(new Set())}>Clear <kbd>Esc</kbd></button>
+        </div>
       ) : null}
       <div className="content content-fill inbox-page" data-testid="inbox-mode" data-view={view}>
         {calm ? (
@@ -345,6 +534,8 @@ export function InboxPage({ search }: { search: InboxSearch }) {
               <Board
                 items={items}
                 selectedId={selectedId}
+                checked={checked}
+                fresh={fresh}
                 dropStatus={dropStatus}
                 now={now}
                 onSelect={setSelectedId}
@@ -353,7 +544,7 @@ export function InboxPage({ search }: { search: InboxSearch }) {
                 onDrop={(status, id) => {
                   const item = items.find((entry) => entry.verdict.id === id);
                   if (!item || item.status === status) return;
-                  write(item, status, item.assignee);
+                  void apply([item], () => ({ status, assignee: item.assignee }), () => `Moved to ${status}`, false);
                 }}
               />
             ) : view === "list" ? (
@@ -362,6 +553,8 @@ export function InboxPage({ search }: { search: InboxSearch }) {
                 group={query.group}
                 collapsed={collapsed}
                 selectedId={selectedId}
+                checked={checked}
+                fresh={fresh}
                 now={now}
                 onToggle={(key) => {
                   setCollapsed((current) => {
@@ -389,10 +582,10 @@ export function InboxPage({ search }: { search: InboxSearch }) {
         )}
       </div>
       <footer className="hintbar">
-        <span>J and K move · Enter opens · E marks reviewed · D dismisses · A assigns</span>
-        <span>1, 2, 3 switch view · / filters</span>
+        <span>J and K move · X checks · Enter opens · E marks reviewed · D dismisses · A assigns · Z undoes</span>
+        <span>1, 2, 3 switch view · / filters · ? all shortcuts</span>
       </footer>
-      {assignOpen && active ? (
+      {assignOpen && (active || checked.size > 0) ? (
         <div
           className="assign-menu"
           role="dialog"
@@ -401,26 +594,38 @@ export function InboxPage({ search }: { search: InboxSearch }) {
           style={{ top: anchor.top, left: anchor.left }}
         >
           <input
+            ref={assignRef}
             className="inbox-query"
             value={assignQuery}
             placeholder="Search people"
             aria-label="Search people"
+            role="combobox"
+            aria-expanded="true"
+            aria-controls="assign-options"
+            aria-activedescendant={assignOptions[assignIndex] ? `assign-${assignOptions[assignIndex].id}` : undefined}
             onChange={(event) => setAssignQuery(event.target.value)}
+            onKeyDown={onAssignKeyDown}
           />
-          <button type="button" onClick={() => assignTo(null)}>
-            <span className="avatar">—</span>
-            <span>Unassigned</span>
-            <kbd>0</kbd>
-          </button>
-          {showMe ? (
-            <button type="button" onClick={() => assignTo("me")}>
-              <span className="avatar">ME</span>
-              <span>Me</span>
-              <kbd>1</kbd>
-            </button>
-          ) : (
-            <p className="assign-empty">No one matches</p>
-          )}
+          <div id="assign-options" role="listbox" aria-label="People">
+            {assignOptions.map((option, index) => (
+              <button
+                key={option.id}
+                id={`assign-${option.id}`}
+                type="button"
+                role="option"
+                tabIndex={-1}
+                aria-selected={index === assignIndex}
+                data-active={index === assignIndex || undefined}
+                onMouseEnter={() => setAssignIndex(index)}
+                onClick={() => assignTo(option.value)}
+              >
+                <span className="avatar">{option.avatar}</span>
+                <span>{option.label}</span>
+                <kbd>{option.key}</kbd>
+              </button>
+            ))}
+          </div>
+          {assignOptions.length === 0 ? <p className="assign-empty">No one matches</p> : null}
         </div>
       ) : null}
     </WeightsContext.Provider>
@@ -611,6 +816,8 @@ function InboxToolbar({
 function Board({
   items,
   selectedId,
+  checked,
+  fresh,
   dropStatus,
   now,
   onSelect,
@@ -620,6 +827,8 @@ function Board({
 }: {
   items: readonly InboxItem[];
   selectedId: string | null;
+  checked: ReadonlySet<string>;
+  fresh: ReadonlySet<string>;
   dropStatus: TriageStatus | null;
   now: number;
   onSelect: (id: string) => void;
@@ -652,16 +861,20 @@ function Board({
               <span className="column-count">{rows.length}</span>
             </h2>
             {rows.length === 0 ? <p className="column-empty">Nothing here</p> : null}
+            <div role="listbox" aria-multiselectable="true" aria-label={`${status}, ${rows.length}`} className="column-list">
             {rows.map((item) => (
               <Card
                 key={item.verdict.id}
                 item={item}
                 selected={item.verdict.id === selectedId}
+                checked={checked.has(item.verdict.id)}
+                fresh={fresh.has(item.verdict.id)}
                 now={now}
                 onSelect={() => onSelect(item.verdict.id)}
                 onOpenAssign={onOpenAssign}
               />
             ))}
+            </div>
           </section>
         );
       })}
@@ -672,12 +885,16 @@ function Board({
 function Card({
   item,
   selected,
+  checked,
+  fresh,
   now,
   onSelect,
   onOpenAssign,
 }: {
   item: InboxItem;
   selected: boolean;
+  checked: boolean;
+  fresh: boolean;
   now: number;
   onSelect: () => void;
   onOpenAssign: (item: InboxItem, node: HTMLElement) => void;
@@ -685,16 +902,15 @@ function Card({
   const chip = jevChip(item.verdict, useContext(WeightsContext));
   return (
     <div
-      role="button"
-      tabIndex={0}
+      role="option"
+      aria-selected={selected || checked}
+      aria-label={`${cardTitle(item.verdict)}, ${item.status}`}
+      tabIndex={selected ? 0 : -1}
       draggable
-      className={selected ? "card is-selected" : "card"}
+      className={`card${selected ? " is-selected" : ""}${checked ? " is-checked" : ""}${fresh ? " is-fresh" : ""}`}
       data-testid={`inbox-item-${item.verdict.id}`}
       data-inbox-id={item.verdict.id}
       onClick={onSelect}
-      onKeyDown={(event) => {
-        if (event.key === "Enter") onSelect();
-      }}
       onDragStart={(event: DragEvent<HTMLDivElement>) => {
         event.dataTransfer.setData("text/plain", item.verdict.id);
         event.dataTransfer.effectAllowed = "move";
@@ -739,6 +955,8 @@ function InboxList({
   group,
   collapsed,
   selectedId,
+  checked,
+  fresh,
   now,
   onToggle,
   onSelect,
@@ -748,6 +966,8 @@ function InboxList({
   group: InboxGroupBy;
   collapsed: ReadonlySet<string>;
   selectedId: string | null;
+  checked: ReadonlySet<string>;
+  fresh: ReadonlySet<string>;
   now: number;
   onToggle: (key: string) => void;
   onSelect: (id: string) => void;
@@ -769,6 +989,12 @@ function InboxList({
     estimateSize: () => 44,
     overscan: 8,
   });
+  useEffect(() => {
+    if (!selectedId) return;
+    const index = flat.findIndex((row) => row.kind === "item" && row.item.verdict.id === selectedId);
+    if (index >= 0) virtualizer.scrollToIndex(index, { align: "auto" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedId]);
 
   return (
     <div className="inbox-list" data-testid="inbox-list">
@@ -783,7 +1009,7 @@ function InboxList({
         <span>Assignee</span>
       </div>
       <div className="list-scroll" ref={parentRef}>
-      <div className="list-virtual" style={{ height: virtualizer.getTotalSize() }}>
+      <div className="list-virtual" role="listbox" aria-multiselectable="true" aria-label="Verdicts" style={{ height: virtualizer.getTotalSize() }}>
         {virtualizer.getVirtualItems().map((virtual) => {
           const row = flat[virtual.index];
           if (!row) return null;
@@ -803,15 +1029,13 @@ function InboxList({
           return (
             <div key={item.verdict.id} className="list-slot" style={{ transform: `translateY(${virtual.start}px)` }} ref={virtualizer.measureElement} data-index={virtual.index}>
               <div
-                role="button"
-                tabIndex={0}
-                className={item.verdict.id === selectedId ? "list-row is-selected" : "list-row"}
+                role="option"
+                aria-selected={item.verdict.id === selectedId || checked.has(item.verdict.id)}
+                tabIndex={item.verdict.id === selectedId ? 0 : -1}
+                className={`list-row${item.verdict.id === selectedId ? " is-selected" : ""}${checked.has(item.verdict.id) ? " is-checked" : ""}${fresh.has(item.verdict.id) ? " is-fresh" : ""}`}
                 data-testid={`inbox-item-${item.verdict.id}`}
                 data-inbox-id={item.verdict.id}
                 onClick={() => onSelect(item.verdict.id)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") onSelect(item.verdict.id);
-                }}
               >
                 <span className={`dot dot-${item.verdict.outcome}`} title={outcomeLabel(item.verdict.outcome)} />
                 <span className="mono" title={item.verdict.id}>{shortId(item.verdict.id)}</span>
@@ -872,11 +1096,13 @@ function Split({
   const preview = selected ?? items[0] ?? null;
   return (
     <div className="split" data-testid="inbox-split">
-      <ul className="feed">
+      <ul className="feed" role="listbox" aria-label="Verdicts">
         {items.map((item) => (
           <li key={item.verdict.id}>
             <button
               type="button"
+              role="option"
+              aria-selected={preview?.verdict.id === item.verdict.id}
               className={preview?.verdict.id === item.verdict.id ? "row is-selected" : "row"}
               data-testid={`inbox-item-${item.verdict.id}`}
               data-inbox-id={item.verdict.id}
