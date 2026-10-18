@@ -1,0 +1,56 @@
+crates/ledger-api/tests/stream.rs
+  s_209d5838e40c0f::t_bbd5c41da19f0a 60
+  s_209d5838e40c0f::t_834a06ad427a84 128-133
+web/src/stream/types.ts
+  s_209d5838e40c0f::t_450ef1339ef7c2 81-82
+  s_209d5838e40c0f::t_b4934e3d125567 174
+crates/ledger-scene/src/play.rs
+  s_209d5838e40c0f::t_888d283a1cb26d 353
+web/src/inbox/model.test.ts
+  s_209d5838e40c0f::t_24dcf9d954a4db 5-7
+  s_209d5838e40c0f::t_e28b061f2a07b6 210-272
+crates/ledger-api/src/engine.rs
+  s_209d5838e40c0f::t_ceb25445eaa790 218
+  s_209d5838e40c0f::t_9aeb8d24573629 511
+  s_209d5838e40c0f::t_14378bc534aa98 602
+  s_209d5838e40c0f::t_cfb22094733e82 195-196
+  s_209d5838e40c0f::t_b19b3dba6c3b22 418-424
+  s_209d5838e40c0f::t_2455ed8806017b 717
+  s_209d5838e40c0f::t_ea4f050c6538d9 87-89
+  s_209d5838e40c0f::t_5bd6f400c671bd 569
+  s_209d5838e40c0f::t_3af39fe3bf01af 350-356
+  s_209d5838e40c0f::t_88286197993d1f 546
+  s_209d5838e40c0f::t_f33138a8c3475a 254
+  s_209d5838e40c0f::t_5c91fe2b178973 483
+web/src/inbox/inbox.tsx
+  s_209d5838e40c0f::t_19ddda4628e4d6 22
+  s_209d5838e40c0f::t_d9856686342ed4 879
+  s_209d5838e40c0f::t_e95e93becdf1b0 697,701-702
+  s_209d5838e40c0f::t_6dbcc7bfdedca1 801,804-805
+  s_209d5838e40c0f::t_4765830a8a7920 870
+crates/ledger-api/src/rank.rs
+  s_209d5838e40c0f::t_02ad18633ca94b 190
+web/src/styles.css
+  s_209d5838e40c0f::t_8931253cdafc7a 1551-1559
+web/src/stream/reduce.ts
+  s_209d5838e40c0f::t_2b90712709db88 92
+web/src/inbox/model.ts
+  s_209d5838e40c0f::t_16450d843546aa 291-294,296-314
+  s_209d5838e40c0f::t_022d2340524779 333-342
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3ab9314c0bb2e8b3b55100289c17e1d4a1c828d4",
+  "prompts": {},
+  "sessions": {
+    "s_209d5838e40c0f": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "1490ed47-4430-4105-8dd3-54d7b365c996",
+        "model": "grok-4.7-high-fast"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    }
+  }
+}
