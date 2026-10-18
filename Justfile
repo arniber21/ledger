@@ -3,6 +3,9 @@
 
 set dotenv-load := true
 set shell := ["bash", "-euo", "pipefail", "-c"]
+set export := true
+
+PATH := env_var("HOME") + "/.local/share/solana/install/active_release/bin:" + env_var("HOME") + "/.local/bin:" + env_var("PATH")
 
 validator_dir := ".ledger/validator"
 

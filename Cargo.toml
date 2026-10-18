@@ -18,9 +18,9 @@ publish = false
 
 [workspace.dependencies]
 # Pre-existing Sentinel code, consumed by path (see README "Disclosure").
-sentinel-model = { path = "../../Desktop/emet/sentinel/model" }
-sentinel-compile = { path = "../../Desktop/emet/sentinel/compile" }
-sentinel-core = { path = "../../Desktop/emet/sentinel/core" }
+sentinel-model = { path = "/Users/arnabghosh/Desktop/emet/sentinel/model" }
+sentinel-compile = { path = "/Users/arnabghosh/Desktop/emet/sentinel/compile" }
+sentinel-core = { path = "/Users/arnabghosh/Desktop/emet/sentinel/core" }
 
 ledger-core = { path = "crates/ledger-core" }
 ledger-exchange = { path = "crates/ledger-exchange" }

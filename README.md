@@ -52,6 +52,6 @@ just demo         # everything, once #19 lands
 
 ## Disclosure
 
-- **Sentinel is pre-existing code** (`sentinel-model`, `sentinel-compile`, `sentinel-core`), consumed as a path dependency from `../../Desktop/emet/sentinel` and not copied into this repo. All code in this repository is new work with a dated commit history.
+- **Sentinel is pre-existing code** (`sentinel-model`, `sentinel-compile`, `sentinel-core`), consumed as a path dependency from `/Users/arnabghosh/Desktop/emet/sentinel` (absolute, so git worktrees build too) and not copied into this repo. All code in this repository is new work with a dated commit history.
 - **Dataset:** QuickBooks-Hackathon-2026, synthetic. Any modification to it will be listed here. The `hidden/` ground truth is not used.
 - **Jev:** thresholds are fixed before looking at results; probabilities are scores, not calibrated confidence. Failures and timeouts become `Inconclusive`. Any Jev failures observed will be listed here.
