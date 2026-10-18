@@ -1,0 +1,23 @@
+crates/ledger-api/src/test_api.rs
+  s_61e0b0c14d18f7::t_3d84d0a1131437 27,30
+crates/ledger-scene/src/play.rs
+  s_61e0b0c14d18f7::t_27d2dcf9a65ed1 164,181,440-490
+web/e2e/faults.spec.ts
+  s_61e0b0c14d18f7::t_ada4745955223e 1-203
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4b17035d67a49810377608618a6342ccf37d6cad",
+  "prompts": {},
+  "sessions": {
+    "s_61e0b0c14d18f7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c168cc53-67a2-4357-967a-c871924e2eec",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    }
+  }
+}
