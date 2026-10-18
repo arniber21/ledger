@@ -11,9 +11,19 @@ ledger-ingest.workspace = true
 ledger-store.workspace = true
 anyhow.workspace = true
 axum = "0.8"
+chrono = { workspace = true, features = ["clock", "serde"] }
+futures = "0.3"
+rust_decimal.workspace = true
+serde.workspace = true
 serde_json.workspace = true
+thiserror.workspace = true
 tokio.workspace = true
 tokio-stream = { version = "0.1", features = ["sync"] }
+tracing.workspace = true
+tracing-subscriber.workspace = true
+uuid = { version = "1", features = ["serde", "v5"] }
 
 [dev-dependencies]
+ledger-ingest.workspace = true
+tokio.workspace = true
 tower = { version = "0.5", features = ["util"] }
