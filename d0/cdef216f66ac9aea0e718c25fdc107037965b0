@@ -1,0 +1,84 @@
+crates/ledger-core/src/source.rs
+  s_8d291ac86c42f6::t_df402997e405a0 62-64
+  s_8d291ac86c42f6::t_8dad813d282d80 23
+  s_8d291ac86c42f6::t_be7f3e2841ddc3 109
+  s_8d291ac86c42f6::t_408a49ef09270e 70
+  s_8d291ac86c42f6::t_32e74db89bc2e7 119
+  s_8d291ac86c42f6::t_247a1504a1ccd6 82
+  s_8d291ac86c42f6::t_b39755cdb2558b 44-46
+  s_8d291ac86c42f6::t_67dcaa45873cdc 32,34
+crates/ledger-jev/src/lib.rs
+  s_8d291ac86c42f6::t_c3c40ad70d0603 77,82-83,85,89,92-94,96-102,104-107,109,119,121-125,128
+  s_8d291ac86c42f6::t_ae150fbb853363 305-326
+  s_8d291ac86c42f6::t_5a075b58cfb5d3 103
+  s_8d291ac86c42f6::t_62f95f074e61fd 95
+  s_8d291ac86c42f6::t_e06761a3b4bbbe 120
+  s_8d291ac86c42f6::t_49ce3aadc208b7 84
+  s_8d291ac86c42f6::t_4ab91e37cff495 304
+crates/ledger-spec/src/lib.rs
+  s_8d291ac86c42f6::t_bce216add10070 2-20
+  s_8d291ac86c42f6::t_0a9a8319d94678 21-22
+crates/ledger-spec/src/monitor.rs
+  s_8d291ac86c42f6::t_a08eeb4926e521 1-202,204-327
+  s_8d291ac86c42f6::t_8deb4368ec5609 203
+  s_8d291ac86c42f6::t_60285083948f4e 328-332
+crates/ledger-spec/tests/authoring.rs
+  s_8d291ac86c42f6::t_639a8c37923018 224-225,230-231,243-249
+  s_8d291ac86c42f6::t_8b2c37d65c5810 326
+  s_8d291ac86c42f6::t_a0cccc7aa8c941 8-9
+  s_8d291ac86c42f6::t_82a9ec16f98a3f 311,313-321
+  s_8d291ac86c42f6::t_d38b305057f03b 343-355,357-379
+  s_8d291ac86c42f6::t_1a04cb29d82d50 1-7,10-223,226-229,232-242,250-310,312,322-325,327-342,356,380
+  s_8d291ac86c42f6::t_45f02d8c237122 381-387
+crates/ledger-spec/src/author.rs
+  s_8d291ac86c42f6::t_294f7c326b5653 14
+  s_8d291ac86c42f6::t_045cae5c1456e3 195-196
+  s_8d291ac86c42f6::t_1c683998664b5d 178
+  s_8d291ac86c42f6::t_5c942995408346 1-13,15-177,179-194,197-228
+crates/ledger-spec/src/draft.rs
+  s_8d291ac86c42f6::t_c4268292fde042 241
+  s_8d291ac86c42f6::t_176cbb40da6306 79
+  s_8d291ac86c42f6::t_8f35aea5935944 225-228
+  s_8d291ac86c42f6::t_98664fc647b64c 183-186
+  s_8d291ac86c42f6::t_56c583edd2d52d 237
+  s_8d291ac86c42f6::t_30565160b23cfe 187-188,190,193,195
+  s_8d291ac86c42f6::t_7cbeeb6a598aaa 1-69,71-78,80-142,147,150,170,172-182,189,191-192,194,196-224,229-236,238-240,242-266
+  s_8d291ac86c42f6::t_482e6b824bd992 70
+  s_8d291ac86c42f6::t_b009b1c46e8365 143-146,148-149,151-169,171
+crates/ledger-spec/src/check.rs
+  s_8d291ac86c42f6::t_35bec81e86cc7c 1-60
+README.md
+  s_8d291ac86c42f6::t_82dbd8070afeda 68-75
+crates/ledger-spec/src/reason.rs
+  s_8d291ac86c42f6::t_99ebf40b2bd911 1-114
+crates/ledger-spec/Cargo.toml
+  s_8d291ac86c42f6::t_b8645617133001 10-14
+Cargo.lock
+  s_8d291ac86c42f6::t_a44b687f638a5b 751-755
+crates/ledger-core/src/lib.rs
+  s_8d291ac86c42f6::t_f5cab90f1c95b9 24-27
+fixtures/gemini/policy-draft-request.json
+  s_8d291ac86c42f6::t_b4b14348c96f77 1
+fixtures/gemini/policy-draft.json
+  s_8d291ac86c42f6::t_3cfba45895436c 1
+fixtures/jev/spec-match-request.json
+  s_8d291ac86c42f6::t_2284a4510f8db2 1
+fixtures/jev/spec-match.json
+  s_8d291ac86c42f6::t_15eefee69e6968 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d0cdef216f66ac9aea0e718c25fdc107037965b0",
+  "prompts": {},
+  "sessions": {
+    "s_8d291ac86c42f6": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "97804cb8-d2c4-4e12-9aae-5328d24facd1",
+        "model": "grok-4.7-high-fast"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    }
+  }
+}
