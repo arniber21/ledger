@@ -69,14 +69,7 @@ pub fn install_telemetry() -> Result<TelemetryGuard, TelemetryError> {
         return Err(TelemetryError::Disabled);
     }
 
-    let sentry_layer =
-        sentry::integrations::tracing::layer().event_filter(|metadata| match *metadata.level() {
-            tracing::Level::ERROR => EventFilter::Event | EventFilter::Log,
-            tracing::Level::DEBUG | tracing::Level::TRACE => EventFilter::Ignore,
-            tracing::Level::INFO | tracing::Level::WARN => {
-                EventFilter::Breadcrumb | EventFilter::Log
-            }
-        });
+    let sentry_layer = sentry::integrations::tracing::layer().event_filter(event_filter);
 
     let filter = tracing_subscriber::filter::LevelFilter::INFO;
     tracing_subscriber::registry()
@@ -86,6 +79,18 @@ pub fn install_telemetry() -> Result<TelemetryGuard, TelemetryError> {
         .map_err(|_| TelemetryError::AlreadyInstalled)?;
 
     Ok(TelemetryGuard { _client: client })
+}
+
+/// Maps tracing levels onto Sentry events, logs, and breadcrumbs.
+///
+/// Error events, including a rejected fill, are Sentry errors. Info and warn
+/// events are logs and breadcrumbs.
+pub(crate) fn event_filter(metadata: &tracing::Metadata<'_>) -> EventFilter {
+    match *metadata.level() {
+        tracing::Level::ERROR => EventFilter::Event | EventFilter::Log,
+        tracing::Level::DEBUG | tracing::Level::TRACE => EventFilter::Ignore,
+        tracing::Level::INFO | tracing::Level::WARN => EventFilter::Breadcrumb | EventFilter::Log,
+    }
 }
 
 /// True when `SENTRY_DSN` is set to a non-empty value. The value is not logged.

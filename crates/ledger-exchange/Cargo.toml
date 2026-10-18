@@ -8,6 +8,23 @@ publish.workspace = true
 ledger-core.workspace = true
 rust_decimal.workspace = true
 sentry.workspace = true
+solana-client = "=3.1.10"
+solana-commitment-config = "3.0"
+solana-instruction = "3.0"
+solana-keypair = "3.0"
+solana-program-error = "3.0"
+solana-pubkey = "3.0"
+solana-signature = "3.0"
+solana-signer = "3.0"
+solana-transaction = "3.0"
+spl-associated-token-account-interface = "2.0"
+spl-token-interface = "2.0"
 thiserror.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
+
+[dev-dependencies]
+sentry = { workspace = true, features = ["test"] }
+solana-program-pack = "3.0"
+solana-system-interface = { version = "2.0.0", features = ["bincode"] }
+solana-transaction-status = "3.1"
