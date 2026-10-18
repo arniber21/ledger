@@ -43,7 +43,27 @@ stop_listeners() {
   fi
 }
 
+# Kill ledger-api / ledger-agents whose binary lives under this repo or its worktrees.
+# Matches on the executable path, so other checkouts are left alone.
+stop_stale_binaries() {
+  local name pid exe
+  for name in ledger-api ledger-agents; do
+    for pid in $(pgrep -x "$name" 2>/dev/null || true); do
+      exe="$(ps -o command= -p "$pid" 2>/dev/null | awk '{print $1}')"
+      case "$exe" in
+        "$root"/target/*|"$root"/.claude/worktrees/*|"$root"/worktrees/*)
+          say "stopping stale $name (PID $pid, $exe)"
+          kill -TERM "$pid" 2>/dev/null || true
+          sleep 0.2
+          kill -KILL "$pid" 2>/dev/null || true
+          ;;
+      esac
+    done
+  done
+}
+
 say "stopping agents"
+stop_stale_binaries
 stop_pid_file .ledger/demo/agents.pid
 if [[ -S .ledger/agents.sock ]]; then
   stop_listeners .ledger/agents.sock

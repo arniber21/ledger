@@ -876,7 +876,7 @@ function Split({
       {preview ? (
         <article className="split-detail" data-testid="split-detail">
           <p className="mono">{preview.verdict.id}</p>
-          <h2>{preview.verdict.title}</h2>
+          <h2 className="title-case">{preview.verdict.title}</h2>
           <p className={`outcome outcome-${preview.verdict.outcome}`}>{outcomeLabel(preview.verdict.outcome)}</p>
           <div className="inbox-actions">
             <button type="button" className="primary" onClick={onReview}>
