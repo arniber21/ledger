@@ -1,0 +1,24 @@
+crates/ledger-ingest/src/normalize.rs
+  s_db410edf6bffe0::t_96e68a52654cae 10-15
+  s_db410edf6bffe0::t_589898d78fba87 483-552
+  s_db410edf6bffe0::t_87c9ae4ec0674d 105-124
+  s_db410edf6bffe0::t_67ac3a3b35f7dc 265,272-287
+  s_db410edf6bffe0::t_cab0b5b053490c 238
+  s_db410edf6bffe0::t_72d9ba3ee3e76e 46,54,65
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6e6314e878dcd7dc1e581f8dd9c0220835dbdd79",
+  "prompts": {},
+  "sessions": {
+    "s_db410edf6bffe0": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "d6cb7bfa-e14b-47a7-887c-4b8540a3c547",
+        "model": "grok-4.7-high-fast"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    }
+  }
+}
