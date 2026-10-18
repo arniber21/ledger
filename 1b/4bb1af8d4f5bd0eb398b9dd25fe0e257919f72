@@ -1,0 +1,70 @@
+web/src/traces/use-traces.ts
+  s_36b6b911e65ff1::t_ce6f3e4f4fa8f7 15-20
+  s_36b6b911e65ff1::t_e43cd7e61ad0a9 1-14,21-64
+crates/ledger-api/src/main.rs
+  s_36b6b911e65ff1::t_cf6248c565bda4 1,3-9
+crates/ledger-api/src/lib.rs
+  s_36b6b911e65ff1::t_087e93a460d52c 100,104,125,131
+  s_36b6b911e65ff1::t_107a0ee3de161e 190
+  s_36b6b911e65ff1::t_32e7db3803b80e 1-99,101-103,105-124,126-130,132-189,191-247
+  s_36b6b911e65ff1::t_642295deb6f23e 248-256
+web/src/shell/shell.tsx
+  s_36b6b911e65ff1::t_3b8719b0b4adc2 146-150
+crates/ledger-api/src/fault.rs
+  s_36b6b911e65ff1::t_d3ba6dc188874e 1-26,28-30,32-46
+  s_36b6b911e65ff1::t_9f04b058473c41 27,31
+  s_36b6b911e65ff1::t_e9ac55517f0d4f 47
+web/src/traces/traces.tsx
+  s_36b6b911e65ff1::t_0c2db5066c467b 1-2,4-34,36-113,116-222,225-306,308-359
+  s_36b6b911e65ff1::t_ae4e9a2d8456f2 223-224
+  s_36b6b911e65ff1::t_66cf231b219ae9 35
+  s_36b6b911e65ff1::t_f69072fc92dc7c 114-115
+  s_36b6b911e65ff1::t_36d4263742f511 3
+  s_36b6b911e65ff1::t_ddf0b72474dfad 307
+crates/ledger-api/Cargo.toml
+  s_36b6b911e65ff1::t_7003fc704658e0 8,13-19
+web/vite.config.ts
+  s_36b6b911e65ff1::t_6a65766238367f 8-10
+Justfile
+  s_36b6b911e65ff1::t_ad8fd7df69c309 69-70
+  s_36b6b911e65ff1::t_343557a0f936ff 83-84
+web/src/styles.css
+  s_36b6b911e65ff1::t_6bcd31c14b3e24 778,780-821,823,825-827,829-832,838-839,844,846,852-866,873-876,880,882-1000,1002-1037,1039-1044,1052-1054
+  s_36b6b911e65ff1::t_b1ec4eb3b991c7 1038,1045-1051
+  s_36b6b911e65ff1::t_83fb705a8ed4a0 867-872
+  s_36b6b911e65ff1::t_4abd116fef5c5f 877-879,881
+  s_36b6b911e65ff1::t_7f1f9b416a6252 1001
+  s_36b6b911e65ff1::t_0c79dba4f2a064 822,824,828,833-837,840-843,845,847-851
+web/src/traces/model.test.ts
+  s_36b6b911e65ff1::t_47e4c86db5cb9e 1-162
+crates/ledger-api/src/stream.rs
+  s_36b6b911e65ff1::t_ab0f6f7ed3032f 1-13
+  s_36b6b911e65ff1::t_f8aac01f2288d4 14-16
+crates/ledger-store/src/lib.rs
+  s_36b6b911e65ff1::t_b22aba3e50c04c 657-701,707
+  s_36b6b911e65ff1::t_71ed12e6451a20 702-706
+  s_36b6b911e65ff1::t_f6ba53fca7b89a 348-412
+web/src/traces/model.ts
+  s_36b6b911e65ff1::t_e135af8de79248 1-211,214-217,221-222,227-480
+  s_36b6b911e65ff1::t_612e7651b61293 212-213,218-220,223-226
+web/src/router.tsx
+  s_36b6b911e65ff1::t_b78447b946654b 4-5
+Cargo.lock
+  s_36b6b911e65ff1::t_e5ae2e2ed6f731 505-556,2024,2410-2411,2415,2417-2418,2608-2613,4422-4432,6960,7053
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1b4bb1af8d4f5bd0eb398b9dd25fe0e257919f72",
+  "prompts": {},
+  "sessions": {
+    "s_36b6b911e65ff1": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "b35589ec-c225-40be-9328-be4bfbfaa46f",
+        "model": "grok-4.7-high-fast"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    }
+  }
+}
