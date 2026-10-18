@@ -239,7 +239,7 @@ export function Shell() {
         return;
       }
 
-      if (key === "enter" && selectedId) {
+      if (key === "enter" && selectedId && pathname !== "/specs") {
         event.preventDefault();
         if (pathname === "/traces") {
           void navigate({ to: "/traces", search: { trace: selectedId } });

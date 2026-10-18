@@ -1868,3 +1868,21 @@ a.tool { text-decoration: none; }
 @keyframes tick { 0% { transform: translateY(0.25rem); opacity: 0.4; } 100% { transform: none; opacity: 1; } }
 .skeleton-number { display: block; width: 4rem; height: 1.75rem; border-radius: 0.375rem; }
 @media (prefers-reduced-motion: reduce) { .metric-value.is-tick { animation: none; } }
+
+/* UX pass: specs */
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.stepper ol { display: flex; gap: 1.25rem; margin: 0 0 0.75rem; padding: 0; list-style: none; color: var(--muted); font-size: 0.8125rem; }
+.stepper-step { display: flex; align-items: center; gap: 0.375rem; }
+.stepper-dot { width: 0.5rem; height: 0.5rem; border-radius: 50%; background: var(--grey-line); }
+.stepper-step.is-done { color: var(--ink); }
+.stepper-step.is-done .stepper-dot { background: var(--satisfy); }
+.stepper-step.is-active { color: var(--ink); }
+.stepper-step.is-active .stepper-dot { background: var(--accent); animation: stepper-pulse 1s ease-in-out infinite; }
+.stepper-step.is-rejected .stepper-dot, .stepper-step.is-unavailable .stepper-dot { background: var(--violate); }
+.stepper-step.is-needs-review .stepper-dot { background: var(--inconclusive); }
+@keyframes stepper-pulse { 50% { opacity: 0.35; } }
+.spec-why { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 0.625rem 0.75rem; margin-bottom: 0.75rem; border-radius: var(--radius-control); background: var(--window); color: var(--body); }
+.spec-cancel-hint { margin-bottom: 0.5rem; color: var(--muted); font-size: 0.8125rem; }
+.spec-submit kbd, .spec-cancel-hint kbd { font-family: var(--mono); font-size: 0.6875rem; opacity: 0.7; }
+.armed-list tr.is-selected { background: var(--window); }
+@media (prefers-reduced-motion: reduce) { .stepper-step.is-active .stepper-dot { animation: none; } }

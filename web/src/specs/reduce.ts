@@ -51,6 +51,53 @@ export function beginDraft(run: SpecRun, sentence: string): SpecRun {
   };
 }
 
+/** Back to the editor with the policy text kept. Used by Edit and retry and by Esc on a running request. */
+export function reopenDraft(run: SpecRun): SpecRun {
+  return { ...composingRun(run.key), sentence: run.sentence };
+}
+
+export type StepperStage = "drafting" | "checking" | "done";
+
+export type Stepper = {
+  /** Which of Drafting, Checking, and the final state is current. */
+  current: 0 | 1 | 2;
+  final: "Armed" | "Rejected" | "Needs review" | "Unavailable" | null;
+};
+
+/** Three steps: Drafting, Checking, then Armed or Rejected. Composing has none yet. */
+export function stepperOf(run: SpecRun): Stepper | null {
+  switch (run.status) {
+    case "composing":
+      return null;
+    case "armed":
+      return { current: 2, final: "Armed" };
+    case "rejected":
+      return { current: 2, final: "Rejected" };
+    case "held":
+      return { current: 2, final: "Needs review" };
+    case "unavailable":
+      return { current: 2, final: "Unavailable" };
+    case "drafting":
+      return { current: run.steps.some((step) => step.kind === "draft") ? 1 : 0, final: null };
+  }
+}
+
+/** Plain-language reason a draft did not arm. Null when it armed or has not finished. */
+export function whyNotArmed(run: SpecRun): string | null {
+  if (run.status === "rejected") {
+    const step = run.steps.find((item) => item.kind === "rejected");
+    const detail = step && step.kind === "rejected" ? step.detail : run.rejectReason;
+    return `This draft was rejected${detail ? `: ${detail}` : "."} Nothing was armed. Edit the sentence and try again.`;
+  }
+  if (run.status === "held") {
+    return "The check could not confirm every clause of your sentence, so the result is Inconclusive and nothing is armed. Edit the sentence to be more specific, or arm with override if you accept the gap.";
+  }
+  if (run.status === "unavailable") {
+    return `${run.error ?? "The authoring stream failed."} Nothing was armed. The result is Inconclusive until the stream answers.`;
+  }
+  return null;
+}
+
 export function failDraft(run: SpecRun, error: string): SpecRun {
   if (run.status === "armed" || run.status === "rejected" || run.status === "held") return run;
   return { ...run, status: "unavailable", error };
