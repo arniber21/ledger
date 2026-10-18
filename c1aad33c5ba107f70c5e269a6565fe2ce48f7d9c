@@ -1,0 +1,31 @@
+crates/ledger-jev/src/lib.rs
+  s_5b6886f587b7bc::t_3b6d0c152de8b2 295
+  s_5b6886f587b7bc::t_bc3561adc7e1c4 283-294,296
+  s_5b6886f587b7bc::t_f5c24af778fda5 1-282,297
+crates/ledger-jev/smoke_request.json
+  s_5b6886f587b7bc::t_15277c3be91789 1-37
+README.md
+  s_5b6886f587b7bc::t_885927f74c7e37 59-64
+crates/ledger-jev/Cargo.toml
+  s_5b6886f587b7bc::t_36694bba3ced3f 11
+Cargo.lock
+  s_5b6886f587b7bc::t_0ce5bcfa604cf1 113
+fixtures/jev/same-obligation.json
+  s_5b6886f587b7bc::t_f09e62d797e459 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c1aad33c5ba107f70c5e269a6565fe2ce48f7d9c",
+  "prompts": {},
+  "sessions": {
+    "s_5b6886f587b7bc": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "278b5ff4-9aa3-4da6-9f99-a000d49ed14f",
+        "model": "grok-4.7-high-fast"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    }
+  }
+}
