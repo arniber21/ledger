@@ -10,7 +10,6 @@ import {
   FilterIcon,
   InboxIcon,
   ListIcon,
-  SpecsIcon,
   SplitIcon,
   TracesIcon,
   VerdictsIcon,
@@ -169,17 +168,6 @@ export function TracesPage({ traceId }: { traceId?: string }) {
               : "Spans from the agents and the exchange show up here when ingest is connected."
           }
         />
-      </div>
-    </>
-  );
-}
-
-export function SpecsPage() {
-  return (
-    <>
-      <Header icon={<SpecsIcon />} title="Specs" />
-      <div className="content content-fill">
-        <Empty title="No specs yet" body="Policies show up here once they are armed on the stream." />
       </div>
     </>
   );
