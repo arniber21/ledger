@@ -2391,6 +2391,7 @@ version = "0.1.0"
 dependencies = [
  "ledger-core",
  "ledger-exchange",
+ "ledger-jev",
  "rig-agent",
  "rig-core",
  "rig-reqwest",

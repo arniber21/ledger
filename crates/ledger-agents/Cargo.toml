@@ -7,6 +7,7 @@ publish.workspace = true
 [dependencies]
 ledger-core.workspace = true
 ledger-exchange.workspace = true
+ledger-jev.workspace = true
 rig-agent.workspace = true
 rig-core.workspace = true
 rig-reqwest.workspace = true

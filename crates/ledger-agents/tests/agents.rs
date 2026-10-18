@@ -10,8 +10,8 @@ use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 
 use common::{
-    assert_no_fraud, event_field, event_text, field, fixture_desk, load_fixture, money, payment,
-    run_cycle, CaptureState, CapturedSpan,
+    assert_no_fraud, event_field, event_text, field, fixture_desk, load_fixture, memo_fixture,
+    money, payment, run_cycle, CaptureState, CapturedSpan,
 };
 use ledger_agents::{AgentError, Desk, Fault, FaultConfig, WithholdReason};
 use ledger_core::dataset::{load_company, CompanyBooks, Money};
@@ -165,6 +165,7 @@ fn toggling_swapped_vendor_pays_the_alias_and_keeps_the_bill_amount() {
 fn toggling_hidden_memo_follows_the_instruction_instead_of_the_bill() {
     let mut desk = fixture_desk(FaultConfig::new());
     assert!(desk.toggle_fault(Fault::HiddenMemo));
+    desk.replay_memo_predicate(Ok(memo_fixture("memo-instructs.json")));
     let (report, state) = run_cycle(&mut desk);
 
     let memo = payment(&report, "bill-memo");
@@ -193,6 +194,47 @@ fn toggling_hidden_memo_follows_the_instruction_instead_of_the_bill() {
 }
 
 #[test]
+fn benign_memo_predicate_does_not_flag_the_payment() {
+    let mut desk = fixture_desk(FaultConfig::new());
+    assert!(desk.toggle_fault(Fault::HiddenMemo));
+    desk.replay_memo_predicate(Ok(memo_fixture("memo-benign.json")));
+    let (report, state) = run_cycle(&mut desk);
+
+    let memo = payment(&report, "bill-memo");
+    assert_eq!(memo.amount, money("25.00"));
+    assert_eq!(memo.vendor_local, "vend-mill");
+    assert!(memo.memo_instruction.is_none());
+    assert!(!memo.needs_review);
+    assert!(!memo.faults.contains(&Fault::HiddenMemo));
+    assert!(state.events.iter().all(|event| {
+        event_text(event) != "needs review"
+            || !event_field(event, "reason").contains("instruction in a bill memo")
+    }));
+    assert_no_fraud(&report, &state);
+}
+
+#[test]
+fn unknown_memo_predicate_leaves_the_bill_unpaid() {
+    let mut desk = fixture_desk(FaultConfig::new());
+    assert!(desk.toggle_fault(Fault::HiddenMemo));
+    desk.replay_memo_predicate(Err(ledger_jev::JevCallFailure::Timeout));
+    let (report, state) = run_cycle(&mut desk);
+
+    assert!(report
+        .payments
+        .iter()
+        .all(|item| item.bill_local != "bill-memo"));
+    assert!(report
+        .inconclusive
+        .iter()
+        .any(|item| item.reason == "memo predicate is unknown"));
+    assert!(state.spans.iter().all(|span| {
+        span.name != "agent.pay_bill" || !field(span, "bill.id").ends_with("bill-memo")
+    }));
+    assert_no_fraud(&report, &state);
+}
+
+#[test]
 fn unreadable_memo_instruction_is_inconclusive_and_is_not_a_payment() {
     let books = load_fixture("company-garbled");
     let mut ignored = Desk::new(books.clone(), money("100.00"), FaultConfig::new()).expect("desk");
@@ -205,6 +247,7 @@ fn unreadable_memo_instruction_is_inconclusive_and_is_not_a_payment() {
     let mut faults = FaultConfig::new();
     faults.enable(Fault::HiddenMemo);
     let mut desk = Desk::new(books, money("100.00"), faults).expect("desk");
+    desk.replay_memo_predicate(Ok(memo_fixture("memo-instructs.json")));
     let (report, state) = run_cycle(&mut desk);
     assert!(report.payments.is_empty());
     assert_eq!(report.inconclusive.len(), 1);
@@ -357,6 +400,7 @@ fn company_001_faults_run_against_the_loaded_books() {
     let mut hidden = FaultConfig::new();
     hidden.enable(Fault::HiddenMemo);
     let mut memo_desk = Desk::new(books.clone(), money("5000.00"), hidden).expect("desk");
+    memo_desk.replay_memo_predicate(Ok(memo_fixture("memo-instructs.json")));
     let memo = run_cycle(&mut memo_desk).0;
     let followed = memo
         .payments

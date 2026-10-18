@@ -1,10 +1,17 @@
-//! Jev (TypeSafe System One) client: binding judgments.
+//! Jev (TypeSafe System One) client: binding judgments and the memo predicate.
 //!
-//! The model returns a typed Choice. This crate maps that Choice onto
-//! [`BindingVerdict`] and does not ask for or keep explanation text.
+//! A Choice maps onto [`BindingVerdict`]. The memo Noul maps onto
+//! [`PredicateVerdict`]. This crate does not ask for or keep explanation text.
+
+mod memo;
 
 use serde_json::Value;
 use thiserror::Error;
+
+pub use memo::{
+    map_memo_body, map_memo_exchange, memo_request, PredicateVerdict, BENIGN_MEMO,
+    INSTRUCTION_MEMO, MEMO_INSTRUCTS_QUESTION,
+};
 
 /// Question id for the binding smoke call.
 ///
@@ -33,8 +40,9 @@ pub const SAME_PROBABILITY_THRESHOLD: f64 = 0.80;
 /// Minimum `different` probability that maps to [`BindingVerdict::Different`].
 pub const DIFFERENT_PROBABILITY_THRESHOLD: f64 = 0.80;
 
-/// Absolute tolerance for `P(same) + P(different)` against 1.
-const PROBABILITY_SUM_TOLERANCE: f64 = 1e-3;
+/// Absolute tolerance for a probability pair against 1, and for a Noul
+/// against a complementary `probabilities` object.
+pub(crate) const PROBABILITY_SUM_TOLERANCE: f64 = 1e-3;
 
 /// Whether two records are the same obligation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
