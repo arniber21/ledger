@@ -232,4 +232,30 @@ describe("parseStreamData", () => {
     if (dropped?.kind !== "verdict") return;
     expect(applyStreamEvent(emptySnapshot(), dropped).verdicts[0]?.comparison).toBeNull();
   });
+
+  test("keeps raw rank scores and treats a bad score as unknown", () => {
+    const event = parseStreamData(
+      JSON.stringify({
+        kind: "verdict",
+        verdict: {
+          id: "v-rank",
+          outcome: "Violate",
+          title: "needs review",
+          rank: { money: 3.2, evidence: null, ambiguity: 1, intent: 9, input: { model: "jev-latest" } },
+        },
+      }),
+    );
+    expect(event?.kind).toBe("verdict");
+    if (event?.kind !== "verdict") return;
+    const verdict = applyStreamEvent(emptySnapshot(), event).verdicts[0];
+    expect(verdict?.rank).toEqual({
+      money: 3.2,
+      evidence: null,
+      ambiguity: 1,
+      intent: null,
+      input: { model: "jev-latest" },
+      output: undefined,
+    });
+    expect(JSON.stringify(verdict)).not.toContain("fraud");
+  });
 });

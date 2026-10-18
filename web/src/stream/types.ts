@@ -39,6 +39,19 @@ export type BindingComparison = {
   jev: BindingLine | null;
 };
 
+/**
+ * Four raw Jev scores on 0..4. Null is Unknown, not a priority of zero.
+ * Absent means this verdict has not been scored.
+ */
+export type RankScores = {
+  money: number | null;
+  evidence: number | null;
+  ambiguity: number | null;
+  intent: number | null;
+  input?: unknown;
+  output?: unknown;
+};
+
 /** One verdict the dashboard can show. Evidence only; no model prose. */
 export type VerdictItem = {
   id: string;
@@ -54,6 +67,7 @@ export type VerdictItem = {
   binding?: string;
   timeline?: TimelineStep[];
   comparison?: BindingComparison | null;
+  rank?: RankScores;
 };
 
 /** One bucket from a 10-minute events-per-second series, by source. */
@@ -139,6 +153,7 @@ export type VerdictInput = {
   binding?: string;
   timeline?: TimelineStep[];
   comparison?: unknown;
+  rank?: unknown;
 };
 
 export const SAVED_VIEWS: { id: SavedView; label: string }[] = [
