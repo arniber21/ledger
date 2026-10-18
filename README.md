@@ -31,7 +31,10 @@ just db-up        # TimescaleDB on localhost:5433
 just migrate      # events hypertable and verdicts table
 just validator    # local Solana validator (own terminal)
 just demo         # agents, API and UI together
+just ui           # web UI alone, on port 5173
 ```
+
+The dashboard stays empty until the verdict stream is connected. Set `VITE_SENTINEL_SSE` to that stream's URL when the API is serving it.
 
 Other tasks: `just check`, `just test`, `just lint`, `just fmt`. Run `just` to list everything. `just test` includes a database round-trip and needs `just db-up` first.
 

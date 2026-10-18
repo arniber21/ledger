@@ -16,6 +16,7 @@ default:
 
 check:
     cargo check --workspace --all-targets
+    cd web && bun run typecheck
 
 build:
     cargo build --workspace --all-targets
@@ -78,9 +79,9 @@ agents *faults:
 fault name:
     cargo run -p ledger-agents --bin ledger-agents -- --toggle {{name}}
 
-# Web UI dev server (pending #14).
+# Web UI dev server. Vite on port 5173. The dashboard stays empty until VITE_SENTINEL_SSE is set.
 ui:
-    @echo "ui: pending #14" >&2; exit 1
+    cd web && bun run dev
 
 # Run the SQL time-window query shown in the demo (pending #8).
 window-query:
