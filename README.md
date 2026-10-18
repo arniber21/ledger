@@ -26,17 +26,27 @@ SENTRY_DSN=...          # traces, logs, errors
 **Run**
 
 ```sh
-just data         # download the sample company (company-001) into data/
-just db-up        # TimescaleDB on localhost:5433
-just migrate      # events hypertable and verdicts table
-just validator    # local Solana validator (own terminal)
-just demo         # agents, API and UI together
-just ui           # web UI alone, on port 5173
+just demo
 ```
 
-The dev server proxies `GET /v1/verdicts/stream`. Metrics, the inbox, and the Verdicts timeline stay empty until that stream sends verdicts. Set `VITE_SENTINEL_SSE` to use a different stream URL.
+`just demo` downloads company-001 if `data/` does not already have it, starts TimescaleDB, applies migrations, starts the local Solana validator, the API, the buying agents, and the web UI, then waits. Ctrl-C stops the processes that command started. A validator answering RPC on port 8899, an API answering `GET /health` on port 8080, or a UI answering on port 5173 is left running. If one of those ports is taken and does not answer, the command stops. The script is `scripts/demo.sh`. The presenter script is `docs/demo.md`.
 
-Other tasks: `just check`, `just test`, `just lint`, `just fmt`. Run `just` to list everything. `just test` includes a database round-trip and needs `just db-up` first.
+The UI is at http://127.0.0.1:5173. Vite proxies `/api` and `/v1` to the API on port 8080. Set `VITE_SENTINEL_SSE` only when the verdict stream is somewhere else.
+
+Individual tasks, if you want one process in its own terminal:
+
+```sh
+just data         # download company-001 into data/
+just db-up        # TimescaleDB on localhost:5433
+just migrate      # events hypertable, verdicts, inbox, and calibration view
+just validator    # local Solana validator
+just api          # HTTP and SSE on 127.0.0.1:8080
+just agents       # buying desk; optional fault names
+just ui           # web UI on port 5173
+just fault double-pay
+```
+
+`just check`, `just test`, `just lint`, and `just fmt` are the build tasks. Run `just` to list everything. `just test` includes a database round-trip and needs `just db-up` first.
 
 ## How it works
 
@@ -44,7 +54,15 @@ Other tasks: `just check`, `just test`, `just lint`, `just fmt`. Run `just` to l
 2. **Everything emits a span.** Agents and the exchange are instrumented with OpenTelemetry. The same spans go to Sentry and to our ingest, which normalizes them into events with source and causal links, and stores them in TimescaleDB.
 3. **Specs run continuously.** Policies such as "a bill's approval comes before its payment" run as monitors, one per open bill, evaluated incrementally as events arrive. Each ends as `Satisfy`, `Violate` or `Inconclusive`. Missing evidence is never counted as a pass.
 4. **Jev handles the ambiguous parts.** When code cannot decide, such as whether two bill or vendor references are the same obligation, whether a payment fits a recurring schedule, or whether a memo is instructing a payment, Jev returns a typed judgment that feeds the monitor. Amount, id, and currency checks decide a binding first and skip Jev when they decide. Same bill id and same period decide a duplicate payment before Jev. Weekly rent is not a duplicate. A second payment of the same bill needs review. Only a `Same` judgment merges monitor keys. An uncertain answer yields `Inconclusive` and leaves the keys apart. Exact-match and fuzzy baselines are stored with each Jev call for the verdict detail.
-5. **People review.** Verdicts land in an inbox (board, list or split view) with the evidence, the Solana transaction, and a link to the Sentry trace. Confirmations and dismissals are counted by Jev score band on the dashboard. Those counts do not move the fixed thresholds. A violate is needs review.
+5. **People review.** Verdicts land in an inbox (board, list or split view) with the evidence, the Solana transaction, and a link to the Sentry trace when `SENTRY_DSN` is set. Confirmations and dismissals are counted by Jev score band on the dashboard. Those counts do not move the fixed thresholds. A violate is needs review.
+
+## Sentinel
+
+`vendor/sentinel` is pre-existing code (Emet Labs). This repo vendors it and does not change it. The new work is the ledger crates and `web/`: the adapter, ingest, exchange, agents, Jev and Gemini calls, API, and UI. Specs are evaluated with the incremental `Evaluator::step` and `seal` path. The vendored workspace is marked `license = "Proprietary"`. Say that in the submission. Devpost allows pre-existing work when it is open source; this tree is not declared open source, so it is not confirmed as allowed under that rule. Details are in `docs/devpost.md`.
+
+## Jev failures
+
+Deterministic checks on amount, id, and currency run first and skip Jev when they decide. Otherwise Jev returns a typed judgment. A timeout (30 seconds), transport error, HTTP error, or unreadable body becomes `Unknown`. A score below the fixed 0.80 threshold, or a contradiction, is also `Unknown`. `Unknown` yields `Inconclusive`, does not merge monitor keys, and is not a pass. Missing evidence is `Inconclusive`. The model generates no explanation text. Do not invent a Jev result.
 
 ## Window query
 
@@ -102,4 +120,8 @@ ORDER BY bucket, source, kind;
 
 ## Data
 
-`just data` downloads the dataset from [HuggingFace](https://huggingface.co/datasets/CL251215/QuickBooks-Hackathon-2026) and extracts company-001 into `data/`, which is gitignored. The simulation's ground-truth files are never read.
+`just data` downloads the dataset from [HuggingFace](https://huggingface.co/datasets/CL251215/QuickBooks-Hackathon-2026) and extracts company-001 into `data/`, which is gitignored. The dataset has no declared license, so it is not committed. The loader does not modify those rows, and it refuses to read a path whose component is `hidden/`. Live faults are injected in the running agents. YAML under `crates/ledger-agents/fixtures/` is synthetic and is not the sponsor dataset.
+
+## Status
+
+`just demo` starts the local stack. Findings are labeled "needs review". `just demo` does not find or record a Sentry incident. Submission notes are in `docs/devpost.md`.
