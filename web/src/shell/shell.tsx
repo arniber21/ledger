@@ -129,7 +129,14 @@ export function Shell() {
 
       if (chord) {
         chord = false;
-        const destination = { d: "/", i: "/inbox", t: "/traces", s: "/specs", v: "/verdicts" }[key];
+        const destination = {
+          d: "/",
+          i: "/inbox",
+          t: "/traces",
+          p: "/taint",
+          s: "/specs",
+          v: "/verdicts",
+        }[key];
         if (destination) {
           event.preventDefault();
           void navigate({ to: destination });

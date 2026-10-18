@@ -5,6 +5,7 @@ import { InboxPage } from "./inbox/inbox";
 import { parseInboxSearch } from "./inbox/model";
 import { VerdictsPage } from "./verdicts/verdicts";
 import { SpecsPage } from "./specs/specs";
+import { TaintPage } from "./taint/taint";
 import { TracesPage } from "./traces/traces";
 import { Shell } from "./shell/shell";
 
@@ -47,6 +48,12 @@ const tracesRoute = createRoute({
   },
 });
 
+const taintRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/taint",
+  component: TaintPage,
+});
+
 const specsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/specs",
@@ -71,7 +78,14 @@ const verdictsRoute = createRoute({
   },
 });
 
-const routeTree = rootRoute.addChildren([dashboardRoute, inboxRoute, tracesRoute, specsRoute, verdictsRoute]);
+const routeTree = rootRoute.addChildren([
+  dashboardRoute,
+  inboxRoute,
+  tracesRoute,
+  taintRoute,
+  specsRoute,
+  verdictsRoute,
+]);
 
 export const router = createRouter({ routeTree });
 

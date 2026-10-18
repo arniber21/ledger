@@ -12,7 +12,7 @@ use serde_json::Value;
 
 use crate::desk::{ApproveOutcome, Desk, PayOutcome};
 use crate::error::AgentError;
-use crate::predicate::fetch_memo_predicate;
+use crate::predicate::{fetch_decision_panel, fetch_memo_predicate};
 
 const BILL_PARAMETERS: &str = r#"{
   "type": "object",
@@ -138,6 +138,10 @@ impl Tool for PayBill {
             if let Some(memo) = desk.memo_awaiting_predicate(&args.bill_id) {
                 let exchange = fetch_memo_predicate(&memo).await;
                 desk.store_memo_predicate(memo, exchange);
+            }
+            if let Some(rationale) = desk.rationale_awaiting(&args.bill_id) {
+                let exchange = fetch_decision_panel(&rationale).await;
+                desk.store_rationale(rationale, exchange);
             }
             Ok(reply_payment(desk.pay_bill(&args.bill_id)))
         }
