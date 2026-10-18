@@ -3,10 +3,16 @@ import {
   JEV_THRESHOLD_LABEL,
   type AuthorEvent,
   type ClauseMark,
+  type HoldReason,
   type MatchVerdict,
   type SpecRun,
   type TimelineStep,
 } from "./types";
+
+const HOLD_DETAIL: Record<HoldReason, string> = {
+  clause_uncovered: "A clause is uncovered. Arming needs an override.",
+  clause_unknown: "A clause is unknown. Arming needs an override.",
+};
 
 const REASON_LABEL: Record<string, string> = {
   empty_policy: "Empty policy",
@@ -46,13 +52,15 @@ export function beginDraft(run: SpecRun, sentence: string): SpecRun {
 }
 
 export function failDraft(run: SpecRun, error: string): SpecRun {
-  if (run.status === "armed" || run.status === "rejected") return run;
+  if (run.status === "armed" || run.status === "rejected" || run.status === "held") return run;
   return { ...run, status: "unavailable", error };
 }
 
 /** Closes a stream that ended without an accept or reject frame. */
 export function finishDraft(run: SpecRun): SpecRun {
-  if (run.status === "armed" || run.status === "rejected" || run.status === "unavailable") return run;
+  if (run.status === "armed" || run.status === "rejected" || run.status === "unavailable" || run.status === "held") {
+    return run;
+  }
   if (run.steps.some((step) => step.kind === "rejected" || step.kind === "armed" || step.kind === "monitor")) {
     return run;
   }
@@ -81,8 +89,12 @@ export function stepTitle(step: TimelineStep): string {
       return step.ok ? "Catalogue validated" : "Catalogue rejected";
     case "check":
       return "Jev checked the draft";
+    case "coverage":
+      return "Clause coverage";
     case "armed":
-      return "Armed on the live stream";
+      return step.override ? "Armed with override" : "Armed on the live stream";
+    case "held":
+      return "Needs review";
     case "monitor":
       return "Monitor reported";
     case "rejected":
@@ -102,6 +114,30 @@ export function draftLines(patternId: string, parameters: Record<string, string 
  * Returns clause marks only when they reconstruct the sentence.
  * A missing or mismatched report stays unmarked.
  */
+export function coverageWord(coverage: ClauseMark["coverage"]): string {
+  switch (coverage) {
+    case "covered":
+      return "Covered";
+    case "uncovered":
+      return "Uncovered";
+    case "unknown":
+      return "Unknown";
+  }
+}
+
+/** One line for the spec properties. Null clauses were not reported. */
+export function coverageSummary(clauses: ClauseMark[] | null): string {
+  if (!clauses || clauses.length === 0) return "Not reported";
+  const uncovered = clauses.filter((clause) => clause.coverage === "uncovered").length;
+  const unknown = clauses.filter((clause) => clause.coverage === "unknown").length;
+  if (uncovered === 0 && unknown === 0) return "Covered";
+  if (uncovered > 0 && unknown > 0) return `${uncovered} uncovered · ${unknown} unknown`;
+  if (uncovered === 1) return "1 uncovered";
+  if (uncovered > 1) return `${uncovered} uncovered`;
+  if (unknown === clauses.length) return "Unknown";
+  return unknown === 1 ? "1 unknown" : `${unknown} unknown`;
+}
+
 export function policySegments(sentence: string, clauses: ClauseMark[] | null): ClauseMark[] | null {
   if (!clauses || clauses.length === 0) return null;
   const tight = clauses.map((clause) => clause.text).join("");
@@ -166,8 +202,12 @@ export function applyAuthorEvent(run: SpecRun, event: AuthorEvent): SpecRun {
       };
     case "check":
       return applyCheck(run, event.verdict);
+    case "coverage":
+      return applyCoverage(run, event.clauses);
     case "accepted":
-      return applyAccepted(run, event.patternId, event.monitor);
+      return applyAccepted(run, event.patternId, event.monitor, event.override);
+    case "held":
+      return applyHeld(run, event.reason);
     case "rejected":
       return applyRejected(run, event);
   }
@@ -196,7 +236,25 @@ function applyCheck(run: SpecRun, verdict: MatchVerdict): SpecRun {
   };
 }
 
-function applyAccepted(run: SpecRun, patternId: string, monitor: string): SpecRun {
+function applyCoverage(run: SpecRun, clauses: ClauseMark[]): SpecRun {
+  return {
+    ...run,
+    clauses,
+    steps: [...run.steps, { kind: "coverage", clauses }],
+  };
+}
+
+function applyHeld(run: SpecRun, reason: HoldReason): SpecRun {
+  return {
+    ...run,
+    status: "held",
+    error: null,
+    monitor: null,
+    steps: [...run.steps, { kind: "held", reason, detail: HOLD_DETAIL[reason] }],
+  };
+}
+
+function applyAccepted(run: SpecRun, patternId: string, monitor: string, override: boolean): SpecRun {
   const running = monitor === "running";
   return {
     ...run,
@@ -208,7 +266,7 @@ function applyAccepted(run: SpecRun, patternId: string, monitor: string): SpecRu
     steps: [
       ...run.steps,
       running
-        ? { kind: "armed", patternId, monitor }
+        ? { kind: "armed", patternId, monitor, override }
         : { kind: "monitor", patternId, monitor },
     ],
   };
@@ -259,10 +317,22 @@ function parseAuthorData(event: string, data: string): AuthorEvent | null {
     }
     case "check":
       return isVerdict(record.verdict) ? { event: "check", verdict: record.verdict } : null;
+    case "coverage": {
+      const clauses = parseClauses(record.clauses);
+      if (!clauses || clauses.length === 0) return null;
+      return { event: "coverage", clauses };
+    }
     case "accepted":
       return typeof record.pattern_id === "string" && typeof record.monitor === "string"
-        ? { event: "accepted", patternId: record.pattern_id, monitor: record.monitor }
+        ? {
+            event: "accepted",
+            patternId: record.pattern_id,
+            monitor: record.monitor,
+            override: record.override === true,
+          }
         : null;
+    case "held":
+      return isHoldReason(record.reason) ? { event: "held", reason: record.reason } : null;
     case "rejected":
       return typeof record.reason === "string" && record.reason.length > 0
         ? {
@@ -300,13 +370,22 @@ function parseClauses(value: unknown): ClauseMark[] | null {
     if (record.coverage !== "covered" && record.coverage !== "uncovered" && record.coverage !== "unknown") {
       return null;
     }
-    clauses.push({ text: record.text, coverage: record.coverage });
+    if (record.verdict != null && !isVerdict(record.verdict)) return null;
+    clauses.push({
+      text: record.text,
+      coverage: record.coverage,
+      verdict: isVerdict(record.verdict) ? record.verdict : undefined,
+    });
   }
   return clauses;
 }
 
 function isVerdict(value: unknown): value is MatchVerdict {
   return value === "Same" || value === "Different" || value === "Unknown";
+}
+
+function isHoldReason(value: unknown): value is HoldReason {
+  return value === "clause_uncovered" || value === "clause_unknown";
 }
 
 function stringOrNull(value: unknown): string | null {

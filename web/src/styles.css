@@ -876,13 +876,14 @@ kbd {
 .spec-props dt { color: var(--muted); font-size: 13px; }
 .spec-props dd { margin: 0; color: var(--ink); font-size: 14px; }
 
-.status-drafting, .status-rejected, .status-unavailable {
+.status-drafting, .status-rejected, .status-unavailable, .status-held {
   background: var(--shell);
   color: var(--body);
   border-color: transparent;
 }
 
 .status-rejected { color: var(--violate); }
+.status-held { color: var(--inconclusive); }
 
 .spec-tabs { display: flex; gap: 8px; }
 

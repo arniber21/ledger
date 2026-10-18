@@ -11,6 +11,8 @@ import {
   beginDraft,
   checkDetail,
   composingRun,
+  coverageSummary,
+  coverageWord,
   failDraft,
   finishDraft,
   policySegments,
@@ -111,6 +113,32 @@ function SpecDetail({
         replaceRun(queryClient, run.key, (current) => applyAuthorEvent(current, authorEvent));
       },
       controller.signal,
+      false,
+    )
+      .then(() => {
+        replaceRun(queryClient, run.key, finishDraft);
+      })
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) return;
+        const message = error instanceof Error ? error.message : "The authoring stream failed.";
+        replaceRun(queryClient, run.key, (current) => failDraft(current, message));
+      });
+  };
+
+  const onOverride = () => {
+    const text = run.sentence.trim();
+    if (text.length === 0 || run.status !== "held") return;
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    replaceRun(queryClient, run.key, (current) => beginDraft(current, text));
+    void streamAuthoring(
+      text,
+      (authorEvent) => {
+        replaceRun(queryClient, run.key, (current) => applyAuthorEvent(current, authorEvent));
+      },
+      controller.signal,
+      true,
     )
       .then(() => {
         replaceRun(queryClient, run.key, finishDraft);
@@ -152,9 +180,16 @@ function SpecDetail({
               </button>
             </form>
           ) : (
-            <p className="spec-policy" data-testid="spec-policy">
-              <PolicyText sentence={run.sentence} segments={segments} />
-            </p>
+            <>
+              <p className="spec-policy" data-testid="spec-policy">
+                <PolicyText sentence={run.sentence} segments={segments} />
+              </p>
+              {run.status === "held" ? (
+                <button type="button" className="tool spec-submit" data-testid="override-arm" onClick={onOverride}>
+                  Arm with override
+                </button>
+              ) : null}
+            </>
           )}
           <dl className="spec-props">
             <dt>Pattern</dt>
@@ -172,7 +207,7 @@ function SpecDetail({
             <dt>Jev threshold</dt>
             <dd>{JEV_THRESHOLD_LABEL}</dd>
             <dt>Clause coverage</dt>
-            <dd>{segments ? "Reported" : "Not reported"}</dd>
+            <dd data-testid="clause-coverage">{coverageSummary(segments)}</dd>
           </dl>
         </section>
 
@@ -240,8 +275,21 @@ function StepBody({ step }: { step: TimelineStep }) {
       return step.detail ? <p className="timeline-detail">{step.detail}</p> : null;
     case "check":
       return <p className="timeline-detail">{checkDetail(step.verdict)}</p>;
+    case "coverage":
+      return (
+        <div className="timeline-detail">
+          {step.clauses.map((clause, index) => (
+            <p key={`${clause.coverage}-${index}`}>
+              {clause.text.trim()} · {coverageWord(clause.coverage)}
+              {clause.verdict ? ` · ${clause.verdict}` : ""} · threshold {JEV_THRESHOLD_LABEL}
+            </p>
+          ))}
+        </div>
+      );
     case "armed":
       return <p className="timeline-detail">{step.patternId}</p>;
+    case "held":
+      return <p className="timeline-detail">{step.detail}</p>;
     case "monitor":
       return <p className="timeline-detail">{step.monitor}</p>;
     case "rejected":
@@ -381,7 +429,12 @@ function PolicyText({
   const tight = segments.map((clause) => clause.text).join("");
   const gap = tight === sentence ? "" : " ";
   return segments.map((clause, index) => (
-    <span key={`${clause.coverage}-${index}`} className={`clause clause-${clause.coverage}`}>
+    <span
+      key={`${clause.coverage}-${index}`}
+      className={`clause clause-${clause.coverage}`}
+      data-testid={`clause-${clause.coverage}`}
+      title={coverageWord(clause.coverage)}
+    >
       {index > 0 ? gap : ""}
       {clause.text}
     </span>
@@ -400,6 +453,8 @@ function statusLabel(status: SpecStatus): string {
       return "Rejected";
     case "unavailable":
       return "Unavailable";
+    case "held":
+      return "Needs review";
   }
 }
 

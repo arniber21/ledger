@@ -4,12 +4,14 @@ import {
   beginDraft,
   checkDetail,
   composingRun,
+  coverageSummary,
   drainSse,
   eventsFromSse,
   failDraft,
   finishDraft,
   policySegments,
   scopeOf,
+  stepTitle,
 } from "./reduce";
 import type { SpecRun } from "./types";
 
@@ -137,6 +139,104 @@ describe("authoring stream", () => {
     );
     expect(broken.clauses).toBeNull();
     expect(policySegments("Pay the bill.", [{ text: "Other", coverage: "covered" }])).toBeNull();
+  });
+
+  test("a two-clause draft that covers one clause stays unarmed", () => {
+    const held = run(
+      [
+        frame("sentence", {
+          text: "Pay the bill. Keep a credit.",
+          clauses: [
+            { text: "Pay the bill. ", coverage: "covered", verdict: "Same" },
+            { text: "Keep a credit.", coverage: "uncovered", verdict: "Different" },
+          ],
+        }),
+        frame("draft", {
+          pattern_id: "absence.after-until",
+          parameters: { binding_attribute: "bill.id" },
+        }),
+        frame("check", { verdict: "Same" }),
+        frame("coverage", {
+          clauses: [
+            { text: "Pay the bill. ", coverage: "covered", verdict: "Same" },
+            { text: "Keep a credit.", coverage: "uncovered", verdict: "Different" },
+          ],
+        }),
+        frame("held", { reason: "clause_uncovered" }),
+      ].join(""),
+    );
+    expect(held.status).toBe("held");
+    expect(held.monitor).toBeNull();
+    expect(held.specId).toBeNull();
+    expect(held.steps.map((step) => step.kind)).toEqual(["policy", "draft", "catalogue", "check", "coverage", "held"]);
+    expect(policySegments(held.sentence, held.clauses)?.map((clause) => clause.coverage)).toEqual([
+      "covered",
+      "uncovered",
+    ]);
+    expect(coverageSummary(held.clauses)).toBe("1 uncovered");
+    const heldStep = held.steps.at(-1);
+    expect(heldStep?.kind === "held" && stepTitle(heldStep)).toBe("Needs review");
+    expect(finishDraft(held).status).toBe("held");
+    expect(JSON.stringify(held)).not.toContain("fraud");
+  });
+
+  test("a coverage failure stays unknown until an override arms it", () => {
+    const unknown = run(
+      [
+        frame("sentence", { text: "Pay the bill. Keep a credit." }),
+        frame("check", { verdict: "Same" }),
+        frame("coverage", {
+          clauses: [
+            { text: "Pay the bill. ", coverage: "unknown", verdict: "Unknown" },
+            { text: "Keep a credit.", coverage: "unknown", verdict: "Unknown" },
+          ],
+        }),
+        frame("held", { reason: "clause_unknown" }),
+      ].join(""),
+    );
+    expect(unknown.status).toBe("held");
+    expect(coverageSummary(unknown.clauses)).toBe("Unknown");
+    expect(unknown.steps.some((step) => step.kind === "armed")).toBe(false);
+
+    const armed = applyAuthorEvents(beginDraft(unknown, unknown.sentence), [
+      ...eventsFromSse(
+        [
+          frame("check", { verdict: "Same" }),
+          frame("coverage", {
+            clauses: [
+              { text: "Pay the bill. ", coverage: "unknown", verdict: "Unknown" },
+              { text: "Keep a credit.", coverage: "unknown", verdict: "Unknown" },
+            ],
+          }),
+          frame("accepted", { pattern_id: "absence.after-until", monitor: "running", override: true }),
+        ].join(""),
+      ),
+    ]);
+    expect(armed.status).toBe("armed");
+    const armedStep = armed.steps.find((step) => step.kind === "armed");
+    expect(armedStep?.kind === "armed" && stepTitle(armedStep)).toBe("Armed with override");
+  });
+
+  test("a fully covered draft still arms", () => {
+    const armed = run(
+      [
+        frame("sentence", { text: "Pay the bill. Keep a credit." }),
+        frame("draft", { pattern_id: "absence.after-until", parameters: { binding_attribute: "bill.id" } }),
+        frame("check", { verdict: "Same" }),
+        frame("coverage", {
+          clauses: [
+            { text: "Pay the bill. ", coverage: "covered", verdict: "Same" },
+            { text: "Keep a credit.", coverage: "covered", verdict: "Same" },
+          ],
+        }),
+        frame("accepted", { pattern_id: "absence.after-until", monitor: "running", override: false }),
+      ].join(""),
+    );
+    expect(armed.status).toBe("armed");
+    expect(armed.specId).toBe("ledger.authored.absence.after-until");
+    expect(coverageSummary(policySegments(armed.sentence, armed.clauses))).toBe("Covered");
+    const armedStep = armed.steps.find((step) => step.kind === "armed");
+    expect(armedStep?.kind === "armed" && armedStep.override).toBe(false);
   });
 
   test("a failed connection does not become a rejection", () => {
