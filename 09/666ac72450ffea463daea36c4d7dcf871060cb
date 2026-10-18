@@ -1,0 +1,52 @@
+crates/ledger-core/src/dataset/money.rs
+  s_e6be874620ab28::t_75a74dbf4f681f 1-92,94-110
+  s_e6be874620ab28::t_943cffb18b8be6 93
+crates/ledger-core/src/dataset/model.rs
+  s_e6be874620ab28::t_f031807d34f387 1-166
+crates/ledger-core/src/lib.rs
+  s_e6be874620ab28::t_1258de8120cc6d 2-3
+crates/ledger-core/src/dataset/raw.rs
+  s_e6be874620ab28::t_acb7ae4843c361 1-105
+crates/ledger-core/Cargo.toml
+  s_e6be874620ab28::t_7c5ad850761dba 11-12,14
+Cargo.toml
+  s_e6be874620ab28::t_115c1239d5440c 34-35,38
+crates/ledger-core/src/dataset/ids.rs
+  s_e6be874620ab28::t_9f9a8b67ebfa41 1-185
+crates/ledger-core/src/dataset/mod.rs
+  s_e6be874620ab28::t_f31bc4c0e32995 222-223
+  s_e6be874620ab28::t_12de457ae02158 299,302
+  s_e6be874620ab28::t_7eae72f82a37f7 353
+  s_e6be874620ab28::t_2602f1a7ceed33 485-491
+  s_e6be874620ab28::t_2d5e7f5cb9810c 13
+  s_e6be874620ab28::t_56ebf36334c0a5 610-613
+  s_e6be874620ab28::t_471977e40c7890 1-12,14-221,224-298,300-301,303-352,354-379,381-463,471-484,492-584,588-609,614-738
+  s_e6be874620ab28::t_ebfd24d60c00bb 464-470
+  s_ab3e323569813c::t_b6d8a84520d9c2 380,585-587
+Cargo.lock
+  s_e6be874620ab28::t_120cfe867cf040 11-22,29-58,71-85,92-97,108-146,185-186,191,267-275,311-328,370-434,444-472,544-556,653-682,720-725,732-786,802-836
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "09666ac72450ffea463daea36c4d7dcf871060cb",
+  "prompts": {},
+  "sessions": {
+    "s_ab3e323569813c": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "527662c3-3623-4119-bf9f-c53528d33b58",
+        "model": "grok-4.7-high-fast"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    },
+    "s_e6be874620ab28": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "d8952fa5-47e5-452e-99a6-d6c1d85fbe6a",
+        "model": "grok-4.7-high-fast"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    }
+  }
+}
