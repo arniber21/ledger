@@ -1,75 +1,69 @@
 # Ledger Sentinel
 
-A mini-Sentinel for financial agents: a live runtime-verification platform that watches simulated AI buying agents pay bills and trade on a Solana-settled exchange, judges ambiguous evidence with Jev, and surfaces evidence-backed verdicts (`Satisfy`, `Violate`, `Inconclusive`) with counterexample timelines.
+Ledger Sentinel is a live verification platform for AI agents that handle money. It watches simulated buying agents pay a company's real bills and trade on a Solana-settled exchange, checks every action against plain-English policies as it happens, and turns violations into evidence-backed verdicts with a counterexample timeline you can inspect.
 
-Everything is simulated. No real money, no real bank or QuickBooks account. Findings say "needs review", never "fraud".
+Everything is simulated: no real money, bank, or accounting account is involved. Findings are labeled "needs review", not conclusions about intent.
 
-See [SPEC.md](SPEC.md) for the full design and decision log; work is tracked in GitHub issues.
+## Quick start
 
-## What it does
+**Prerequisites**
 
-1. Buying agents act for a company from the QuickBooks hackathon dataset (company-001) and pay its real bills.
-2. Agents and the exchange emit OTel spans. One exporter fans out to Sentry and to our ingest.
-3. Ingest normalises spans into Sentinel events, stores them in a TimescaleDB hypertable, and feeds the Sentinel core incrementally.
-4. Faults are injected live (double-pay, missing approval, budget breach, swapped vendor, hidden memo instruction) and caught as verdicts.
-5. Jev resolves ambiguous bindings, judges free-text predicates, checks Gemini-drafted specs, and decides when a monitor is safely retired.
-6. A web UI shows metrics, live trace ingest, live spec authoring and live verdicts.
+- Rust (stable) and [`just`](https://github.com/casey/just)
+- [Solana CLI](https://solana.com/docs/intro/installation) (provides `solana-test-validator`)
+- Docker (for TimescaleDB)
+- [bun](https://bun.sh) (for the web UI)
 
-## Layout
+**Configure**
 
-```
-crates/
-  ledger-core      domain types + adapter to Sentinel events
-  ledger-exchange  limit-order book + SPL settlement on a local validator
-  ledger-agents    simulated buyers + fault injection
-  ledger-ingest    OTel span ingest -> canonical events
-  ledger-jev       Jev (TypeSafe System One) client
-  ledger-spec      Gemini spec drafting, validated against Sentinel Patterns
-  ledger-store     TimescaleDB storage
-  ledger-api       HTTP/SSE API for the UI
-```
-
-## Setup
-
-Requires Rust, the Solana CLI (`solana-test-validator`), and Docker (TimescaleDB).
-
-Create `.env` (gitignored):
+Create `.env` in the repo root. It is gitignored.
 
 ```
-GEMINI_API_KEY=
-TYPESAFE_API_KEY=   # Jev
-SENTRY_DSN=
+GEMINI_API_KEY=...      # spec drafting
+TYPESAFE_API_KEY=...    # Jev (TypeSafe System One)
+SENTRY_DSN=...          # traces, logs, errors
 ```
 
-Tasks run through [`just`](https://github.com/casey/just); `just` lists them. Recipes whose issue hasn't landed exit with "pending #N".
+**Run**
 
-```
-just data         # download company-001 (gitignored)
-just check
+```sh
+just data         # download the sample company (company-001) into data/
 just db-up        # TimescaleDB on localhost:5433
 just migrate      # events hypertable and verdicts table
 just validator    # local Solana validator (own terminal)
-just demo         # everything, once #19 lands
+just demo         # agents, API and UI together
 ```
 
-`docker-compose.yml` runs `timescale/timescaledb`. The password in that file (`ledger_local`) is for this local database only. `just test` includes a store insert/read round-trip and needs the database up (`just db-up`).
+Other tasks: `just check`, `just test`, `just lint`, `just fmt`. Run `just` to list everything. `just test` includes a database round-trip and needs `just db-up` first.
 
-## Disclosure
+## How it works
 
-- **Sentinel is vendored in vendor/sentinel.** (`sentinel-model`, `sentinel-compile`, `sentinel-core`, plus `sentinel-ingest`, which `sentinel-core` path-depends on for its tests). Crates.io dependencies stay external. All other code in this repository is new work with a dated commit history.
-- **Dataset:** QuickBooks-Hackathon-2026 (HuggingFace `CL251215/QuickBooks-Hackathon-2026`), synthetic, fetched by `just data` and not redistributed in this repo. Any modification to it will be listed here. The `hidden/` ground truth is not used.
-- **Jev:** thresholds are fixed before looking at results; probabilities are scores, not calibrated confidence. Failures and timeouts become `Inconclusive`. Any Jev failures observed will be listed here.
+1. **Agents act.** Scripted buying agents for one company pay its bills and place orders on the exchange. Faults can be injected live: a double payment, a payment with no approval, a budget breach, a swapped vendor name, or an instruction hidden in a bill memo.
+2. **Everything emits a span.** Agents and the exchange are instrumented with OpenTelemetry. The same spans go to Sentry and to our ingest, which normalizes them into events with source and causal links, and stores them in TimescaleDB.
+3. **Specs run continuously.** Policies such as "a bill's approval comes before its payment" run as monitors, one per open bill, evaluated incrementally as events arrive. Each ends as `Satisfy`, `Violate` or `Inconclusive`. Missing evidence is never counted as a pass.
+4. **Jev handles the ambiguous parts.** When code cannot decide, such as whether two vendor names refer to the same payee or whether a memo is instructing a payment, Jev returns a typed judgment that feeds the monitor. Deterministic checks run first, and an uncertain answer yields `Inconclusive`.
+5. **People review.** Verdicts land in an inbox (board, list or split view) with the evidence, the Solana transaction, and a link to the Sentry trace.
 
-## Jev
+## Tech stack
 
-One live System One call: `POST https://api.typesafe.ai/v1/systemone`, requested model `jev-latest`, response model `jev-1.13.0`. Question id `same_obligation` asked whether two bill records are the same obligation (Choice `same` or `different`): vendor "Acme Industrial Supply", invoice `INV-1044`, amount `1250.00` USD, versus vendor "Acme Ind. Supply", invoice `1044`, same amount, different memo wording. Raw response: `fixtures/jev/same-obligation.json`. Request body: `crates/ledger-jev/smoke_request.json`.
+| Layer | Technology | What it does here |
+| --- | --- | --- |
+| Language | Rust, Tokio | The exchange, agents, ingest, verification and API are one Cargo workspace of eight crates. |
+| Verification engine | Sentinel core (`vendor/sentinel`) | Compiles specs (precedence, response, absence-after, scoped per bill) and evaluates event streams incrementally. Verdicts carry reason codes and the matched evidence. |
+| Semantic judgments | **Jev**, TypeSafe's System One model | Typed yes/no and choice judgments on short structured inputs: vendor and bill identity resolution, memo predicates, checking a drafted spec against its sentence, and deciding when a monitor can be retired. Every input and output is stored and shown in the UI. |
+| Spec drafting | **Gemini** | Turns a plain-English policy into a draft pattern. Jev checks the draft against the sentence, and only valid patterns are accepted. |
+| Exchange | Rust limit-order book, `rust_decimal` | Order submission, matching and fills for a flour/USD pair. |
+| Settlement | **Solana** (`solana-test-validator`), SPL token transfers | Every fill settles as a token transfer on a local validator, and the transaction signature is attached to the trace. |
+| Observability | **Sentry** (Rust SDK, tracing and logs), OpenTelemetry | Traces, logs and error capture across the exchange, agents, ingest and Jev calls. One trace covers decision, order, fill and settlement. |
+| Storage | **TimescaleDB** (Postgres 16) via `sqlx` | Events live in a hypertable. The dashboard charts come from `time_bucket` queries. Verdicts and review status sit alongside. |
+| Data | **QuickBooks Hackathon 2026** (Intuit), company-001 | The real bills, vendors and payments the agents work through. Synthetic data, fetched by `just data`. |
+| API | HTTP and Server-Sent Events | Streams spans, spec-authoring steps and verdicts to the UI as they happen. |
+| Web UI | React, Vite, TypeScript, TanStack Router, Query and Table, `cmdk`, bun | Dashboard, inbox with three view modes, trace and verdict detail, live spec authoring, and a ⌘K command palette. |
+| Tooling | `just`, Docker Compose | Task runner and the local database. |
 
-Thresholds were fixed in `crates/ledger-jev/src/lib.rs` before that response was read. `P(same) >= 0.80` maps to `Same`. `P(different) >= 0.80` maps to `Different`. A timeout (30s), an error, a score below its threshold, or a contradiction maps to `Unknown`. The model was not asked for explanation text.
+## Data
 
-## Spec authoring
+`just data` downloads the dataset from [HuggingFace](https://huggingface.co/datasets/CL251215/QuickBooks-Hackathon-2026) and extracts company-001 into `data/`, which is gitignored. The simulation's ground-truth files are never read.
 
-A policy sentence is drafted with Gemini, checked against the vendored Sentinel catalogue, then judged by Jev. Catalogue validation runs first. Only a catalogue-valid draft that Jev maps to `Same` starts a monitor. `Different` rejects the draft. A timeout, error, score below the thresholds above, or a contradiction maps to `Unknown` and also rejects it. Rejection reasons are codes. The models are not asked for explanation text.
+## Status
 
-One live Gemini Interactions call drafted "After an agent pays a bill, no second payment may occur on that bill until a credit closes it." `POST https://generativelanguage.googleapis.com/v1beta/interactions`, model `gemini-3.8-flash`, `store` false. Response model `gemini-3.8-flash`. Raw response: `fixtures/gemini/policy-draft.json`. Request: `fixtures/gemini/policy-draft-request.json`.
-
-One live System One call then asked whether that draft matches the sentence (Choice `same` or `different`, question id `draft_matches_policy`). Requested model `jev-latest`, response model `jev-1.13.0`. Raw response: `fixtures/jev/spec-match.json`. Request: `fixtures/jev/spec-match-request.json`. Mapping reuses the `ledger-jev` thresholds; they were not changed for this call.
+Under active development for LA Hacks 2026. Work is tracked in the repository's issues. The one-command `just demo` is the last piece to land; until then run the pieces individually (`just api`, `just agents`, `just ui`).
