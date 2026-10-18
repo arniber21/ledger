@@ -1,0 +1,56 @@
+crates/ledger-jev/src/lib.rs
+  s_0c8515992f8884::t_f125b4b433741f 2-3
+  s_c37489e37981e7::t_0bdbe4e85fa039 8-15,22,30,34-37,51-55
+Cargo.lock
+  s_0c8515992f8884::t_ad8b767b79b951 2493
+README.md
+  s_0c8515992f8884::t_021dd3e55eefb9 46
+crates/ledger-core/src/gc.rs
+  s_0c8515992f8884::t_d5a4e42c98601a 1-806
+crates/ledger-core/src/lib.rs
+  s_0c8515992f8884::t_5e81332cb2725c 10,21
+crates/ledger-core/src/live.rs
+  s_0c8515992f8884::t_16c9297d818441 15,75,93,97-111,200,757-772
+crates/ledger-jev/Cargo.toml
+  s_0c8515992f8884::t_80ab7bb5b7ac3e 9
+crates/ledger-jev/src/close.rs
+  s_0c8515992f8884::t_9d7a8fa50a571a 1-469
+crates/ledger-jev/src/memo.rs
+  s_0c8515992f8884::t_5d5c6a8ee4c994 127,130,148-151
+crates/ledger-jev/src/schedule.rs
+  s_0c8515992f8884::t_f115dd402fbbbe 1-1155
+crates/ledger-jev/tests/schedule.rs
+  s_0c8515992f8884::t_829291e5aad42f 1-144
+fixtures/jev/schedule/duplicate-period-request.json
+  s_0c8515992f8884::t_e7dad4b42d8383 1
+fixtures/jev/schedule/duplicate-period-response.json
+  s_0c8515992f8884::t_ce6165153dbfae 1
+fixtures/jev/schedule/recurring-schedule-request.json
+  s_0c8515992f8884::t_ea349e458318e3 1
+fixtures/jev/schedule/recurring-schedule-response.json
+  s_0c8515992f8884::t_308e19aebd77de 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0fd5de50eb490afdcae58309cf028fad6df90588",
+  "prompts": {},
+  "sessions": {
+    "s_0c8515992f8884": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "7f9840bb-b9f3-4689-ba9e-0e24b965d704",
+        "model": "grok-4.7-high-fast"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    },
+    "s_c37489e37981e7": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "1edd7059-4287-4953-bb1c-a93edbf1525d",
+        "model": "grok-4.7-high-fast"
+      },
+      "human_author": "Arnab Ghosh <arnabcare21@gmail.com>"
+    }
+  }
+}
