@@ -28,7 +28,9 @@
 //!
 //! When `LEDGER_TEST=1`, `POST /api/test/reset`, `POST /api/test/scenes/{name}`,
 //! and `POST /api/test/jev` are mounted. They are absent otherwise.
+//! `POST /api/specs/author` streams a replayed authoring run.
 
+mod author;
 mod calibration;
 mod decode;
 mod engine;

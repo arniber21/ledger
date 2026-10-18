@@ -5,12 +5,15 @@ use std::str::FromStr;
 use chrono::{DateTime, NaiveDate, TimeDelta, Utc};
 use ledger_api::Engine;
 use ledger_core::dataset::Money;
-use ledger_core::{AgentId, Decision, MonitorDesk, OpenBill};
+use ledger_core::{
+    AgentId, BillId, Decision, LedgerEvent, LedgerKind, MonitorDesk, OpenBill, Times,
+    VerdictOutcome as DeskOutcome,
+};
 use ledger_jev::{
-    binding_request, exact_match, fuzzy_match, map_binding_body, map_panel_body, panel_request,
-    BindingVerdict, ForcedOutcome, JevCallFailure, ObligationRef, PredicateVerdict, ReplayCatalog,
-    ScheduleFinding, ScheduleRecord, SystemOne, SystemOneClient, BILL_MEMO_SOURCE,
-    INSTRUCTION_MEMO,
+    baseline_cases, binding_request, consider_close_memo, exact_match, fuzzy_match,
+    map_binding_body, map_panel_body, panel_request, BindingVerdict, ForcedOutcome, JevCallFailure,
+    ObligationRef, PredicateVerdict, ReplayCatalog, ScheduleFinding, ScheduleRecord, SystemOne,
+    SystemOneClient, BILL_MEMO_SOURCE, INSTRUCTION_MEMO,
 };
 use ledger_spec::{author, draft_from_interaction, match_request, AuthoringInput, AuthoringStep};
 use ledger_store::{BucketWidth, Store, Uuid, Verdict, VerdictOutcome as StoredOutcome};
@@ -160,7 +163,7 @@ pub async fn run_scene(store: &Store, name: &str) -> Result<SceneReport, SceneEr
     store.clear_scene(name, &bindings(name)).await?;
     match name {
         "clean" => clean(store).await,
-        "double-pay" => double_pay(store).await,
+        "double-pay" => double_pay(store, &mode).await,
         "hidden-memo" => hidden_memo(store, &mode).await,
         "vendor-alias" => vendor_alias(store, &mode).await,
         "recurring" => recurring(store).await,
@@ -323,7 +326,12 @@ async fn clean(store: &Store) -> Result<SceneReport, SceneError> {
     )
 }
 
-async fn double_pay(store: &Store) -> Result<SceneReport, SceneError> {
+async fn double_pay(store: &Store, mode: &JevMode) -> Result<SceneReport, SceneError> {
+    if let JevMode::Forced(outcome) = mode {
+        if *outcome != ForcedOutcome::Same {
+            return forced_double_pay(store, *outcome).await;
+        }
+    }
     let mut script = Script::new("double-pay");
     let bill = "BILL-4417";
     let start = day(1, 0);
@@ -435,6 +443,93 @@ async fn double_pay(store: &Store) -> Result<SceneReport, SceneError> {
     )
 }
 
+/// A forced Jev outcome replaces the double-pay.
+///
+/// Different keeps the second record off the bill, so no violation is sealed.
+/// Unknown and timeout store Inconclusive and do not seal Satisfy or Violate.
+async fn forced_double_pay(
+    store: &Store,
+    outcome: ForcedOutcome,
+) -> Result<SceneReport, SceneError> {
+    let left = ObligationRef::new("Northwind Freight", "80.00", "USD").with_bill_id("BILL-4417");
+    let right = ObligationRef::new("Northwind Freight", "80.00", "USD").with_bill_id("BILL-4417-b");
+    let exact = verdict_label(exact_match(&left, &right));
+    let fuzzy = verdict_label(fuzzy_match(&left, &right));
+    let (jev, reason, summary) = match outcome {
+        ForcedOutcome::Different => (
+            "Different",
+            None,
+            "scene double-pay: Jev Different; double-pay not raised",
+        ),
+        ForcedOutcome::Unknown => (
+            "Unknown",
+            None,
+            "scene double-pay: Jev Unknown; verdict Inconclusive",
+        ),
+        ForcedOutcome::Timeout => (
+            "Unknown",
+            Some("timeout"),
+            "scene double-pay: Jev timeout; verdict Inconclusive",
+        ),
+        ForcedOutcome::Same => {
+            return Err(SceneError::Check(
+                "Same force uses the replay double-pay".to_owned(),
+            ));
+        }
+    };
+    let detail = if jev == "Different" {
+        "Jev Different keeps the second payment off this bill"
+    } else {
+        "Jev did not accept the pair"
+    };
+    let id = Uuid::new_v5(
+        &Uuid::from_u128(0x6c65_6467_6572_5f73_6365_6e65_0003),
+        outcome.as_str().as_bytes(),
+    );
+    let at = day(1, 0);
+    let evidence_text = format!("exact {exact}; fuzzy {fuzzy}; jev {jev}; {detail}");
+    store
+        .insert_verdict(&Verdict {
+            id,
+            recorded_at: at,
+            outcome: StoredOutcome::Inconclusive,
+            spec_id: "ledger.binding.double-pay".to_owned(),
+            reason_code: Some("binding-comparison".to_owned()),
+            evidence: serde_json::json!({
+                "binding": "BILL-4417|BILL-4417-b",
+                "title": "inconclusive",
+                "evidence": evidence_text,
+                "timeline": [{
+                    "eventId": id.to_string(),
+                    "observedAt": at.to_rfc3339(),
+                    "source": "exchange",
+                    "kind": "ledger.binding.alias",
+                    "role": "comparison"
+                }],
+                "comparison": {
+                    "exact": { "outcome": exact },
+                    "fuzzy": { "outcome": fuzzy },
+                    "jev": binding_line(jev, reason)
+                },
+                "scene": "double-pay"
+            }),
+        })
+        .await?;
+    report(
+        "double-pay",
+        summary.to_owned(),
+        vec![VerdictSnap {
+            spec_id: "ledger.binding.double-pay".to_owned(),
+            binding: "BILL-4417|BILL-4417-b".to_owned(),
+            outcome: "Inconclusive".to_owned(),
+            reason: "binding-comparison".to_owned(),
+            roles: vec!["comparison".to_owned()],
+        }],
+        Vec::new(),
+        Vec::new(),
+    )
+}
+
 async fn hidden_memo(store: &Store, mode: &JevMode) -> Result<SceneReport, SceneError> {
     let request = panel_request(BILL_MEMO_SOURCE, INSTRUCTION_MEMO);
     let body = mode.respond(&request)?;
@@ -529,10 +624,14 @@ async fn vendor_alias(store: &Store, mode: &JevMode) -> Result<SceneReport, Scen
     let left = ObligationRef::new("Landlord LLC", "500.00", "USD");
     let right = ObligationRef::new("Landlord L.L.C.", "500.00", "USD");
     let request = binding_request(&left, &right);
-    let body = mode.respond(&request)?;
+    let (jev, jev_reason) = match mode.respond(&request) {
+        Ok(body) => (verdict_label(map_binding_body(&body)), None),
+        Err(SceneError::Jev(JevCallFailure::Timeout)) => ("Unknown", Some("timeout")),
+        Err(SceneError::Jev(_)) => ("Unknown", Some("jev-error")),
+        Err(error) => return Err(error),
+    };
     let exact = verdict_label(exact_match(&left, &right));
     let fuzzy = verdict_label(fuzzy_match(&left, &right));
-    let jev = verdict_label(map_binding_body(&body));
     let binding = "Landlord LLC|Landlord L.L.C.";
     let id = Uuid::new_v5(
         &Uuid::from_u128(0x6c65_6467_6572_5f73_6365_6e65_0002),
@@ -554,7 +653,7 @@ async fn vendor_alias(store: &Store, mode: &JevMode) -> Result<SceneReport, Scen
         "comparison": {
             "exact": { "outcome": exact },
             "fuzzy": { "outcome": fuzzy },
-            "jev": { "outcome": jev }
+            "jev": binding_line(jev, jev_reason)
         },
         "scene": "vendor-alias"
     });
@@ -708,6 +807,8 @@ async fn recurring(store: &Store) -> Result<SceneReport, SceneError> {
             verdicts.len()
         )));
     }
+    let mut verdicts = verdicts;
+    verdicts.push(recurring_comparison(store).await?);
     report(
         "recurring",
         "scene recurring: expect 52 weekly 500.00 USD landlord bills; Violate 0; monitors flat at 0"
@@ -778,6 +879,13 @@ async fn gc_soak(store: &Store) -> Result<SceneReport, SceneError> {
             "gc-soak live {live} would-be {opened}"
         )));
     }
+    let duplicate = uncertain_close(store, &mut desk, base).await?;
+    if desk.live_count() != 15 {
+        return Err(SceneError::Check(format!(
+            "uncertain close changed the live count to {}",
+            desk.live_count()
+        )));
+    }
     let tail = &samples[samples.len().saturating_sub(3)..];
     if tail.len() < 3 || tail.iter().any(|sample| sample.live != 15) {
         return Err(SceneError::Check(
@@ -805,7 +913,7 @@ async fn gc_soak(store: &Store) -> Result<SceneReport, SceneError> {
     report(
         "gc-soak",
         format!("scene gc-soak: expect live monitors flat at {live} against would-be {opened}"),
-        Vec::new(),
+        vec![duplicate],
         samples,
         Vec::new(),
     )
@@ -1007,6 +1115,177 @@ fn signatures_of(events: &[ledger_store::Event]) -> Vec<String> {
     found
 }
 
+fn binding_line(outcome: &str, reason: Option<&str>) -> serde_json::Value {
+    match reason {
+        Some(code) => serde_json::json!({ "outcome": outcome, "reasonCode": code }),
+        None => serde_json::json!({ "outcome": outcome }),
+    }
+}
+
+async fn recurring_comparison(store: &Store) -> Result<VerdictSnap, SceneError> {
+    let rent = baseline_cases()
+        .into_iter()
+        .find(|case| case.id == "recurring-rent")
+        .ok_or_else(|| SceneError::Check("recurring-rent case is missing".to_owned()))?;
+    let request = binding_request(&rent.left, &rent.right);
+    let body = ReplayCatalog::load_default()?.require(&request)?.to_owned();
+    let exact = verdict_label(exact_match(&rent.left, &rent.right));
+    let fuzzy = verdict_label(fuzzy_match(&rent.left, &rent.right));
+    let jev = verdict_label(map_binding_body(&body));
+    if exact != "Different" || fuzzy != "Same" || jev != "Different" {
+        return Err(SceneError::Check(format!(
+            "recurring comparison exact {exact} fuzzy {fuzzy} jev {jev}"
+        )));
+    }
+    let id = Uuid::new_v5(
+        &Uuid::from_u128(0x6c65_6467_6572_5f73_6365_6e65_0004),
+        b"recurring-rent",
+    );
+    let at = day(4, 0);
+    let evidence = format!(
+        "exact {exact}; fuzzy {fuzzy}; jev {jev}; weekly rent is a later period of the same vendor and amount, and a distinct bill, so this is not a second payment"
+    );
+    store
+        .insert_verdict(&Verdict {
+            id,
+            recorded_at: at,
+            outcome: StoredOutcome::Inconclusive,
+            spec_id: "ledger.binding.recurring".to_owned(),
+            reason_code: Some("binding-comparison".to_owned()),
+            evidence: serde_json::json!({
+                "binding": "bill-operating-00003|bill-operating-00018",
+                "title": "recurring",
+                "evidence": evidence,
+                "timeline": [{
+                    "eventId": id.to_string(),
+                    "observedAt": at.to_rfc3339(),
+                    "source": "exchange",
+                    "kind": "ledger.binding.alias",
+                    "role": "comparison"
+                }],
+                "comparison": {
+                    "exact": { "outcome": exact },
+                    "fuzzy": { "outcome": fuzzy },
+                    "jev": { "outcome": jev }
+                },
+                "scene": "recurring"
+            }),
+        })
+        .await?;
+    Ok(VerdictSnap {
+        spec_id: "ledger.binding.recurring".to_owned(),
+        binding: "bill-operating-00003|bill-operating-00018".to_owned(),
+        outcome: "Inconclusive".to_owned(),
+        reason: "binding-comparison".to_owned(),
+        roles: vec!["comparison".to_owned()],
+    })
+}
+
+async fn uncertain_close(
+    store: &Store,
+    desk: &mut MonitorDesk,
+    base: i64,
+) -> Result<VerdictSnap, SceneError> {
+    let key = "scene-gc-held-0";
+    let decision = consider_close_memo(
+        desk,
+        key,
+        "Credit memo, possibly applied to another invoice",
+        Err(JevCallFailure::Timeout),
+        i128::from(base + 701),
+    )?;
+    if !matches!(decision, Decision::Kept { .. }) || !desk.is_live(key) {
+        return Err(SceneError::Check(
+            "Jev timeout retired the monitor".to_owned(),
+        ));
+    }
+    push_duplicate(desk, key)?;
+    if !desk.is_live(key) || desk.absence_outcome(key)? != DeskOutcome::Violate {
+        return Err(SceneError::Check(
+            "a later duplicate was not caught after the uncertain close".to_owned(),
+        ));
+    }
+    let id = Uuid::new_v5(
+        &Uuid::from_u128(0x6c65_6467_6572_5f73_6365_6e65_0005),
+        key.as_bytes(),
+    );
+    let at = day(10, 701);
+    store
+        .insert_verdict(&Verdict {
+            id,
+            recorded_at: at,
+            outcome: StoredOutcome::Violate,
+            spec_id: "ledger.bill.no-second-payment".to_owned(),
+            reason_code: Some("second-payment".to_owned()),
+            evidence: serde_json::json!({
+                "binding": key,
+                "title": "needs review",
+                "evidence": "Jev close was Unknown. The monitor stayed live, and the later duplicate is needs review.",
+                "timeline": [{
+                    "eventId": id.to_string(),
+                    "observedAt": at.to_rfc3339(),
+                    "source": "exchange",
+                    "kind": "ledger.exchange.payment",
+                    "role": "second-payment"
+                }],
+                "scene": "gc-soak"
+            }),
+        })
+        .await?;
+    Ok(VerdictSnap {
+        spec_id: "ledger.bill.no-second-payment".to_owned(),
+        binding: key.to_owned(),
+        outcome: "Violate".to_owned(),
+        reason: "second-payment".to_owned(),
+        roles: vec!["second-payment".to_owned()],
+    })
+}
+
+fn push_duplicate(desk: &mut MonitorDesk, bill: &str) -> Result<(), SceneError> {
+    let agent = AgentId::new("payer")?;
+    let bill_id = BillId::new(bill)?;
+    let steps = [
+        ("gc-uncertain-pay", LedgerKind::AgentPayBill, 10, None),
+        (
+            "gc-uncertain-settled",
+            LedgerKind::ObligationSettled,
+            20,
+            Some("gc-uncertain-pay"),
+        ),
+        (
+            "gc-uncertain-again",
+            LedgerKind::AgentPayBill,
+            30,
+            Some("gc-uncertain-settled"),
+        ),
+        (
+            "gc-uncertain-extra",
+            LedgerKind::ExtraPayment,
+            40,
+            Some("gc-uncertain-again"),
+        ),
+        (
+            "gc-uncertain-credit",
+            LedgerKind::Credit,
+            50,
+            Some("gc-uncertain-extra"),
+        ),
+    ];
+    for (id, kind, at, predecessor) in steps {
+        let predecessors: Vec<String> = predecessor.into_iter().map(str::to_owned).collect();
+        let event = LedgerEvent::new(
+            id,
+            kind,
+            bill_id.clone(),
+            agent.clone(),
+            Times::at(at),
+            predecessors,
+        )?;
+        desk.push(event)?;
+    }
+    Ok(())
+}
+
 fn verdict_label(verdict: BindingVerdict) -> &'static str {
     match verdict {
         BindingVerdict::Same => "Same",
@@ -1045,6 +1324,14 @@ fn verdict_id(spec: &str, binding: &str, outcome: &str, reason: Option<&str>) ->
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn landlord_alias_baselines_are_different() {
+        let left = ObligationRef::new("Landlord LLC", "500.00", "USD");
+        let right = ObligationRef::new("Landlord L.L.C.", "500.00", "USD");
+        assert_eq!(exact_match(&left, &right), BindingVerdict::Different);
+        assert_eq!(fuzzy_match(&left, &right), BindingVerdict::Different);
+    }
 
     #[test]
     fn force_is_ignored_unless_the_test_api_is_on() {

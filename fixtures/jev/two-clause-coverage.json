@@ -1,0 +1,1 @@
+{"answers":{"clause_0":{"choice":"same","probabilities":{"different":0.09,"same":0.91},"type":"choice"},"clause_1":{"choice":"different","probabilities":{"different":0.92,"same":0.08},"type":"choice"}},"model":"jev-test"}

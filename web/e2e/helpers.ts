@@ -6,6 +6,12 @@ export async function reset(request: APIRequestContext): Promise<void> {
   expect(response.ok(), body).toBeTruthy();
 }
 
+export async function forceJev(request: APIRequestContext, outcome: string): Promise<void> {
+  const response = await request.post("/api/test/jev", { data: { outcome } });
+  const body = await response.text();
+  expect(response.ok(), body).toBeTruthy();
+}
+
 export async function runScene(request: APIRequestContext, name: string): Promise<void> {
   const response = await request.post(`/api/test/scenes/${name}`);
   const body = await response.text();

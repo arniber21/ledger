@@ -2417,6 +2417,7 @@ dependencies = [
  "ledger-core",
  "ledger-ingest",
  "ledger-jev",
+ "ledger-spec",
  "ledger-store",
  "rust_decimal",
  "serde",
